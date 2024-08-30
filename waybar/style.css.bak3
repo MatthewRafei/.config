@@ -1,0 +1,170 @@
+/* Global Styles */
+* {
+    border: none;
+    border-radius: 5px; /* Slightly rounded corners */
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-weight: bold;
+    font-size: 12px; /* Slightly larger font size for better readability */
+    min-height: 0;
+    transition: 0.3s;
+}
+
+/* Waybar */
+window#waybar {
+    background: rgba(34, 34, 59, 0.9); /* Dark blue background */
+    color: #e0e0e0; /* Light gray text */
+}
+
+/* Tooltip */
+tooltip {
+    background: #2a2a3c; /* Darker blue background */
+    border-radius: 8px;
+    border: 1px solid #44475a; /* Slightly lighter border */
+    transition: 0.3s;
+}
+
+/* Workspaces */
+#workspaces {
+    background: #2a2a3c;
+    border-radius: 25px; /* More rounded corners */
+    margin-left: 0px;
+    padding: 5px 15px; /* Added padding for better spacing */
+}
+
+#workspaces button {
+    padding: 7px 12px; /* Increased padding for better button size */
+    color: #e0e0e0;
+    margin-right: 5px;
+    border-radius: 5px; /* Slightly rounded button corners */
+    background: #3b3b5f; /* Slightly lighter background */
+}
+
+#workspaces button.active {
+    color: #ffffff;
+    background: #5c5c8a; /* Subtle highlight */
+}
+
+#workspaces button.focused {
+    color: #ffffff;
+    /*background: #6c5b9e;*/ /* Purple background */
+}
+
+#workspaces button.urgent {
+    color: #ffffff;
+    background: #8a2be2; /* Bright purple */
+}
+
+#workspaces button:hover {
+    background: #43446a; /* Hover effect */
+    color: #ffffff;
+}
+
+/* Custom Elements */
+#custom-power_profile,
+#custom-weather,
+#window,
+#clock,
+#mpd,
+#battery,
+#pulseaudio,
+#network,
+#bluetooth,
+#temperature,
+#workspaces,
+#tray,
+#backlight {
+    background: #2a2a3c;
+    opacity: 0.9; /* Slightly less transparent */
+    padding: 8px 12px; /* Consistent padding */
+    margin: 0;
+    margin-top: 5px;
+    border: 1px solid #383a5e; /* Darker border for contrast */
+}
+
+/* Temperature */
+#temperature {
+    border-radius: 25px 0 0 25px; /* Rounded left corners */
+}
+
+#temperature.critical {
+    color: #ff6f61; /* Alert red color */
+}
+
+/* Backlight */
+#backlight {
+    border-radius: 25px 0 0 25px; /* Consistent with temperature */
+    padding-left: 10px; /* More padding for consistency */
+}
+
+/* Tray */
+#tray {
+    border-radius: 25px;
+    margin-right: 5px;
+    padding: 0px 8px; /* Added padding */
+}
+
+/* Clock */
+#clock {
+    color: #f8f8f2; /* Soft off-white */
+    border-radius: 25px;
+    margin-left: 5px;
+    border-right: 0;
+    transition: 0.3s;
+    padding-left: 10px; /* Increased padding */
+}
+
+/* MPD */
+#mpd {
+    color: #5bc0de; /* Bright cyan */
+    border-radius: 25px;
+    margin-left: 5px;
+    border-right: 0;
+    transition: 0.3s;
+    padding-left: 10px; /* Consistent padding */
+}
+
+/* Network */
+#network {
+    color: #e2e2e2;
+    border-radius: 25px 0 0 25px;
+    border-left: 0;
+    border-right: 0;
+}
+
+/* Bluetooth */
+#bluetooth {
+    color: #8a2be2; /* Matching purple */
+    border-radius: 25px;
+    margin-right: 10px;
+}
+
+/* Pulseaudio */
+#pulseaudio {
+    color: #8a2be2; /* Matching blue */
+    border-left: 0;
+    border-right: 0;
+}
+
+#pulseaudio.microphone {
+    color: #cba6f7; /* Light purple */
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0 25px 25px 0;
+    margin-right: 5px;
+    padding-right: 10px; /* Consistent padding */
+}
+
+/* Battery */
+#battery {
+    color: #5bc0de; /* Consistent with MPD */
+    border-radius: 0 25px 25px 0;
+    margin-right: 5px;
+    border-left: 0;
+}
+
+/* Custom Weather */
+#custom-weather {
+    border-radius: 25px;
+    border-right: 0;
+    margin-left: 0;
+}

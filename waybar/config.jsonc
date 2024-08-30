@@ -6,7 +6,6 @@
     "passthrough": false,
     "gtk-layer-shell": true,
     "height": 38,
-    //"modules-left": ["clock"],
     "modules-left": ["hyprland/workspaces", "clock"],
     "modules-center": ["mpd"],
     "modules-right": ["temperature","battery","backlight","pulseaudio","pulseaudio#microphone","tray"],
@@ -56,8 +55,8 @@
     },
 
     "clock": {
-        "format": "{: %I:%M %p   %a, %b %e}",
-        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
+        "format": " {0:%I:%M:%S}    {0:%F}",
+        "interval": 1,                  
     },
 
 
@@ -158,11 +157,11 @@
     },
 
     "bluetooth": {
-	    "format": " {status}",
-	    "format-disabled": "", // an empty format will hide the module
-	    "format-connected": " {num_connections}",
-	    "tooltip-format": "{device_alias}",
-	    "tooltip-format-connected": " {device_enumerate}",
-	    "tooltip-format-enumerate-connected": "{device_alias}"
+            "format": " {status}",
+            "format-disabled": "", // an empty format will hide the module
+            "format-connected": " {num_connections}",
+            "tooltip-format": "{device_alias}",
+            "tooltip-format-connected": " {device_enumerate}",
+            "tooltip-format-enumerate-connected": "{device_alias}"
     }
 }
