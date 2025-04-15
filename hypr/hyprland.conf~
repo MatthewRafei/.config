@@ -18,9 +18,9 @@ exec-once = nm-applet
 
 # XWayland
 # unscale XWayland
-#xwayland {
-#  force_zero_scaling = true
-#}
+xwayland {
+  force_zero_scaling = true
+}
 
 #monitor=HDMI-A-1, 1920x1080@60,0x0,1
 #monitor=DP-1, 2560x1440@144, 1920x0, 1
@@ -33,31 +33,31 @@ monitor=eDP-1, 1920x1200@60, 1920x0, 1
 
 
 # toolkit-specific scale
-#env = GDK_SCALE,1
+env = GDK_SCALE,1
 # Some default env vars.
 env = XCURSOR_SIZE,24
 
-#env = MOZ_ENABLE_WAYLAND=1 firefox
+env = MOZ_ENABLE_WAYLAND=1 firefox
 
 # Use wayland backend when possible fallback to X11 when you can't
-#env = GDK_BACKEND=wayland,x11
-#env = QT_QPA_PLATFORM="wayland;xcb"
-#env = SDL_VIDEODRIVER=wayland
-#env = CLUTTER_BACKEND=wayland
+env = GDK_BACKEND=wayland,x11
+env = QT_QPA_PLATFORM="wayland;xcb"
+env = SDL_VIDEODRIVER=wayland
+env = CLUTTER_BACKEND=wayland
 
 # XDG
-#env = XDG_CURRENT_DESKTOP=Hyprland
-#env = XDG_SESSION_TYPE=wayland
-#env = XDG_SESSION_DESKTOP=Hyprland
+env = XDG_CURRENT_DESKTOP=Hyprland
+env = XDG_SESSION_TYPE=wayland
+env = XDG_SESSION_DESKTOP=Hyprland
 
 # QT
-#env = QT_AUTO_SCREEN_SCALE_FACTOR=1
-#env = QT_QPA_PLATFORM=wayland;xcb
-#env = QT_QPA_PLATFORMTHEME=qt5ct
+env = QT_AUTO_SCREEN_SCALE_FACTOR=1
+env = QT_QPA_PLATFORM=wayland;xcb
+env = QT_QPA_PLATFORMTHEME=qt5ct
 
 # Authentication Agent
 # Authentication agents are the things that pop up a window asking you for a password whenever an app wants to elevate its privileges. 
-#exec-once=/usr/lib/polkit-kde-authentication-agent-1
+exec-once=/usr/lib/polkit-kde-authentication-agent-1
 
 # cliphist for clipboard stuff
 exec-once = wl-paste --type text --watch cliphist store #Stores only text data
@@ -73,8 +73,7 @@ exec-once = wl-paste --type image --watch cliphist store #Stores only image data
 exec-once = waybar
 #exec-once = sleep 1; swww init
 #exec-once = wpaperd
-# exec-once = hyprpaper
-exec-once = waypaper --restore
+exec-once = hyprpaper
 # Source a file (multi-file configs)
 # source = ~/.config/hypr/myColors.conf
 
@@ -113,46 +112,47 @@ general {
 
 decoration {
     # See https://wiki.hyprland.org/Configuring/Variables/ for more
+
     rounding = 5
     
     blur {
         enabled = true
-        new_optimizations = true
+        new_optimizations = false
         size = 3
         passes = 1
     }
 
-#    drop_shadow = true
-#    shadow_range = 4
-#    shadow_render_power = 3
-#    col.shadow = rgba(1a1a1aee)
+    drop_shadow = true
+    shadow_range = 4
+    shadow_render_power = 3
+    col.shadow = rgba(1a1a1aee)
 }
 
-# animations {
-#     enabled = yes
+animations {
+    enabled = yes
 
-#     # Some default animations, see https://wiki.hyprland.org/Configuring/Animations/ for more
-#     bezier = myBezier, 0.05, 0.9, 0.1, 1.05
+    # Some default animations, see https://wiki.hyprland.org/Configuring/Animations/ for more
+    bezier = myBezier, 0.05, 0.9, 0.1, 1.05
 
-#     animation = windows, 1, 7, myBezier
-#     animation = windowsOut, 1, 7, default, popin 80%
-#     animation = border, 1, 10, default
-#     animation = borderangle, 1, 8, default
-#     animation = fade, 1, 7, default
-#     animation = workspaces, 1, 6, default
-# }
+    animation = windows, 1, 7, myBezier
+    animation = windowsOut, 1, 7, default, popin 80%
+    animation = border, 1, 10, default
+    animation = borderangle, 1, 8, default
+    animation = fade, 1, 7, default
+    animation = workspaces, 1, 6, default
+}
 
 misc {
     disable_hyprland_logo = true
     disable_splash_rendering = true
     # since it’ll lower the amount of sent frames when nothing is happening on-screen.
-    #vfr = true
+    vfr = true
 }
 
 debug {
     # redraw only the needed bits of the display. Do not change. 
     # (default: full - 2) monitor - 1, none - 0
-    #damage_tracking = 0
+    damage_tracking = 2
 }
 
 dwindle {
@@ -192,7 +192,7 @@ bind = $mainMod, Q, killactive
 bind = $mainMod SHIFT, F, fullscreen
 bind = $mainMod, W, exec, firefox
 bind = $mainMod, return, exec, ghostty
-bind = $mainMod SHIFT, W, exec, waypaper --random
+bind = $mainMod SHIFT, W, exec, ghostty -e nmtui
 bind = $mainMod, escape, exit 
 bind = $mainMod, R, exec, ghostty -e vifm
 bind = $mainMod, V, togglefloating,
@@ -207,7 +207,7 @@ bind = $mainMod, comma, exec, mpc prev
 bind = $mainMod, bracketright, exec, mpc seek +5
 bind = $mainMod, bracketleft, exec, mpc seek -5
 bind = $mainMod, J, togglesplit, # dwindle
-bind = $mainMod, L, exec, hyprlock
+bind = $mainMod, L, exec, swaylock --clock --indicator --timestr "%I:%M %p" --effect-blur 5x5 --screenshot --indicator-radius 100 --indicator-thickness 7
 
 # Screenshots
 bind = $mainMod, S, exec, grim -g "$(slurp)" ~/Screenshots/$(date +'%s_grim.png')

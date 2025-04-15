@@ -15,14 +15,13 @@ window#waybar {
     color: #cdd6f4;
 }
 
-/* Tooltip 
+/* Tooltip */
 tooltip {
     background: #1e1e2e;
     border-radius: 8px;
     border: 1.5px solid #11111b;
     transition: 0.3s;
 }
-*/
 
 /* Workspaces */
 #workspaces {
@@ -51,7 +50,7 @@ tooltip {
 #workspaces button.urgent {
     color: #11111b;
     background: #a6e3a1;
-    border-radius: 5px;
+    border-radius: 1px;
 }
 
 
