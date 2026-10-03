@@ -817,11 +817,20 @@ PanelWindow {
 
         Divider {}
 
-        // cpu · mem in one chip; click = HUD with the full graphs
+        // cpu and ram; click either = HUD with the full graphs
         Chip {
-            icon: "󰍛"
-            value: Math.round(bar.cpu * 100) + "% · " + Math.round(bar.mem * 100) + "%"
-            accent: bar.cpu > 0.9 || bar.mem > 0.9 ? Theme.danger : Theme.text
+            icon: "󰻠"
+            value: Math.round(bar.cpu * 100) + "%"
+            gauge: bar.cpu
+            accent: bar.cpu > 0.9 ? Theme.danger : Theme.text
+            onClicked: Quickshell.execDetached(["qs", "ipc", "call", "hud", "toggle"])
+        }
+
+        Chip {
+            icon: "\uefc5"     // RAM stick (nf-fa-memory)
+            value: Math.round(bar.mem * 100) + "%"
+            gauge: bar.mem
+            accent: bar.mem > 0.9 ? Theme.danger : Theme.text
             onClicked: Quickshell.execDetached(["qs", "ipc", "call", "hud", "toggle"])
         }
 
