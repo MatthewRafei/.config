@@ -200,7 +200,7 @@ def list_apk():
         if "base" in p:
             continue
         extra = F + "  +" + str(len(p["subs"])) + RESET if p.get("subs") else ""
-        line("apk", n, mark(n in inst) + T + n.ljust(28) + RESET + " " + D + p.get("description", "") + RESET + extra)
+        line("apk", n, mark(n in inst) + T + n.ljust(26) + RESET + " " + D + p.get("description", "") + RESET + extra)
 
 
 def list_family(base):
@@ -243,6 +243,8 @@ def do_list(tab):
 
 # ------------------------------------------------------------------ preview
 def preview(tab, key):
+    """Compact details strip under the list (about 6 lines)."""
+    dot = F + "  ·  " + RESET
     if tab == "flatpak" or key.startswith("flatpak:"):
         i = key.split(":", 1)[-1]
         a = flatpak_data().get(i)
@@ -250,38 +252,35 @@ def preview(tab, key):
             print(D + i + RESET)
             return
         inst = i in flatpak_installed()
-        print(BOLD + T + a["name"] + RESET + "  " + (OK + "✓ installed" if inst else F + "not installed") + RESET)
-        print(F + i + RESET + "\n")
-        print(T + a["description"] + RESET + "\n")
-        for k, v in (("version", a["version"] or "—"), ("remote", a["remote"] or "—")):
-            print(F + k.upper().ljust(10) + RESET + T + v + RESET)
-        print("\n" + F + ("enter: install" if tab == "flatpak" else "enter: remove") + RESET)
+        print(BOLD + T + a["name"] + RESET + "  " + A + (a["version"] or "") + RESET + dot
+              + (OK + "✓ installed" if inst else F + "not installed") + RESET)
+        print(T + a["description"] + RESET)
+        print(F + "id    " + RESET + D + i + RESET + dot + F + "remote " + RESET + D + (a["remote"] or "—") + RESET)
         return
 
     name = key.split(":", 1)[-1]
-    p = apk_data().get(name)
+    pkgs = apk_data()
+    p = pkgs.get(name)
     if not p:
         print(D + name + " (not in the repository index)" + RESET)
         return
-    inst = name in apk_installed()
-    print(BOLD + T + name + RESET + "  " + A + p.get("version", "") + RESET + "  "
-          + (OK + "✓ installed" if inst else F + "not installed") + RESET)
-    print("\n" + T + p.get("description", "") + RESET + "\n")
+    inst = apk_installed()
+    lic = p.get("license") or "—"
+    print(BOLD + T + name + RESET + "  " + A + p.get("version", "") + RESET + dot
+          + (OK + "✓ installed" if name in inst else F + "not installed") + RESET + dot
+          + D + human(p.get("installed-size") or 0) + RESET + dot
+          + D + (lic if len(lic) <= 40 else lic[:39] + "…") + RESET)
+    print(T + p.get("description", "") + RESET)
+    print(F + "web   " + RESET + D + (p.get("url") or "—") + RESET)
     deps = [d for d in p.get("depends", []) if not d.startswith(("so:", "cmd:", "pc:", "py3."))]
-    rows = [("website", p.get("url") or "—"),
-            ("license", p.get("license") or "—"),
-            ("size", human(p.get("installed-size") or 0)),
-            ("depends", ", ".join(deps) or "—")]
+    if deps:
+        print(F + "needs " + RESET + D + ", ".join(deps) + RESET)
     if p.get("base"):
-        rows.append(("part of", p["base"]))
-    for k, v in rows:
-        print(F + k.upper().ljust(10) + RESET + T + v + RESET)
+        print(F + "part of " + RESET + D + p["base"] + RESET)
     subs = p.get("subs", [])
     if subs:
-        print("\n" + F + "SUB-PACKAGES  (ctrl-e)" + RESET)
-        for s in subs:
-            print("  " + (OK + "✓ " if s in apk_installed() else "  ") + D + s + RESET)
-    print("\n" + F + ("enter: remove" if tab == "installed" else "enter: install") + RESET)
+        print(F + "sub   " + RESET + ", ".join((OK + "✓ " + RESET if x in inst else "") + D + x + RESET for x in subs)
+              + F + "   (ctrl-e)" + RESET)
 
 
 # ------------------------------------------------------------------ fzf glue
@@ -303,17 +302,23 @@ def header_for(tab):
     tabs = "  ".join((BOLD + A + "[" + names[t] + "]" + RESET) if t == cur else (F + " " + names[t] + " " + RESET)
                      for t in TABS)
     if tab.startswith("fam:"):
-        keys = "enter install · ctrl-e/esc back to all packages"
+        return tabs + F + "    sub-packages of " + RESET + A + tab[4:] + RESET
+    return tabs
+
+
+def footer_for(tab):
+    if tab.startswith("fam:"):
+        keys = "enter install · tab mark · ctrl-e/esc back"
     elif tab == "installed":
-        keys = "enter remove · tab mark · ctrl-u update all · ctrl-r refresh"
+        keys = "enter remove · tab mark · ctrl-u update all · ctrl-r refresh · alt-1/2/3 tabs"
     else:
-        keys = "enter install · tab mark · ctrl-e sub-packages · ctrl-u update all · ctrl-r refresh"
-    return tabs + "   " + F + keys + RESET
+        keys = "enter install · tab mark · ctrl-e sub-packages · ctrl-u update all · ctrl-r refresh · alt-1/2/3 tabs"
+    return " " + F + keys + RESET + " "
 
 
 def switch_to(tab):
-    return ("reload(%s list %s)+change-prompt(%s)+change-header(%s)+first+clear-query"
-            % (shlex.quote(SELF), shlex.quote(tab), prompt_for(tab), header_for(tab)))
+    return ("reload(%s list %s)+change-prompt(%s)+change-header(%s)+change-preview-label(%s)+first+clear-query"
+            % (shlex.quote(SELF), shlex.quote(tab), prompt_for(tab), header_for(tab), footer_for(tab)))
 
 
 def transform(what, key=""):
@@ -416,9 +421,10 @@ def ui():
         "fzf", "--ansi", "--multi", "--layout=reverse", "--info=inline-right",
         "--delimiter=\t", "--with-nth=3", "--tiebreak=begin,length",
         "--prompt", prompt_for("apk"), "--header", header_for("apk"), "--header-first",
+        "--preview-label", footer_for("apk"), "--preview-label-pos", "3",
         "--pointer=▌", "--marker=+", "--no-scrollbar", "--color", colors,
         "--preview", me + " preview {1} {2}",
-        "--preview-window", "right,46%,wrap,border-left",
+        "--preview-window", "down,7,wrap,border-top",
         "--bind", "enter:execute(%s act {1} {+2})+%s" % (me, reload_cur),
         "--bind", "ctrl-e:transform(%s transform expand {2})" % me,
         "--bind", "esc:transform(%s transform esc)" % me,

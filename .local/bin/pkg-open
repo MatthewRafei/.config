@@ -7,4 +7,4 @@ for w in json.load(sys.stdin):
 if [ -n "$id" ]; then
     exec niri msg action close-window --id "$id"
 fi
-exec alacritty --class pkg-finder -T "pkg" -o window.padding.x=14 -o window.padding.y=12 -e "$HOME/.local/bin/pkg"
+exec alacritty --class pkg-finder -T "pkg" -o window.padding.x=16 -o window.padding.y=14 -o window.opacity=0.97 -e "$HOME/.local/bin/pkg"
