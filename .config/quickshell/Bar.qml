@@ -5,6 +5,7 @@ import Quickshell.Widgets
 import Quickshell.Services.Pipewire
 import Quickshell.Services.Mpris
 import Quickshell.Services.SystemTray
+import Quickshell.Bluetooth
 import QtQuick
 
 // Top bar (replaces waybar). Same HUD language as TelemetryHud.
@@ -771,13 +772,37 @@ PanelWindow {
             }
         }
 
-        // wifi: click = settings window
+        // wifi: click = quick dropdown (QuickPanel.qml), right-click = settings
         Chip {
             label: "NET"
             value: bar.ssid !== "" ? bar.ssid : "OFFLINE"
             gauge: bar.ssid !== "" ? bar.signal / 100 : -1
             accent: bar.ssid !== "" ? Theme.text : Theme.danger
-            onClicked: Quickshell.execDetached(["qs", "ipc", "call", "settings", "toggle"])
+            onClicked: mouse => Quickshell.execDetached(mouse.button === Qt.RightButton
+                ? ["qs", "ipc", "call", "settings", "toggle"]
+                : ["qs", "ipc", "call", "quick", "net"])
+        }
+
+        // bluetooth: click = quick dropdown, right-click = toggle power
+        Chip {
+            readonly property var adapter: Bluetooth.defaultAdapter
+            readonly property var connected: adapter
+                ? adapter.devices.values.filter(d => d.connected) : []
+
+            visible: adapter !== null
+            label: "BT"
+            value: !adapter || !adapter.enabled ? "OFF"
+                 : connected.length > 0 ? (connected[0].name || "1 DEVICE")
+                 : "ON"
+            accent: adapter && adapter.enabled && connected.length > 0 ? Theme.accent
+                  : adapter && adapter.enabled ? Theme.text
+                  : Theme.textFaint
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton && adapter)
+                    adapter.enabled = !adapter.enabled
+                else
+                    Quickshell.execDetached(["qs", "ipc", "call", "quick", "bt"])
+            }
         }
 
         Divider {}

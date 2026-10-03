@@ -15,4 +15,5 @@ ShellRoot {
     NotificationCenter {}
     Lock {}
     PowerMenu {}
+    QuickPanel {}
 }
