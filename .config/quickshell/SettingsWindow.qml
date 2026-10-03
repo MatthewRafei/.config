@@ -14,7 +14,8 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.showing ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    // take the keyboard while open so Esc works without clicking in first
+    WlrLayershell.keyboardFocus: root.showing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // Only actually grab input/paint when open - mirrors the OSD's mask trick
     // so the window is a no-op on the compositor while closed.
@@ -60,7 +61,15 @@ PanelWindow {
         color: "transparent"
 
         focus: root.showing
-        Keys.onEscapePressed: root.hide()
+
+        // Esc closes from anywhere in the window, even while a text field
+        // (e.g. a Wi-Fi password) has focus
+        Shortcut {
+            sequence: "Escape"
+            enabled: root.showing
+            context: Qt.WindowShortcut
+            onActivated: root.hide()
+        }
 
         MouseArea {
             anchors.fill: parent
