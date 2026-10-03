@@ -7,7 +7,7 @@
 #
 # Colours come from [palettes.wallpaper] at the bottom, which
 # ~/.config/theme/wallpaper-theme rewrites whenever the wallpaper changes.
-# Previous config: ~/.config/starship.toml.bak-2026-10-02
+# Previous config: ~/.local/share/dotfile-backups/2026-10-02/.config/starship.toml.bak-2026-10-02
 
 palette = "wallpaper"
 add_newline = true
