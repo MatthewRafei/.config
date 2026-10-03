@@ -895,17 +895,22 @@ PanelWindow {
             }
         }
 
-        Divider { visible: SystemTray.items.values.length > 0 }
+        Divider { visible: tray.items.length > 0 }
 
-        // tray
+        // tray (apps listed in `hidden` keep running, just without an icon;
+        // blueman stays for its pairing prompts, the BT chip replaces its icon)
         Row {
+            id: tray
+            readonly property var hidden: ["blueman"]
+            readonly property var items: SystemTray.items.values.filter(i => hidden.indexOf(i.id) < 0)
+
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
             leftPadding: 6
             rightPadding: 6
 
             Repeater {
-                model: SystemTray.items
+                model: tray.items
 
                 Item {
                     id: trayItem

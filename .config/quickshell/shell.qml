@@ -1,3 +1,4 @@
+//@ pragma UseQApplication
 import Quickshell
 
 // Entry point. Quickshell always loads this file first.
