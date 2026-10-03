@@ -7,7 +7,7 @@ import QtQuick
 // Lock screen (ext-session-lock, so niri keeps the session locked even if
 // this process dies) with PAM password auth via pam/password.conf.
 //
-//   qs ipc call lock lock       lock now (bound to Super+Alt+L in niri)
+//   qs ipc call lock lock       lock now (bound to Mod+Shift+L in niri)
 //   qs ipc call lock preview    show the UI in a normal window (Esc closes)
 //
 // Locks automatically after 10 minutes idle; apps that inhibit idle (video

@@ -54,15 +54,15 @@ layout {
 
     focus-ring {
         width 3
-        active-gradient from="#f174e3" to="#98f17e" angle=45
-        inactive-color "#2e1f2c"
+        active-gradient from="#ffffff" to="#bfbfbf" angle=45
+        inactive-color "#262626"
     }
 
     border {
         off
         width 2
-        active-color "#f174e3"
-        inactive-color "#2e1f2c"
+        active-color "#ffffff"
+        inactive-color "#262626"
         urgent-color "#f04c69"
     }
 
@@ -172,7 +172,7 @@ binds {
     Mod+Return   	hotkey-overlay-title="Terminal: alacritty"  		{ spawn "alacritty"; 	 		                   }
     Mod+D        	hotkey-overlay-title="Launcher: fuzzel"     		{ spawn "fuzzel"; 			                   }	
     Mod+Shift+D  	hotkey-overlay-title="File Manager: Nautilus"  		{ spawn "nautilus";	 		                   }
-    Super+Alt+L  	hotkey-overlay-title="Lock screen"       		{ spawn "qs" "ipc" "call" "lock" "lock";	   }
+    Mod+Shift+L  	hotkey-overlay-title="Lock screen"       		{ spawn "qs" "ipc" "call" "lock" "lock";	   }
     Mod+N        	hotkey-overlay-title="Notifications"     		{ spawn "qs" "ipc" "call" "notifs" "toggle";	   }
     Mod+Shift+C  	hotkey-overlay-title="Calendar"          		{ spawn "qs" "ipc" "call" "calendar" "open";	   }
     Mod+W	  	hotkey-overlay-title="Browser: Chromium"       		{ spawn-sh "~/.local/bin/chromium";					   }	
