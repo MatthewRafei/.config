@@ -195,13 +195,14 @@ PanelWindow {
     component Chip: Item {
         id: chip
         property string label
+        property string icon            // shown instead of `label` when set
         property string value
         property real gauge: -1
         property color accent: Theme.text
         signal clicked(var mouse)
         signal wheel(var wheel)
 
-        implicitWidth: chipRow.implicitWidth + 16
+        implicitWidth: chipRow.implicitWidth + 14
         height: bar.implicitHeight
 
         Rectangle {
@@ -220,7 +221,15 @@ PanelWindow {
             anchors.verticalCenterOffset: chip.gauge >= 0 ? -2 : 0
             spacing: 6
             Text {
-                visible: chip.label !== ""
+                visible: chip.icon !== ""
+                anchors.verticalCenter: parent.verticalCenter
+                text: chip.icon
+                color: chip.accent === Theme.text ? Theme.textDim : chip.accent
+                font.family: Theme.iconFont
+                font.pixelSize: 14
+            }
+            Text {
+                visible: chip.label !== "" && chip.icon === ""
                 anchors.baseline: valueText.baseline
                 text: chip.label
                 color: Theme.textDim
@@ -230,6 +239,7 @@ PanelWindow {
             }
             Text {
                 id: valueText
+                visible: chip.value !== ""
                 text: chip.value
                 color: chip.accent
                 font.family: Theme.fontFamily
@@ -403,14 +413,6 @@ PanelWindow {
             spacing: 8
             visible: bar.windowTitle !== ""
 
-            Text {
-                anchors.baseline: titleText.baseline
-                text: bar.windowApp.toUpperCase()
-                color: Theme.textFaint
-                font.family: Theme.fontFamily
-                font.pixelSize: 9
-                font.letterSpacing: 2
-            }
             Text {
                 id: titleText
                 width: Math.min(implicitWidth, 260)
@@ -762,8 +764,8 @@ PanelWindow {
 
         // volume: scroll = ±5%, click = mute, right = pavucontrol
         Chip {
-            label: "VOL"
-            value: bar.muted ? "MUTE" : Math.round(bar.volume * 100) + "%"
+            icon: bar.muted ? "󰝟" : bar.volume < 0.34 ? "󰕿" : bar.volume < 0.67 ? "󰖀" : "󰕾"
+            value: bar.muted ? "" : Math.round(bar.volume * 100) + "%"
             gauge: bar.muted ? 0 : Math.min(1, bar.volume)
             accent: bar.muted ? Theme.danger : Theme.text
             onClicked: mouse => {
@@ -781,8 +783,8 @@ PanelWindow {
 
         // wifi: click = quick dropdown (QuickPanel.qml), right-click = settings
         Chip {
-            label: "NET"
-            value: bar.ssid !== "" ? bar.ssid : "OFFLINE"
+            icon: bar.ssid === "" ? "󰤮" : bar.signal < 25 ? "󰤟" : bar.signal < 50 ? "󰤢" : bar.signal < 75 ? "󰤥" : "󰤨"
+            value: bar.ssid === "" ? "" : bar.ssid.length > 12 ? bar.ssid.slice(0, 11) + "…" : bar.ssid
             gauge: bar.ssid !== "" ? bar.signal / 100 : -1
             accent: bar.ssid !== "" ? Theme.text : Theme.danger
             onClicked: mouse => Quickshell.execDetached(mouse.button === Qt.RightButton
@@ -797,10 +799,11 @@ PanelWindow {
                 ? adapter.devices.values.filter(d => d.connected) : []
 
             visible: adapter !== null
-            label: "BT"
-            value: !adapter || !adapter.enabled ? "OFF"
-                 : connected.length > 0 ? (connected[0].name || "1 DEVICE")
-                 : "ON"
+            icon: !adapter || !adapter.enabled ? "󰂲" : connected.length > 0 ? "󰂱" : "󰂯"
+            // name only while something is connected
+            value: adapter && adapter.enabled && connected.length > 0
+                ? (n => n.length > 12 ? n.slice(0, 11) + "…" : n)(connected[0].name || "device")
+                : ""
             accent: adapter && adapter.enabled && connected.length > 0 ? Theme.accent
                   : adapter && adapter.enabled ? Theme.text
                   : Theme.textFaint
@@ -814,25 +817,18 @@ PanelWindow {
 
         Divider {}
 
+        // cpu · mem in one chip; click = HUD with the full graphs
         Chip {
-            label: "CPU"
-            value: (Math.round(bar.cpu * 100) < 10 ? "0" : "") + Math.round(bar.cpu * 100) + "%"
-            gauge: bar.cpu
-            accent: bar.cpu > 0.9 ? Theme.danger : Theme.text
-            onClicked: Quickshell.execDetached(["qs", "ipc", "call", "hud", "toggle"])
-        }
-
-        Chip {
-            label: "MEM"
-            value: (Math.round(bar.mem * 100) < 10 ? "0" : "") + Math.round(bar.mem * 100) + "%"
-            gauge: bar.mem
-            accent: bar.mem > 0.9 ? Theme.danger : Theme.text
+            icon: "󰍛"
+            value: Math.round(bar.cpu * 100) + "% · " + Math.round(bar.mem * 100) + "%"
+            accent: bar.cpu > 0.9 || bar.mem > 0.9 ? Theme.danger : Theme.text
             onClicked: Quickshell.execDetached(["qs", "ipc", "call", "hud", "toggle"])
         }
 
         Chip {
             visible: bar.bat >= 0
-            label: bar.batStatus === "Charging" ? "CHG" : "BAT"
+            icon: bar.batStatus === "Charging" ? "󰂄"
+                : ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"][Math.round(bar.bat / 10)]
             value: bar.bat + "%"
             gauge: bar.bat / 100
             accent: bar.batStatus === "Charging" ? Theme.ok
@@ -844,8 +840,8 @@ PanelWindow {
         // click = next profile, right-click = Settings > Power
         Chip {
             visible: Power.available
-            label: Power.auto ? "AUTO" : "PROF"
-            value: Power.icons[Power.current] + " " + Power.labels[Power.current]
+            icon: Power.icons[Power.current]
+            value: ""
             accent: Power.current === "performance" ? Theme.accent
                   : Power.current === "power-saver" ? Theme.ok
                   : Theme.text
