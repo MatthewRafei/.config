@@ -54,15 +54,15 @@ layout {
 
     focus-ring {
         width 3
-        active-gradient from="#ffffff" to="#bfbfbf" angle=45
-        inactive-color "#262626"
+        active-gradient from="#f174e3" to="#98f17e" angle=45
+        inactive-color "#2e1f2c"
     }
 
     border {
         off
         width 2
-        active-color "#ffffff"
-        inactive-color "#262626"
+        active-color "#f174e3"
+        inactive-color "#2e1f2c"
         urgent-color "#f04c69"
     }
 
@@ -174,7 +174,7 @@ binds {
     Mod+Shift+D  	hotkey-overlay-title="File Manager: Nautilus"  		{ spawn "nautilus";	 		                   }
     Mod+Shift+L  	hotkey-overlay-title="Lock screen"       		{ spawn "qs" "ipc" "call" "lock" "lock";	   }
     Mod+N        	hotkey-overlay-title="Notifications"     		{ spawn "qs" "ipc" "call" "notifs" "toggle";	   }
-    Mod+Shift+C  	hotkey-overlay-title="Calendar"          		{ spawn "qs" "ipc" "call" "calendar" "open";	   }
+    Mod+C        	hotkey-overlay-title="Calendar"          		{ spawn "qs" "ipc" "call" "calendar" "open";	   }
     Mod+W	  	hotkey-overlay-title="Browser: Chromium"       		{ spawn-sh "~/.local/bin/chromium";					   }	
     Super+Alt+S  	allow-when-locked=true hotkey-overlay-title=null 	{ spawn-sh "pkill orca || exec orca";			   }
     Mod+Shift+W				       					{ spawn-sh "qs -n -p ~/.config/quickshell/hyprquickpaper"; }
@@ -285,7 +285,6 @@ binds {
     Mod+M       { maximize-window-to-edges; }
     Mod+Ctrl+F  { expand-column-to-available-width; }
 
-    Mod+C      { center-column; }
     Mod+Ctrl+C { center-visible-columns; }
 
     //Mod+Minus       { set-column-width "-10%"; }
