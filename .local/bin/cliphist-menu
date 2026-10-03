@@ -9,5 +9,5 @@ if ! command -v cliphist >/dev/null || ! command -v wl-copy >/dev/null; then
   exit 1
 fi
 if [ "$1" = "--wipe" ]; then cliphist wipe; exit 0; fi
-sel=$(cliphist list | fuzzel --dmenu --prompt "//  clip  " --placeholder "clipboard history" --width 60 --lines 12) || exit 0
+sel=$(cliphist list | fuzzel --dmenu --with-nth 2 --prompt "//  clip  " --placeholder "clipboard history" --width 60 --lines 12) || exit 0
 printf '%s' "$sel" | cliphist decode | wl-copy
