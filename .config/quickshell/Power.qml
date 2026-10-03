@@ -40,6 +40,7 @@ Singleton {
             property string batteryProfile: "balanced"
             property string lowProfile: "power-saver"
             property int lowThreshold: 25
+            property int savedChargeLimit: 0     // 0 = never chosen here
         }
     }
 
@@ -118,10 +119,12 @@ Singleton {
     property int chargeLimit: -1
     // the privileged helper from ~/.local/src/battery-charge-limit is installed
     property bool limitHelper: false
+    property bool limitRestored: false
     readonly property string limitSetup: "doas sh ~/.local/src/battery-charge-limit/install.sh"
 
     function setChargeLimit(v) {
         if (!limitHelper || chargeLimit < 0) return
+        st.savedChargeLimit = v
         chargeLimit = v   // optimistic; the next probe confirms
         Quickshell.execDetached(["sh", "-c",
             "doas -n /usr/local/bin/battery-charge-limit \"$1\" 2>/dev/null || sudo -n /usr/local/bin/battery-charge-limit \"$1\"",
@@ -184,6 +187,12 @@ Singleton {
                 root.batModel = [v.manufacturer, v.model_name].filter(x => x).join(" ")
                 root.chargeLimit = v.charge_control_end_threshold !== undefined
                     ? parseInt(v.charge_control_end_threshold) : -1
+                // some firmware forgets the limit on reboot: put the chosen one back once
+                if (!root.limitRestored && root.limitHelper && root.chargeLimit >= 0) {
+                    root.limitRestored = true
+                    if (st.savedChargeLimit > 0 && st.savedChargeLimit !== root.chargeLimit)
+                        root.setChargeLimit(st.savedChargeLimit)
+                }
             }
         }
     }
