@@ -63,8 +63,15 @@ PanelWindow {
         }
     }
 
-    Component.onCompleted:
+    Component.onCompleted: {
         Quickshell.execDetached(["bash", Quickshell.shellPath("cache.sh"), Quickshell.shellDir])
+        // just applied a wallpaper here? start on it without waiting for awww
+        if (lastApplied.fresh) {
+            currentPath = lastApplied.file
+            queried = true
+            syncToCurrent()
+        }
+    }
 
     FolderListModel {
         id: folderModel
@@ -78,24 +85,55 @@ PanelWindow {
     }
 
     // ---- Currently displayed wallpaper ----
+    // Two sources, and we only jump once we have an answer:
+    //  - lastApplied: what this picker last set, saved with a timestamp on
+    //    apply. Trusted for 10s, which covers reopening mid-transition.
+    //  - awww query: the truth otherwise (e.g. wallpaper set elsewhere).
+    // If awww hasn't answered in 1.5s we go with whatever we have.
+    readonly property string stateFile: Quickshell.env("HOME") + "/.cache/quickshell/wallpaper-last"
     property string currentPath: ""
+    property bool queried: false
+
+    FileView {
+        id: lastApplied
+        path: main.stateFile
+        blockLoading: true
+        // "<epoch ms>\n<path>"
+        readonly property var parts: (text() || "").split("\n")
+        readonly property bool fresh: parts.length > 1 && Date.now() - parseInt(parts[0]) < 10000
+        readonly property string file: parts.length > 1 ? parts[1] : ""
+    }
+
 
     Process {
         command: ["awww", "query"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
+                if (main.queried && lastApplied.fresh) return   // just applied: keep ours
                 var m = text.match(/image: (.*)$/m)
-                main.currentPath = m ? m[1].trim() : ""
+                main.currentPath = m ? m[1].trim() : lastApplied.file
+                main.queried = true
                 main.syncToCurrent()
             }
+        }
+    }
+
+    Timer {
+        interval: 1500
+        running: true
+        onTriggered: {
+            if (main.queried) return
+            main.currentPath = lastApplied.file
+            main.queried = true
+            main.syncToCurrent()
         }
     }
 
     property bool synced: false
 
     function syncToCurrent() {
-        if (synced || folderModel.count === 0 || folderModel.status !== FolderListModel.Ready)
+        if (synced || !queried || folderModel.count === 0 || folderModel.status !== FolderListModel.Ready)
             return
         var idx = 0
         for (var i = 0; i < folderModel.count; i++) {
@@ -131,6 +169,8 @@ PanelWindow {
         ])
         // recolour the whole system from the new wallpaper
         Quickshell.execDetached([Quickshell.env("HOME") + "/.config/theme/wallpaper-theme", path])
+        // remember it, so reopening during the transition starts here
+        lastApplied.setText(Date.now() + "\n" + path)
         close()
     }
 
