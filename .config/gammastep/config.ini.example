@@ -1,0 +1,19 @@
+; Copy to config.ini and set your own lat/lon (config.ini is not tracked).
+[general]
+; Day and night color temperatures
+temp-day=5700
+temp-night=3500
+
+; Enable/disable smooth transition
+fade=1
+
+; Adjustment method (e.g., wayland, randr, drm)
+adjustment-method=wayland
+
+; Location provider (e.g., manual or geoclue2)
+location-provider=manual
+
+[manual]
+lat=0.0
+lon=0.0
+
