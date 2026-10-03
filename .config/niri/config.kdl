@@ -85,6 +85,7 @@ layout {
 // spawn-at-startup "waybar"  // replaced by quickshell Bar.qml
 spawn-at-startup "awww-daemon"
 spawn-at-startup "qs"
+spawn-at-startup "wl-paste" "--watch" "cliphist" "store"  // clipboard history (Mod+V)
 // spawn-at-startup "mako"  // replaced by quickshell Notifs.qml
 // spawn-at-startup "gammastep-indicator"  // fights the settings night-light toggle over gamma control
 spawn-at-startup "polkit-gnome-authentication-agent-1"
@@ -291,7 +292,8 @@ binds {
     //Mod+Shift+Minus { set-window-height "-10%"; }
     //Mod+Shift+Equal { set-window-height "+10%"; }
 
-    Mod+V       { toggle-window-floating; }
+    Mod+V        hotkey-overlay-title="Clipboard history" { spawn-sh "~/.local/bin/cliphist-menu"; }
+    Mod+Alt+V   { toggle-window-floating; }
     Mod+Shift+V { switch-focus-between-floating-and-tiling; }
 
     // Screenshots

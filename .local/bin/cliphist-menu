@@ -1,0 +1,13 @@
+#!/bin/sh
+# Clipboard history in fuzzel (Super+V). Pick an entry to copy it back.
+# History is collected by `wl-paste --watch cliphist store` (niri startup).
+#   cliphist-menu --wipe    clear the whole history
+if ! command -v cliphist >/dev/null || ! command -v wl-copy >/dev/null; then
+  busctl --user call org.freedesktop.Notifications /org/freedesktop/Notifications \
+    org.freedesktop.Notifications Notify susssasa{sv}i clipboard 0 edit-paste \
+    "Clipboard history unavailable" "Install it with: doas apk add cliphist wl-clipboard" 0 0 6000 >/dev/null
+  exit 1
+fi
+if [ "$1" = "--wipe" ]; then cliphist wipe; exit 0; fi
+sel=$(cliphist list | fuzzel --dmenu --prompt "//  clip  " --placeholder "clipboard history" --width 60 --lines 12) || exit 0
+printf '%s' "$sel" | cliphist decode | wl-copy
