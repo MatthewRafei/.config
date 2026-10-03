@@ -833,6 +833,23 @@ PanelWindow {
                   : Theme.text
         }
 
+        // power profile: only when power-profiles-daemon offers a choice.
+        // click = next profile, right-click = Settings > Power
+        Chip {
+            visible: Power.available
+            label: Power.auto ? "AUTO" : "PROF"
+            value: Power.icons[Power.current] + " " + Power.labels[Power.current]
+            accent: Power.current === "performance" ? Theme.accent
+                  : Power.current === "power-saver" ? Theme.ok
+                  : Theme.text
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton)
+                    Quickshell.execDetached(["qs", "ipc", "call", "settings", "page", "Power"])
+                else
+                    Power.cycle()
+            }
+        }
+
         // notifications: click = center, right-click = do not disturb
         Item {
             id: bell

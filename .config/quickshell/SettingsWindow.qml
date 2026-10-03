@@ -28,13 +28,19 @@ PanelWindow {
     function hide()   { showing = false }
     function toggle() { showing = !showing }
 
-    // Bind a Hyprland key to this, e.g. in hyprland.conf:
-    //   bind = SUPER, S, exec, qs ipc call settings toggle
+    // niri: Mod+S runs `qs ipc call settings toggle`
+    //   qs ipc call settings page Power    open straight to a page
     IpcHandler {
         target: "settings"
         function toggle(): void { root.toggle() }
         function open(): void { root.show() }
         function hide(): void { root.hide() }
+        function page(name: string): void {
+            for (let i = 0; i < root.navItems.length; i++)
+                if (root.navItems[i].name.toLowerCase() === name.toLowerCase())
+                    root.selectedIndex = i
+            root.show()
+        }
     }
 
     // -------------------------
@@ -71,7 +77,7 @@ PanelWindow {
         { name: "Monitors",   icon: "\uf108", page: "MonitorsPage" },
         { name: "Network",    icon: "\uf1eb", page: "NetworkPage" },
         { name: "Bluetooth",  icon: "󰂯", page: "BluetoothPage" }
-    ]
+    ].concat(Power.available ? [{ name: "Power", icon: "󰾅", page: "PowerPage" }] : [])
 
     property int selectedIndex: 0
 

@@ -1,0 +1,269 @@
+import QtQuick
+import "../"
+
+// Power profiles + battery-based automatic switching (state in ../Power.qml).
+// Only listed in Settings while power-profiles-daemon offers a choice.
+Item {
+    id: page
+
+    property int rightMargin: 36
+
+    // one row of profile buttons
+    component ProfileChoice: Row {
+        id: choice
+        property string selected
+        property bool dim: false
+        signal picked(string name)
+
+        spacing: 8
+        opacity: dim ? 0.4 : 1
+        Behavior on opacity { NumberAnimation { duration: Theme.animMed } }
+
+        Repeater {
+            model: Power.choices
+
+            Rectangle {
+                required property string modelData
+                readonly property bool on: choice.selected === modelData
+
+                width: 118
+                height: 34
+                radius: Theme.radius
+                color: on ? Theme.alpha(Theme.accent, 0.14)
+                     : pickMouse.containsMouse ? Theme.bgCard : "transparent"
+                border.width: 1
+                border.color: on || pickMouse.containsMouse ? Theme.accent : Theme.border
+
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 8
+                    Text {
+                        text: Power.icons[modelData]
+                        color: parent.parent.on ? Theme.accent : Theme.textDim
+                        font.family: Theme.iconFont
+                        font.pixelSize: 13
+                    }
+                    Text {
+                        text: Power.labels[modelData]
+                        color: parent.parent.on ? Theme.accent : Theme.textDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 10
+                        font.bold: parent.parent.on
+                        font.letterSpacing: 1
+                    }
+                }
+
+                MouseArea {
+                    id: pickMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: choice.picked(modelData)
+                }
+            }
+        }
+    }
+
+    component RuleLabel: Text {
+        property bool active: false
+        width: 150
+        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+        color: active && Power.auto ? Theme.accent : Theme.textDim
+        font.family: Theme.fontFamily
+        font.pixelSize: 10
+        font.letterSpacing: 2
+    }
+
+    Column {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.rightMargin: page.rightMargin
+        spacing: 22
+
+        // ---- header ----
+        Text {
+            text: "POWER"
+            color: Theme.text
+            font.family: Theme.fontFamily
+            font.pixelSize: 18
+            font.bold: true
+            font.letterSpacing: 3
+        }
+
+        Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+        // ---- current profile ----
+        Column {
+            spacing: 12
+
+            Row {
+                spacing: 14
+                Text {
+                    text: "PROFILE"
+                    color: Theme.text
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 13
+                    font.bold: true
+                    font.letterSpacing: 2
+                }
+                Text {
+                    anchors.baseline: parent.children[0].baseline
+                    text: Power.hasBattery
+                        ? (Power.onAC ? "PLUGGED IN" : "ON BATTERY") + "  ·  " + Power.battery + "%"
+                        : "PLUGGED IN"
+                    color: Theme.textFaint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 9
+                    font.letterSpacing: 2
+                }
+            }
+
+            ProfileChoice {
+                selected: Power.current
+                onPicked: name => Power.set(name)
+            }
+
+            Text {
+                visible: Power.degraded !== ""
+                text: "󰀦  PERFORMANCE LIMITED BY FIRMWARE  ·  " + Power.degraded.toUpperCase()
+                color: Theme.danger
+                font.family: Theme.fontFamily
+                font.pixelSize: 9
+                font.letterSpacing: 1
+            }
+        }
+
+        Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+        // ---- automatic switching ----
+        Column {
+            width: parent.width
+            spacing: 16
+
+            Item {
+                width: parent.width
+                height: 34
+
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 4
+                    Text {
+                        text: "AUTOMATIC SWITCHING"
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 13
+                        font.bold: true
+                        font.letterSpacing: 2
+                    }
+                    Text {
+                        text: Power.auto
+                            ? "picking a profile by hand lasts until you plug in, unplug or cross the threshold"
+                            : "profiles only change when you pick one"
+                        color: Theme.textFaint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 9
+                    }
+                }
+
+                Rectangle {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 70
+                    height: 34
+                    radius: Theme.radius
+                    color: Power.auto ? Theme.alpha(Theme.accent, 0.1) : Theme.alpha("#A0A0A0", 0.15)
+                    border.width: 1
+                    border.color: Power.auto ? Theme.accent : "#A0A0A0"
+                    Text {
+                        anchors.centerIn: parent
+                        text: Power.auto ? "ON" : "OFF"
+                        color: Power.auto ? Theme.accent : "#A0A0A0"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 10
+                        font.bold: true
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Power.auto = !Power.auto
+                    }
+                }
+            }
+
+            Row {
+                spacing: 10
+                RuleLabel { text: "PLUGGED IN"; active: Power.situation === "ac" }
+                ProfileChoice {
+                    dim: !Power.auto
+                    selected: Power.acProfile
+                    onPicked: name => Power.acProfile = name
+                }
+            }
+
+            Row {
+                visible: Power.hasBattery
+                spacing: 10
+                RuleLabel { text: "ON BATTERY"; active: Power.situation === "battery" }
+                ProfileChoice {
+                    dim: !Power.auto
+                    selected: Power.batteryProfile
+                    onPicked: name => Power.batteryProfile = name
+                }
+            }
+
+            Row {
+                visible: Power.hasBattery
+                spacing: 10
+
+                // "BELOW  −  25%  +"
+                Row {
+                    width: 150
+                    spacing: 6
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    RuleLabel { width: implicitWidth; text: "BELOW"; active: Power.situation === "low" }
+
+                    Repeater {
+                        model: ["−", "%", "+"]
+                        Rectangle {
+                            required property string modelData
+                            readonly property bool isValue: modelData === "%"
+                            width: isValue ? 40 : 22
+                            height: 22
+                            radius: Theme.radius
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: !isValue && stepMouse.containsMouse ? Theme.bgCard : "transparent"
+                            border.width: isValue ? 0 : 1
+                            border.color: stepMouse.containsMouse ? Theme.accent : Theme.border
+                            Text {
+                                anchors.centerIn: parent
+                                text: parent.isValue ? Power.lowThreshold + "%" : parent.modelData
+                                color: parent.isValue ? Theme.text : Theme.textDim
+                                font.family: Theme.fontFamily
+                                font.pixelSize: parent.isValue ? 11 : 12
+                            }
+                            MouseArea {
+                                id: stepMouse
+                                anchors.fill: parent
+                                hoverEnabled: !parent.isValue
+                                cursorShape: parent.isValue ? Qt.SizeVerCursor : Qt.PointingHandCursor
+                                function shift(d) { Power.lowThreshold = Math.max(5, Math.min(90, Power.lowThreshold + d)) }
+                                onClicked: {
+                                    if (parent.modelData === "−") shift(-5)
+                                    else if (parent.modelData === "+") shift(5)
+                                }
+                                onWheel: wheel => shift(wheel.angleDelta.y > 0 ? 5 : -5)
+                            }
+                        }
+                    }
+                }
+
+                ProfileChoice {
+                    dim: !Power.auto
+                    selected: Power.lowProfile
+                    onPicked: name => Power.lowProfile = name
+                }
+            }
+        }
+    }
+}
