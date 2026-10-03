@@ -843,6 +843,8 @@ PanelWindow {
             accent: bar.batStatus === "Charging" ? Theme.ok
                   : bar.bat <= 15 ? Theme.danger
                   : Theme.text
+            // click = Settings > Power (battery details, profiles)
+            onClicked: Quickshell.execDetached(["qs", "ipc", "call", "settings", "page", "Power"])
         }
 
         // power profile: only when power-profiles-daemon offers a choice.

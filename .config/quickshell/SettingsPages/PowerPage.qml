@@ -1,8 +1,8 @@
 import QtQuick
 import "../"
 
-// Power profiles + battery-based automatic switching (state in ../Power.qml).
-// Only listed in Settings while power-profiles-daemon offers a choice.
+// Battery details, power profiles and battery-based automatic switching
+// (state in ../Power.qml). Listed when there's a battery or profiles.
 Item {
     id: page
 
@@ -78,7 +78,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.rightMargin: page.rightMargin
-        spacing: 22
+        spacing: 18
 
         // ---- header ----
         Text {
@@ -92,8 +92,116 @@ Item {
 
         Rectangle { width: parent.width; height: 1; color: Theme.border }
 
+        // ---- battery ----
+        Row {
+            visible: Power.hasBattery
+            width: parent.width
+            spacing: 36
+
+            // level
+            Column {
+                spacing: 8
+
+                Row {
+                    spacing: 12
+                    Text {
+                        id: pct
+                        text: Power.battery
+                        color: Power.batStatus === "Charging" ? Theme.ok
+                             : Power.battery <= 15 ? Theme.danger : Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 48
+                        font.weight: Font.Light
+                    }
+                    Column {
+                        anchors.bottom: pct.baseline
+                        spacing: 4
+                        Text {
+                            text: "%"
+                            color: Theme.textDim
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 16
+                        }
+                        Text {
+                            text: Power.batStatus === "Charging" ? "󰂄 CHARGING"
+                                : Power.batStatus === "Full" || Power.batStatus === "Not charging" ? "󰚥 PLUGGED IN"
+                                : "󰁹 ON BATTERY"
+                            color: Power.batStatus === "Charging" ? Theme.ok : Theme.textDim
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 9
+                            font.letterSpacing: 2
+                        }
+                    }
+                }
+
+                // segmented level bar
+                Row {
+                    spacing: 2
+                    Repeater {
+                        model: 20
+                        Rectangle {
+                            required property int index
+                            width: 9
+                            height: 6
+                            color: index < Math.round(Power.battery / 5)
+                                ? (Power.batStatus === "Charging" ? Theme.ok : Power.battery <= 15 ? Theme.danger : Theme.accent)
+                                : Theme.trackBg
+                        }
+                    }
+                }
+            }
+
+            // stats
+            Grid {
+                anchors.verticalCenter: parent.verticalCenter
+                columns: 3
+                columnSpacing: 32
+                rowSpacing: 14
+
+                Repeater {
+                    model: [
+                        [Power.batStatus === "Charging" ? "UNTIL FULL" : "TIME LEFT", Power.fmtHours(Power.hoursLeft)],
+                        ["POWER DRAW", Power.powerW > 0.05 ? Power.powerW.toFixed(1) + " W" : "—"],
+                        ["HEALTH", Power.health > 0 ? Math.round(Power.health * 100) + "%" : "—"],
+                        ["ENERGY", Power.energyFull > 0 ? Power.energyNow.toFixed(1) + " / " + Power.energyFull.toFixed(1) + " Wh" : "—"],
+                        ["CYCLES", Power.cycles >= 0 ? String(Power.cycles) : "—"],
+                        ["DESIGN", Power.energyDesign > 0 ? Power.energyDesign.toFixed(1) + " Wh" : "—"]
+                    ]
+                    Column {
+                        required property var modelData
+                        spacing: 3
+                        Text {
+                            text: modelData[0]
+                            color: Theme.textFaint
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 9
+                            font.letterSpacing: 2
+                        }
+                        Text {
+                            text: modelData[1]
+                            color: modelData[0] === "HEALTH" && Power.health > 0 && Power.health < 0.6 ? Theme.danger : Theme.text
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 13
+                        }
+                    }
+                }
+            }
+        }
+
+        Text {
+            visible: Power.hasBattery && Power.batModel !== ""
+            text: Power.batModel.toUpperCase() + "  ·  health is capacity now vs. when new"
+            color: Theme.textFaint
+            font.family: Theme.fontFamily
+            font.pixelSize: 9
+            font.letterSpacing: 1
+        }
+
+        Rectangle { visible: Power.available; width: parent.width; height: 1; color: Theme.border }
+
         // ---- current profile ----
         Column {
+            visible: Power.available
             spacing: 12
 
             Row {
@@ -104,16 +212,6 @@ Item {
                     font.family: Theme.fontFamily
                     font.pixelSize: 13
                     font.bold: true
-                    font.letterSpacing: 2
-                }
-                Text {
-                    anchors.baseline: parent.children[0].baseline
-                    text: Power.hasBattery
-                        ? (Power.onAC ? "PLUGGED IN" : "ON BATTERY") + "  ·  " + Power.battery + "%"
-                        : "PLUGGED IN"
-                    color: Theme.textFaint
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 9
                     font.letterSpacing: 2
                 }
             }
@@ -133,10 +231,11 @@ Item {
             }
         }
 
-        Rectangle { width: parent.width; height: 1; color: Theme.border }
+        Rectangle { visible: Power.available; width: parent.width; height: 1; color: Theme.border }
 
         // ---- automatic switching ----
         Column {
+            visible: Power.available
             width: parent.width
             spacing: 16
 

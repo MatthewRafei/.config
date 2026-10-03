@@ -105,24 +105,65 @@ Singleton {
     property int battery: 100
     property bool hasBattery: false
 
+    // battery details (sysfs; energy in Wh, power in W)
+    property string batStatus: ""
+    property real energyNow: 0
+    property real energyFull: 0
+    property real energyDesign: 0
+    property real powerW: 0
+    property int cycles: -1
+    property string batModel: ""
+
+    readonly property real health: energyDesign > 0 ? energyFull / energyDesign : -1
+    // hours until empty (discharging) or full (charging), -1 if unknown
+    readonly property real hoursLeft: powerW < 0.1 ? -1
+        : batStatus === "Charging" ? Math.max(0, energyFull - energyNow) / powerW
+        : batStatus === "Discharging" ? energyNow / powerW
+        : -1
+
+    function fmtHours(h) {
+        if (h < 0) return "—"
+        const m = Math.round(h * 60)
+        return Math.floor(m / 60) + "h " + (m % 60 < 10 ? "0" : "") + (m % 60) + "m"
+    }
+
     Process {
         id: batProbe
+        // energy_* may be charge_* (µAh) on some batteries; convert with voltage
         command: ["sh", "-c",
             "for a in /sys/class/power_supply/A*/online; do [ -r \"$a\" ] && { echo ac $(cat \"$a\"); break; }; done; "
-            + "for b in /sys/class/power_supply/BAT*; do [ -r \"$b/capacity\" ] && { echo bat $(cat \"$b/capacity\"); break; }; done"]
+            + "for b in /sys/class/power_supply/BAT*; do [ -r \"$b/capacity\" ] || continue; "
+            + "echo bat $(cat \"$b/capacity\"); "
+            + "for f in status energy_now energy_full energy_full_design power_now charge_now charge_full charge_full_design current_now voltage_now cycle_count manufacturer model_name; do "
+            + "[ -r \"$b/$f\" ] && echo \"$f $(cat \"$b/$f\" 2>/dev/null)\"; done; break; done"]
         stdout: StdioCollector {
             onStreamFinished: {
+                const v = {}
                 for (const line of text.split("\n")) {
-                    const p = line.trim().split(/\s+/)
-                    if (p[0] === "ac") root.onAC = p[1] === "1"
-                    if (p[0] === "bat") { root.battery = parseInt(p[1]); root.hasBattery = true }
+                    const i = line.indexOf(" ")
+                    if (i > 0) v[line.slice(0, i)] = line.slice(i + 1).trim()
                 }
+                if (v.ac !== undefined) root.onAC = v.ac === "1"
+                if (v.bat === undefined) return
+                root.battery = parseInt(v.bat)
+                root.hasBattery = true
+                root.batStatus = v.status || ""
+                const volts = (parseFloat(v.voltage_now) || 0) / 1e6
+                const e = (k, c) => v[k] !== undefined ? parseFloat(v[k]) / 1e6
+                                  : v[c] !== undefined ? parseFloat(v[c]) / 1e6 * volts : 0
+                root.energyNow = e("energy_now", "charge_now")
+                root.energyFull = e("energy_full", "charge_full")
+                root.energyDesign = e("energy_full_design", "charge_full_design")
+                root.powerW = v.power_now !== undefined ? parseFloat(v.power_now) / 1e6
+                            : (parseFloat(v.current_now) || 0) / 1e6 * volts
+                root.cycles = v.cycle_count !== undefined ? parseInt(v.cycle_count) : -1
+                root.batModel = [v.manufacturer, v.model_name].filter(x => x).join(" ")
             }
         }
     }
 
     Timer {
-        interval: 15000
+        interval: 10000
         repeat: true
         running: true
         triggeredOnStart: true

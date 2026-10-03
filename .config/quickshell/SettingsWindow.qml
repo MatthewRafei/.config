@@ -86,7 +86,7 @@ PanelWindow {
         { name: "Monitors",   icon: "\uf108", page: "MonitorsPage" },
         { name: "Network",    icon: "\uf1eb", page: "NetworkPage" },
         { name: "Bluetooth",  icon: "󰂯", page: "BluetoothPage" }
-    ].concat(Power.available ? [{ name: "Power", icon: "󰾅", page: "PowerPage" }] : [])
+    ].concat(Power.available || Power.hasBattery ? [{ name: "Power", icon: "󰂄", page: "PowerPage" }] : [])
 
     property int selectedIndex: 0
 
