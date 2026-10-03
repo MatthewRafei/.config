@@ -173,7 +173,7 @@ binds {
     Mod+Shift+D  	hotkey-overlay-title="File Manager: Nautilus"  		{ spawn "nautilus";	 		                   }
     Super+Alt+L  	hotkey-overlay-title="Lock screen"       		{ spawn "qs" "ipc" "call" "lock" "lock";	   }
     Mod+N        	hotkey-overlay-title="Notifications"     		{ spawn "qs" "ipc" "call" "notifs" "toggle";	   }
-    Mod+W	  	hotkey-overlay-title="Browser: Chromium"       		{ spawn "chromium";					   }	
+    Mod+W	  	hotkey-overlay-title="Browser: Chromium"       		{ spawn-sh "~/.local/bin/chromium";					   }	
     Super+Alt+S  	allow-when-locked=true hotkey-overlay-title=null 	{ spawn-sh "pkill orca || exec orca";			   }
     Mod+Shift+W				       					{ spawn-sh "qs -n -p ~/.config/quickshell/hyprquickpaper"; }
     Mod+H		hotkey-overlay-title="Toggle telemetry HUD"		{ spawn-sh "qs ipc call hud toggle || qs -d";		   }

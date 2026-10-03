@@ -1,0 +1,6 @@
+#!/bin/sh
+# Launch Chromium with its theme colour synced to the wallpaper palette.
+# (Chromium only reads the colour at startup and rewrites its prefs on exit,
+# so ~/.config/theme/wallpaper-theme can't change it while it's running.)
+"$HOME/.config/theme/wallpaper-theme" --chromium >/dev/null 2>&1
+exec /usr/bin/chromium-browser "$@"
