@@ -487,6 +487,9 @@ PanelWindow {
     // quote: types out a short fortune left of the clock, ticker-scrolling
     // as it goes if it doesn't fit, then eases back to the start. New quote
     // every 5 minutes; click = next, hover = full quote in a popup.
+    // Now and then (1 in 3 changes, or `qs ipc call bar peek`) a little face
+    // decodes in instead, looks left and right, smiles, dissolves, and the
+    // next quote types in.
     // Uses `fortune` if installed, else ~/.local/bin/fortune
     // (quotes live in ~/.config/quickshell/quotes/).
     Item {
@@ -502,9 +505,102 @@ PanelWindow {
         anchors.right: clockItem.left
         anchors.rightMargin: 18
         height: bar.implicitHeight
-        width: Math.max(0, Math.min(quoteRow.implicitWidth, room))
-        visible: room > 100 && body !== ""
+        width: Math.max(0, Math.min(peeking ? faceRow.implicitWidth : quoteRow.implicitWidth, room))
+        visible: room > 100 && (body !== "" || peeking)
         clip: true
+
+        // ---------------- peeking face ----------------
+        property bool peeking: false
+        property string face: ""
+        property bool sparkle: false
+        property var frames: []
+        property int frameIdx: 0
+
+        function scrambled(target, revealed) {
+            const noise = "▓▒░#%&@*"
+            let out = ""
+            for (let i = 0; i < target.length; i++)
+                out += i < revealed || target[i] === " " ? target[i] : noise[Math.floor(Math.random() * noise.length)]
+            return out
+        }
+
+        function dissolve(from) {
+            // each char goes to · then away, in random order
+            const steps = []
+            let cur = from.split("")
+            const order = cur.map((c, i) => i).filter(i => cur[i] !== " ").sort(() => Math.random() - 0.5)
+            for (const i of order) { cur[i] = "·"; steps.push({ t: cur.join(""), ms: 45 }) }
+            for (const i of order) { cur[i] = " "; steps.push({ t: cur.join(""), ms: 40 }) }
+            return steps
+        }
+
+        function peek() {
+            if (peeking) return
+            settle.stop()
+            const center = "( ◕_◕ )"
+            let f = []
+            for (let k = 0; k <= center.length; k++) f.push({ t: scrambled(center, k), ms: 45 })
+            f = f.concat([
+                { t: center, ms: 700 },
+                { t: "( -_- )", ms: 110 },
+                { t: center, ms: 350 },
+                { t: "(◕_◕  )", ms: 750 },
+                { t: "(  ◕_◕)", ms: 750 },
+                { t: center, ms: 450 },
+                { t: "( ◕‿◕ )", ms: 500 },
+                { t: "( ^‿^ )", ms: 1100, sparkle: true }
+            ])
+            frames = f.concat(dissolve("( ^‿^ )"))
+            frameIdx = 0
+            face = frames[0].t
+            sparkle = false
+            peeking = true
+            faceTimer.interval = frames[0].ms
+            faceTimer.restart()
+        }
+
+        Timer {
+            id: faceTimer
+            onTriggered: {
+                quote.frameIdx++
+                if (quote.frameIdx >= quote.frames.length) {
+                    quote.peeking = false
+                    quote.sparkle = false
+                    quote.next()          // back to quotes with a fresh one
+                    return
+                }
+                const fr = quote.frames[quote.frameIdx]
+                quote.face = fr.t
+                quote.sparkle = fr.sparkle === true
+                interval = fr.ms
+                restart()
+            }
+        }
+
+        Row {
+            id: faceRow
+            visible: quote.peeking
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 4
+            Text {
+                text: quote.face
+                color: Theme.accent
+                font.family: Theme.fontFamily
+                font.pixelSize: 13
+                font.bold: true
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                text: "✧"
+                color: Theme.accent2
+                font.pixelSize: 12
+                anchors.verticalCenter: parent.verticalCenter
+                opacity: quote.sparkle ? 1 : 0
+                scale: quote.sparkle ? 1 : 0.4
+                Behavior on opacity { NumberAnimation { duration: 180 } }
+                Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
+            }
+        }
 
         function next() {
             if (!fortuneProc.running)
@@ -534,7 +630,12 @@ PanelWindow {
             interval: 5 * 60 * 1000
             repeat: true
             running: true
-            onTriggered: quote.next()
+            onTriggered: Math.random() < 0.33 ? quote.peek() : quote.next()
+        }
+
+        IpcHandler {
+            target: "bar"
+            function peek(): void { quote.peek() }
         }
 
         // typewriter
@@ -569,6 +670,7 @@ PanelWindow {
 
         Row {
             id: quoteRow
+            visible: !quote.peeking
             anchors.verticalCenter: parent.verticalCenter
             x: quote.typing ? Math.min(0, quote.room - implicitWidth) : quote.restX
             spacing: 6
@@ -613,7 +715,7 @@ PanelWindow {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: quote.next()
+            onClicked: if (!quote.peeking) quote.next()
         }
     }
 
@@ -624,7 +726,7 @@ PanelWindow {
         anchor.rect.y: bar.implicitHeight + 6
         implicitWidth: Math.min(420, quoteMetrics.width + 40)
         implicitHeight: popupCol.implicitHeight + 28
-        visible: quoteMouse.containsMouse && quote.visible
+        visible: quoteMouse.containsMouse && quote.visible && !quote.peeking
         color: "transparent"
 
         TextMetrics {
