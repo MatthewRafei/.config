@@ -11,7 +11,7 @@ import QtQuick
 // Top bar (replaces waybar). Same HUD language as TelemetryHud.
 //
 //  left   : niri workspaces (sliding indicator) + focused window title
-//  center : quote (fortune) + clock (click for date)
+//  center : quote (fortune) + clock (click: calendar, right-click: date)
 //  right  : media, volume, wifi, cpu, mem, battery, notifications, tray, power
 //
 // Workspace state comes from `niri msg --json event-stream`; any event
@@ -468,10 +468,17 @@ PanelWindow {
             }
         }
 
+        // click = calendar (CalendarPanel.qml), right-click = show the date
         MouseArea {
             anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             cursorShape: Qt.PointingHandCursor
-            onClicked: clockItem.showDate = !clockItem.showDate
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton)
+                    clockItem.showDate = !clockItem.showDate
+                else
+                    Calendar.panelOpen = !Calendar.panelOpen
+            }
         }
     }
 
