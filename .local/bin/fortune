@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Minimal fortune(6) stand-in (Chimera Linux has no fortune-mod).
+
+Reads fortune-format files ('%' on its own line between entries) from
+~/.config/quickshell/quotes/, or from the files/dirs given as arguments.
+Drop any classic fortune file (e.g. from fortune-mod's datfiles) into that
+directory and it is picked up; .dat index files are ignored.
+
+    fortune            random fortune
+    fortune -s         short ones only (<= 160 chars, or -n N)
+    fortune -l         long ones only
+    fortune -c         also print which file it came from
+    fortune FILE|DIR   use these sources instead
+"""
+
+import os
+import random
+import sys
+
+DEFAULT = os.path.expanduser("~/.config/quickshell/quotes")
+
+
+def sources(paths):
+    for p in paths:
+        if os.path.isdir(p):
+            for name in sorted(os.listdir(p)):
+                full = os.path.join(p, name)
+                if os.path.isfile(full) and not name.endswith(".dat") and not name.startswith("."):
+                    yield full
+        elif os.path.isfile(p):
+            yield p
+
+
+def entries(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return []
+    out, cur = [], []
+    for line in text.split("\n"):
+        if line.strip() == "%":
+            if cur:
+                out.append("\n".join(cur).strip("\n"))
+            cur = []
+        else:
+            cur.append(line)
+    if "".join(cur).strip():
+        out.append("\n".join(cur).strip("\n"))
+    return [e for e in out if e.strip()]
+
+
+def main(argv):
+    short = long_ = show_file = False
+    limit = 160
+    paths = []
+    it = iter(argv)
+    for a in it:
+        if a == "-s":
+            short = True
+        elif a == "-l":
+            long_ = True
+        elif a == "-c":
+            show_file = True
+        elif a == "-n":
+            limit = int(next(it, limit))
+        elif a in ("-h", "--help"):
+            print(__doc__.strip())
+            return 0
+        elif a.startswith("-"):
+            pass  # ignore unknown fortune-mod flags (-a, -e, -o, ...)
+        else:
+            paths.append(os.path.expanduser(a))
+
+    pool = []
+    for src in sources(paths or [DEFAULT]):
+        for e in entries(src):
+            if short and len(e) > limit:
+                continue
+            if long_ and len(e) <= limit:
+                continue
+            pool.append((src, e))
+
+    if not pool:
+        print("fortune: no fortunes found", file=sys.stderr)
+        return 1
+
+    src, e = random.choice(pool)
+    if show_file:
+        print("(%s)\n%%" % os.path.basename(src))
+    print(e)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

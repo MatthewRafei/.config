@@ -1,0 +1,351 @@
+/*
+ * Nautilus, HUD edition — same language as the Quickshell bar/HUD/lock:
+ * monospace, near-black translucent panels with scanlines, hairline borders,
+ * square-ish corners, accent edge-stripes on selection, dim everything else.
+ *
+ * Colours come from the --hud-* variables that
+ * ~/.config/theme/wallpaper-theme writes into gtk.css, so this file is static
+ * and follows the wallpaper. Imported from gtk.css. Scoped to Nautilus.
+ */
+
+/* ------------------------------------------------------------- window -- */
+
+window.nautilus-window {
+  font-family: "JetBrainsMono Nerd Font", monospace;
+  font-size: 10pt;
+  color: var(--hud-text);
+  background-color: color-mix(in srgb, var(--hud-panel) 90%, transparent);
+  background-image: repeating-linear-gradient(to bottom,
+      transparent 0px, transparent 2px,
+      rgba(0, 0, 0, 0.16) 2px, rgba(0, 0, 0, 0.16) 3px);
+  border-radius: 0;
+}
+
+window.nautilus-window .view,
+window.nautilus-window gridview,
+window.nautilus-window columnview,
+window.nautilus-window columnview > listview,
+window.nautilus-window placesview list,
+window.nautilus-window .nautilus-network-view listview {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* --------------------------------------------------------- header bars -- */
+
+window.nautilus-window headerbar {
+  background: transparent;
+  box-shadow: none;
+  border-bottom: 1px solid var(--hud-border);
+  min-height: 46px;
+}
+
+window.nautilus-window headerbar .title,
+window.nautilus-window .navigation-sidebar-header label {
+  font-weight: 700;
+  font-size: 9pt;
+  letter-spacing: 0;
+  color: var(--hud-dim);
+}
+
+window.nautilus-window headerbar button,
+window.nautilus-window headerbar menubutton > button,
+window.nautilus-window .toolbar button,
+window.nautilus-window splitbutton > button,
+window.nautilus-window splitbutton > menubutton > button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  box-shadow: none;
+  min-height: 28px;
+  min-width: 28px;
+  color: var(--hud-dim);
+  transition: all 120ms ease-out;
+}
+
+window.nautilus-window headerbar button:hover,
+window.nautilus-window headerbar menubutton > button:hover,
+window.nautilus-window .toolbar button:hover,
+window.nautilus-window splitbutton > button:hover,
+window.nautilus-window splitbutton > menubutton > button:hover {
+  background: var(--hud-card);
+  border-color: var(--hud-border-accent);
+  color: var(--hud-text);
+}
+
+window.nautilus-window headerbar button:checked,
+window.nautilus-window headerbar menubutton > button:checked,
+window.nautilus-window headerbar button:active {
+  background: color-mix(in srgb, var(--hud-accent) 14%, transparent);
+  border-color: var(--hud-accent);
+  color: var(--hud-accent);
+}
+
+window.nautilus-window headerbar button:disabled {
+  color: var(--hud-faint);
+}
+
+/* ------------------------------------------------------------ path bar -- */
+
+window.nautilus-window .nautilus-pathbar {
+  background-color: color-mix(in srgb, var(--hud-card) 70%, transparent);
+  border: 1px solid var(--hud-border);
+  border-radius: 3px;
+  box-shadow: none;
+  min-height: 30px;
+}
+
+window.nautilus-window .nautilus-pathbar:hover {
+  border-color: var(--hud-border-accent);
+}
+
+window.nautilus-window .nautilus-path-button {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 2px;
+  color: var(--hud-dim);
+  letter-spacing: 1px;
+}
+
+window.nautilus-window .nautilus-path-button:hover {
+  color: var(--hud-text);
+  background: var(--hud-card);
+}
+
+window.nautilus-window .nautilus-path-button.current-dir,
+window.nautilus-window .nautilus-path-button.current-dir label,
+window.nautilus-window .nautilus-path-button.current-dir image {
+  color: var(--hud-accent);
+  font-weight: 700;
+}
+
+/* location / search entry */
+window.nautilus-window entry,
+window.nautilus-window .nautilus-query-editor > text,
+window.nautilus-window .nautilus-query-editor {
+  background-color: color-mix(in srgb, var(--hud-card) 80%, transparent);
+  border: 1px solid var(--hud-border);
+  border-radius: 3px;
+  box-shadow: none;
+  outline: none;
+  caret-color: var(--hud-accent);
+}
+
+window.nautilus-window entry:focus-within,
+window.nautilus-window .nautilus-query-editor:focus-within {
+  border-color: var(--hud-accent);
+  box-shadow: inset 0 -2px var(--hud-accent);
+}
+
+/* -------------------------------------------------------------- sidebar -- */
+
+window.nautilus-window .sidebar-pane,
+window.nautilus-window .navigation-sidebar {
+  background-color: transparent;
+}
+
+window.nautilus-window .sidebar-pane {
+  border-right: 1px solid var(--hud-border);
+  background-color: color-mix(in srgb, var(--hud-bg) 55%, transparent);
+}
+
+window.nautilus-window .navigation-sidebar {
+  padding: 8px 8px;
+}
+
+window.nautilus-window .navigation-sidebar > row {
+  border-radius: 2px;
+  min-height: 34px;
+  padding: 0 10px;
+  margin: 1px 0;
+  color: var(--hud-dim);
+  transition: all 120ms ease-out;
+}
+
+window.nautilus-window .navigation-sidebar > row image {
+  color: var(--hud-faint);
+}
+
+window.nautilus-window .navigation-sidebar > row:hover {
+  background-color: var(--hud-card);
+  color: var(--hud-text);
+}
+
+window.nautilus-window .navigation-sidebar > row:hover image {
+  color: var(--hud-dim);
+}
+
+/* accent edge-stripe, like the notification cards */
+window.nautilus-window .navigation-sidebar > row:selected {
+  background-color: color-mix(in srgb, var(--hud-accent) 12%, transparent);
+  box-shadow: inset 2px 0 var(--hud-accent);
+  color: var(--hud-accent);
+  font-weight: 700;
+}
+
+window.nautilus-window .navigation-sidebar > row:selected image {
+  color: var(--hud-accent);
+}
+
+window.nautilus-window .navigation-sidebar separator {
+  background: var(--hud-border);
+  margin: 8px 10px;
+}
+
+/* disk-usage bars under mounted volumes */
+window.nautilus-window levelbar trough { background: var(--hud-track); border-radius: 0; min-height: 3px; }
+window.nautilus-window levelbar block.filled { background: var(--hud-accent); border-radius: 0; }
+
+/* ------------------------------------------------------------ grid view -- */
+
+window.nautilus-window .nautilus-grid-view gridview {
+  padding: 18px;
+}
+
+window.nautilus-window .nautilus-grid-view gridview > child {
+  border-radius: 3px;
+  border: 1px solid transparent;
+  padding: 10px 6px;
+  transition: all 120ms ease-out;
+}
+
+window.nautilus-window .nautilus-grid-view gridview > child:hover {
+  background-color: color-mix(in srgb, var(--hud-card) 85%, transparent);
+  border-color: var(--hud-border);
+}
+
+window.nautilus-window .nautilus-grid-view gridview > child:selected {
+  background-color: color-mix(in srgb, var(--hud-accent) 12%, transparent);
+  border-color: var(--hud-accent);
+}
+
+window.nautilus-window .nautilus-grid-view gridview > child label {
+  font-size: 9.5pt;
+  color: var(--hud-text);
+}
+
+window.nautilus-window .nautilus-grid-view gridview > child:selected label {
+  color: var(--hud-accent);
+}
+
+window.nautilus-window .nautilus-grid-view .dim-label {
+  color: var(--hud-faint);
+  font-size: 8.5pt;
+}
+
+/* ------------------------------------------------------------ list view -- */
+
+window.nautilus-window .nautilus-list-view columnview > header {
+  background: transparent;
+  border-bottom: 1px solid var(--hud-border);
+}
+
+window.nautilus-window .nautilus-list-view columnview > header > button {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--hud-faint);
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+window.nautilus-window .nautilus-list-view columnview > header > button:hover {
+  color: var(--hud-text);
+}
+
+window.nautilus-window .nautilus-list-view columnview > listview > row {
+  border-radius: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--hud-border) 50%, transparent);
+}
+
+window.nautilus-window .nautilus-list-view columnview > listview > row:hover {
+  background-color: color-mix(in srgb, var(--hud-card) 85%, transparent);
+}
+
+window.nautilus-window .nautilus-list-view columnview > listview > row:selected {
+  background-color: color-mix(in srgb, var(--hud-accent) 12%, transparent);
+  box-shadow: inset 2px 0 var(--hud-accent);
+}
+
+window.nautilus-window .nautilus-list-view columnview > listview > row:selected label {
+  color: var(--hud-accent);
+}
+
+window.nautilus-window .nautilus-list-view .dim-label,
+window.nautilus-window .nautilus-list-view .caption {
+  color: var(--hud-faint);
+}
+
+/* ---------------------------------------------------- status / overlays -- */
+
+/* "3 items selected" chip in the bottom corner */
+window.nautilus-window .floating-bar {
+  background-color: var(--hud-panel);
+  border: 1px solid var(--hud-accent);
+  border-radius: 3px;
+  box-shadow: none;
+  color: var(--hud-accent);
+  font-size: 9pt;
+  letter-spacing: 1px;
+  margin: 10px;
+}
+
+window.nautilus-window rubberband {
+  background-color: color-mix(in srgb, var(--hud-accent) 12%, transparent);
+  border: 1px solid var(--hud-accent);
+  border-radius: 0;
+}
+
+window.nautilus-window scrollbar slider {
+  background-color: var(--hud-border-accent);
+  border-radius: 0;
+  min-width: 3px;
+  min-height: 3px;
+}
+
+window.nautilus-window scrollbar slider:hover,
+window.nautilus-window scrollbar slider:active {
+  background-color: var(--hud-accent);
+}
+
+window.nautilus-window statuspage .title {
+  letter-spacing: 4px;
+  color: var(--hud-dim);
+}
+
+window.nautilus-window statuspage .description,
+window.nautilus-window statuspage image {
+  color: var(--hud-faint);
+}
+
+/* ---------------------------------------------------- menus / popovers -- */
+
+window.nautilus-window popover > contents,
+popover.nautilus-menu > contents {
+  background-color: var(--hud-panel);
+  border: 1px solid var(--hud-border-accent);
+  border-radius: 3px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  font-family: "JetBrainsMono Nerd Font", monospace;
+}
+
+window.nautilus-window popover modelbutton {
+  border-radius: 2px;
+  min-height: 30px;
+}
+
+window.nautilus-window popover modelbutton:hover {
+  background-color: color-mix(in srgb, var(--hud-accent) 12%, transparent);
+  box-shadow: inset 2px 0 var(--hud-accent);
+  color: var(--hud-accent);
+}
+
+window.nautilus-window popover separator {
+  background: var(--hud-border);
+}
+
+/* progress indicator (copy/move) */
+window.nautilus-window .nautilus-progress-indicator progressbar trough { background: var(--hud-track); border-radius: 0; min-height: 3px; }
+window.nautilus-window .nautilus-progress-indicator progressbar progress { background: var(--hud-accent); border-radius: 0; min-height: 3px; }

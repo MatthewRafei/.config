@@ -1,0 +1,307 @@
+// Niri config — catppuccin mocha theme
+// https://kdl.dev
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+            options "ctrl:nocaps"
+        }
+        numlock
+	repeat-delay 300
+	repeat-rate 50
+    }
+
+    touchpad {
+        tap
+        natural-scroll
+        accel-speed 0.2
+        accel-profile "flat"
+    }
+
+    mouse {
+        accel-speed 0.0
+        accel-profile "flat"
+    }
+
+    focus-follows-mouse
+
+}
+
+// ── Outputs ───────────────────────────────────────────────────────────────────
+
+output "eDP-1" {
+    variable-refresh-rate
+}
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+
+layout {
+    gaps 12
+
+    center-focused-column "on-overflow"
+
+    background-color "transparent"
+
+    preset-column-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        proportion 1.0
+    }
+
+    default-column-width { proportion 0.5; }
+
+    focus-ring {
+        width 3
+        active-gradient from="#f174e3" to="#98f17e" angle=45
+        inactive-color "#2e1f2c"
+    }
+
+    border {
+        off
+        width 2
+        active-color "#f174e3"
+        inactive-color "#2e1f2c"
+        urgent-color "#f04c69"
+    }
+
+    shadow {
+        on
+        softness 25
+        spread 3
+        offset x=0 y=4
+        color "#00000066"
+    }
+
+    struts {
+        top 4
+        bottom 4
+    }
+}
+
+// ── Startup ───────────────────────────────────────────────────────────────────
+
+// spawn-at-startup "waybar"  // replaced by quickshell Bar.qml
+spawn-at-startup "awww-daemon"
+spawn-at-startup "qs"
+// spawn-at-startup "mako"  // replaced by quickshell Notifs.qml
+// spawn-at-startup "gammastep-indicator"  // fights the settings night-light toggle over gamma control
+spawn-at-startup "polkit-gnome-authentication-agent-1"
+spawn-at-startup "xwayland-satellite"
+//Chimera Linux specific
+spawn-at-startup "dbus-update-activation-environment" "--systemd" "WAYLAND_DISPLAY" "DISPLAY" "XDG_CURRENT_DESKTOP" "DBUS_SESSION_BUS_ADDRESS"
+spawn-at-startup "blueman-applet"
+
+// ── Appearance ────────────────────────────────────────────────────────────────
+
+prefer-no-csd
+
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+// ── Animations ────────────────────────────────────────────────────────────────
+
+animations {
+    slowdown 0.8
+}
+
+// -- Layer rule for awwww -----
+
+layer-rule {
+    match namespace="^awww-daemon$" // Replace with your awww/swww/swaybg namespace if different
+    place-within-backdrop true
+}
+
+// -- Keep the quickshell telemetry HUD static across workspaces too -----
+
+layer-rule {
+    match namespace="^telemetry-hud$"
+    place-within-backdrop true
+}
+
+
+// ── Window Rules ──────────────────────────────────────────────────────────────
+
+window-rule {
+    geometry-corner-radius 0
+    clip-to-geometry true
+}
+
+
+window-rule {
+    match app-id="^Alacritty$"
+    draw-border-with-background false
+    
+    // Optional: Add a blur effect behind the transparent window
+    background-effect {
+        blur true
+    }
+}
+
+// ── Environment ───────────────────────────────────────────────────────────────
+
+environment {
+    ELECTRON_OZONE_PLATFORM_HINT "auto"
+    XDG_SESSION_TYPE "wayland"
+    XDG_CURRENT_DESKTOP "niri"
+    MOZ_ENABLE_WAYLAND "1"
+    GDK_BACKEND "wayland"
+    QT_QPA_PLATFORM "wayland"
+    XCURSOR_SIZE "24"
+    PROTON_ENABLE_WAYLAND "1"
+    ADW_DISABLE_PORTAL "1"
+    GTK_THEME "Adwaita:dark"
+}
+
+// ── Cursor ────────────────────────────────────────────────────────────────────
+
+cursor {
+    xcursor-theme "Adwaita"
+    xcursor-size 24
+}
+
+// ── Binds ─────────────────────────────────────────────────────────────────────
+
+binds {
+    Mod+Shift+Slash 								{ show-hotkey-overlay; 			                   }
+    Mod+Return   	hotkey-overlay-title="Terminal: alacritty"  		{ spawn "alacritty"; 	 		                   }
+    Mod+D        	hotkey-overlay-title="Launcher: fuzzel"     		{ spawn "fuzzel"; 			                   }	
+    Mod+Shift+D  	hotkey-overlay-title="File Manager: Nautilus"  		{ spawn "nautilus";	 		                   }
+    Super+Alt+L  	hotkey-overlay-title="Lock screen"       		{ spawn "qs" "ipc" "call" "lock" "lock";	   }
+    Mod+N        	hotkey-overlay-title="Notifications"     		{ spawn "qs" "ipc" "call" "notifs" "toggle";	   }
+    Mod+W	  	hotkey-overlay-title="Browser: Chromium"       		{ spawn "chromium";					   }	
+    Super+Alt+S  	allow-when-locked=true hotkey-overlay-title=null 	{ spawn-sh "pkill orca || exec orca";			   }
+    Mod+Shift+W				       					{ spawn-sh "qs -n -p ~/.config/quickshell/hyprquickpaper"; }
+    Mod+H		hotkey-overlay-title="Toggle telemetry HUD"		{ spawn-sh "qs ipc call hud toggle || qs -d";		   }
+    Mod+S		hotkey-overlay-title="Toggle settings"			{ spawn-sh "qs ipc call settings toggle || qs -d";	   }
+
+
+    // Volume
+    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; 	}
+    XF86AudioMute        allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; 	}
+    XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; 	}
+
+    // Media
+    XF86AudioPlay allow-when-locked=true { spawn-sh "playerctl play-pause"; }
+    XF86AudioStop allow-when-locked=true { spawn-sh "playerctl stop"; }
+    XF86AudioPrev allow-when-locked=true { spawn-sh "playerctl previous"; }
+    XF86AudioNext allow-when-locked=true { spawn-sh "playerctl next"; }
+
+    // Brightness
+    XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "brillo -A 2.5"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "brillo -U 2.5"; }
+
+    Mod+O repeat=false { toggle-overview; }
+    Mod+Q repeat=false { close-window; }
+
+    // Focus — Mod+Arrow
+    Mod+Left  { focus-column-left; }
+    Mod+Right { focus-column-right; }
+    
+    // Move window — Mod+Shift+Arrow
+    Mod+Shift+Down  { move-column-to-workspace-down; }
+    Mod+Shift+Up    { move-column-to-workspace-up; }
+    Mod+Shift+Right { move-column-right; }
+    Mod+Shift+Left  { move-column-left; }
+
+    Mod+Home      { focus-column-first; }
+    Mod+End       { focus-column-last; }
+    Mod+Ctrl+Home { move-column-to-first; }
+    Mod+Ctrl+End  { move-column-to-last; }
+
+    // Monitor focus — Mod+Ctrl+Arrow
+    Mod+Ctrl+Left  { focus-monitor-left; }
+    Mod+Ctrl+Down  { focus-monitor-down; }
+    Mod+Ctrl+Up    { focus-monitor-up; }
+    Mod+Ctrl+Right { focus-monitor-right; }
+
+    // Move to monitor — Mod+Ctrl+Shift+Arrow
+    Mod+Ctrl+Shift+Left  { move-column-to-monitor-left; }
+    Mod+Ctrl+Shift+Down  { move-column-to-monitor-down; }
+    Mod+Ctrl+Shift+Up    { move-column-to-monitor-up; }
+    Mod+Ctrl+Shift+Right { move-column-to-monitor-right; }
+
+    // Workspaces
+    Mod+Page_Down { focus-workspace-down; }
+    Mod+Page_Up   { focus-workspace-up; }
+    Mod+U         { focus-workspace-down; }
+    Mod+I         { focus-workspace-up; }
+
+    Mod+Down  { focus-workspace-down; }
+    Mod+Up    { focus-workspace-up; }
+
+    // Focus workspace — Mod+Number
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+
+    // Move to workspace — Mod+Shift+Number 
+    Mod+Shift+2 { move-column-to-workspace 2; }
+    Mod+Shift+3 { move-column-to-workspace 3; }
+    Mod+Shift+4 { move-column-to-workspace 4; }
+    Mod+Shift+5 { move-column-to-workspace 5; }
+    Mod+Shift+6 { move-column-to-workspace 6; }
+    Mod+Shift+7 { move-column-to-workspace 7; }
+    Mod+Shift+8 { move-column-to-workspace 8; }
+    Mod+Shift+9 { move-column-to-workspace 9; }
+
+    // Scroll workspaces
+    Mod+WheelScrollDown      cooldown-ms=150 { focus-workspace-down; }
+    Mod+WheelScrollUp        cooldown-ms=150 { focus-workspace-up; }
+    Mod+Ctrl+WheelScrollDown cooldown-ms=150 { move-column-to-workspace-down; }
+    Mod+Ctrl+WheelScrollUp   cooldown-ms=150 { move-column-to-workspace-up; }
+
+    Mod+WheelScrollRight      { focus-column-right; }
+    Mod+WheelScrollLeft       { focus-column-left; }
+    Mod+Ctrl+WheelScrollRight { move-column-right; }
+    Mod+Ctrl+WheelScrollLeft  { move-column-left; }
+
+    // Column/window manipulation
+    Mod+BracketLeft  { consume-or-expel-window-left; }
+    Mod+BracketRight { consume-or-expel-window-right; }
+    Mod+Comma  { consume-window-into-column; }
+    Mod+Period { expel-window-from-column; }
+
+    Mod+R            { switch-preset-column-width; }
+    Mod+Shift+R      { switch-preset-column-width-back; }
+    Mod+Ctrl+R       { reset-window-height; }
+    Mod+Ctrl+Shift+R { switch-preset-window-height; }
+
+    Mod+F       { maximize-column; }
+    Mod+Shift+F { fullscreen-window; }
+    Mod+M       { maximize-window-to-edges; }
+    Mod+Ctrl+F  { expand-column-to-available-width; }
+
+    Mod+C      { center-column; }
+    Mod+Ctrl+C { center-visible-columns; }
+
+    //Mod+Minus       { set-column-width "-10%"; }
+    //Mod+Equal       { set-column-width "+10%"; }
+    //Mod+Shift+Minus { set-window-height "-10%"; }
+    //Mod+Shift+Equal { set-window-height "+10%"; }
+
+    Mod+V       { toggle-window-floating; }
+    Mod+Shift+V { switch-focus-between-floating-and-tiling; }
+
+    // Screenshots
+    Mod+P      { screenshot; }
+    Mod+Ctrl+P { screenshot-screen; }	
+    Mod+Alt+P  { screenshot-window; }
+
+
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+    Mod+Shift+E  hotkey-overlay-title="Power menu" { spawn "qs" "ipc" "call" "power" "toggle"; }
+    Ctrl+Alt+Delete { quit; }
+    //Mod+Shift+P { power-off-monitors; }
+}

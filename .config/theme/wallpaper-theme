@@ -1,0 +1,579 @@
+#!/usr/bin/env python3
+"""Generate a system colour theme from a wallpaper and apply it everywhere.
+
+    wallpaper-theme [IMAGE]     theme from IMAGE (default: what awww is showing)
+    wallpaper-theme --print     print the palette without applying it
+
+Colours are pulled from the image with ImageMagick, normalised into a dark
+theme (tinted backgrounds, readable accent, harmonised ANSI colours) and
+written to:
+
+    ~/.cache/theme/palette.json        read live by quickshell (Theme.qml)
+    ~/.config/alacritty/colors.toml    imported by alacritty.toml (live reload)
+    ~/.config/starship.toml            [palettes.wallpaper] block at the end
+    ~/.config/niri/config.kdl          focus-ring / border colours (in place)
+    ~/.config/mako/config              colour keys (in place) + makoctl reload
+    ~/.config/fuzzel/fuzzel.ini        [colors] keys (in place)
+    ~/.config/gtk-{3,4}.0/gtk.css      libadwaita colours + Nautilus styling
+    Papirus-Dark folder colour         nearest to the accent (papirus-folders)
+
+A mostly greyscale wallpaper keeps the original monochrome look.
+"""
+
+import colorsys
+import json
+import os
+import re
+import subprocess
+import sys
+
+HOME = os.path.expanduser("~")
+CFG = os.path.join(HOME, ".config")
+CACHE = os.path.join(HOME, ".cache", "theme")
+
+
+# ---------------------------------------------------------------- colour utils
+
+def hex_to_rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def rgb_to_hex(rgb):
+    return "#" + "".join("%02x" % round(max(0, min(1, c)) * 255) for c in rgb)
+
+
+def hls(h, l, s):
+    return rgb_to_hex(colorsys.hls_to_rgb(h % 1.0, l, s))
+
+
+def hue_dist(a, b):
+    d = abs(a - b) % 1.0
+    return min(d, 1 - d)
+
+
+def hue_blend(a, b, t):
+    """Move hue a toward hue b by fraction t along the short way round."""
+    d = ((b - a + 0.5) % 1.0) - 0.5
+    return (a + d * t) % 1.0
+
+
+# ---------------------------------------------------------------- extraction
+
+def extract(path):
+    """Return [(count, (h, l, chroma))] for the image's dominant colours.
+
+    Chroma (max - min channel) is used instead of HLS saturation, which is
+    meaningless near black/white (#000001 reports s=1.0).
+    """
+    out = subprocess.run(
+        ["magick", path + "[0]", "-resize", "200x200", "-colors", "24",
+         "-depth", "8", "-format", "%c", "histogram:info:-"],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    colours = []
+    for line in out.splitlines():
+        m = re.match(r"\s*(\d+):.*?(#[0-9A-Fa-f]{6})", line)
+        if m:
+            r, g, b = hex_to_rgb(m.group(2))
+            h, l, _ = colorsys.rgb_to_hls(r, g, b)
+            colours.append((int(m.group(1)), (h, l, max(r, g, b) - min(r, g, b))))
+    if not colours:
+        raise SystemExit("wallpaper-theme: no colours extracted from " + path)
+    return colours
+
+
+def pick_accents(colours, bins=12):
+    """Dominant vivid hue family, plus a second family elsewhere on the wheel.
+
+    Colours are grouped into hue bins weighted by count * chroma^2, so many
+    shades of the same hue add up and big dark/grey areas count for little.
+    Returns (hue1, chroma1, hue2), or None for a greyscale image.
+    """
+    weight = [0.0] * bins
+    members = [[] for _ in range(bins)]
+    for count, (h, l, c) in colours:
+        if c < 0.12 or l < 0.08 or l > 0.95:
+            continue
+        w = count * c * c
+        b = int(h * bins) % bins
+        weight[b] += w
+        members[b].append((w, h, c))
+
+    total = sum(count for count, _ in colours)
+    if sum(weight) / total < 0.01:
+        return None  # greyscale wallpaper
+
+    def family(b):
+        ws = sum(w for w, _, _ in members[b])
+        # circular weighted mean of the hues in this bin
+        ref = members[b][0][1]
+        hue = (ref + sum(w * (((h - ref + 0.5) % 1.0) - 0.5) for w, h, _ in members[b]) / ws) % 1.0
+        chroma = max(c for _, _, c in members[b])
+        return hue, chroma
+
+    order = sorted(range(bins), key=lambda b: weight[b], reverse=True)
+    b1 = order[0]
+    h1, c1 = family(b1)
+
+    # second accent: strongest family at least two bins (~60°) away
+    b2 = next((b for b in order[1:] if weight[b] > 0 and
+               min((b - b1) % bins, (b1 - b) % bins) >= 2), None)
+    h2 = family(b2)[0] if b2 is not None else (h1 + 0.09) % 1.0
+    return h1, c1, h2
+
+
+# ---------------------------------------------------------------- palette
+
+def build_palette(colours, wallpaper):
+    acc = pick_accents(colours)
+
+    if acc is None:
+        # Monochrome: the shell's original black/white look.
+        h, s_bg = 0.0, 0.0
+        accent, accent2 = "#ffffff", "#bfbfbf"
+        tint = 0.0
+        mono = True
+    else:
+        h, s_acc, h2 = acc
+        s = min(0.85, max(0.5, s_acc))
+        accent = hls(h, 0.70, s)
+        accent2 = hls(h2, 0.72, min(0.8, s))
+        s_bg = 0.28
+        tint = 0.18
+        mono = False
+
+    p = {
+        "wallpaper": wallpaper,
+        "mono": mono,
+        "accent": accent,
+        "accent2": accent2,
+        "accentFg": hls(h, 0.08, s_bg),
+        "bgPanel": hls(h, 0.035, s_bg),
+        "bg": hls(h, 0.06, s_bg),
+        "bgCard": hls(h, 0.075, s_bg),
+        "surface": hls(h, 0.12, s_bg * 0.9),
+        "trackBg": hls(h, 0.10, s_bg * 0.8),
+        "border": hls(h, 0.15, s_bg * 0.7),
+        "borderAccent": hls(h, 0.22, s_bg * 0.7),
+        "text": hls(h, 0.94, s_bg * 0.9),
+        "textDim": hls(h, 0.60, s_bg * 0.5),
+        "textFaint": hls(h, 0.34, s_bg * 0.5),
+        "danger": hls(0.97, 0.62, 0.85),
+        "ok": hls(0.42, 0.58, 0.75),
+    }
+
+    # ANSI: canonical hues nudged toward the accent hue so the terminal
+    # feels related to the wallpaper while staying recognisable.
+    base = {"red": 0.98, "green": 0.33, "yellow": 0.12,
+            "blue": 0.60, "magenta": 0.85, "cyan": 0.49}
+    sat = 0.55 if not mono else 0.35
+    normal, bright = {}, {}
+    for name, bh in base.items():
+        hh = hue_blend(bh, h, tint)
+        normal[name] = hls(hh, 0.68, sat)
+        bright[name] = hls(hh, 0.77, sat + 0.1)
+    normal["black"] = hls(h, 0.20, s_bg * 0.7)
+    bright["black"] = hls(h, 0.34, s_bg * 0.6)
+    normal["white"] = hls(h, 0.80, s_bg * 0.5)
+    bright["white"] = hls(h, 0.94, s_bg * 0.6)
+    p["ansi"] = {"normal": normal, "bright": bright}
+    return p
+
+
+# ---------------------------------------------------------------- writers
+
+def write(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+def write_quickshell(p):
+    write(os.path.join(CACHE, "palette.json"), json.dumps(p, indent=2) + "\n")
+
+
+def write_alacritty(p):
+    n, b = p["ansi"]["normal"], p["ansi"]["bright"]
+    order = ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"]
+    block = lambda d: "\n".join('%-7s = "%s"' % (k, d[k]) for k in order)
+    write(os.path.join(CFG, "alacritty", "colors.toml"), f"""\
+# Generated by ~/.config/theme/wallpaper-theme. Do not edit by hand.
+
+[colors.primary]
+background = "{p['bg']}"
+foreground = "{p['text']}"
+dim_foreground = "{p['textDim']}"
+bright_foreground = "{p['text']}"
+
+[colors.cursor]
+text = "{p['bg']}"
+cursor = "{p['accent']}"
+
+[colors.vi_mode_cursor]
+text = "{p['bg']}"
+cursor = "{p['accent2']}"
+
+[colors.search.matches]
+foreground = "{p['bg']}"
+background = "{p['textDim']}"
+
+[colors.search.focused_match]
+foreground = "{p['bg']}"
+background = "{p['accent']}"
+
+[colors.footer_bar]
+foreground = "{p['bg']}"
+background = "{p['textDim']}"
+
+[colors.hints.start]
+foreground = "{p['bg']}"
+background = "{p['accent']}"
+
+[colors.hints.end]
+foreground = "{p['bg']}"
+background = "{p['textDim']}"
+
+[colors.selection]
+text = "{p['bg']}"
+background = "{p['accent']}"
+
+[colors.normal]
+{block(n)}
+
+[colors.bright]
+{block(b)}
+
+[colors.dim]
+{block(n)}
+
+[bell]
+animation = "EaseOutExpo"
+duration = 140
+color = "{p['accent']}"
+""")
+
+
+STARSHIP_MARK = "# --- generated by ~/.config/theme/wallpaper-theme: do not edit below ---"
+
+
+def write_starship(p):
+    """Replace the [palettes.wallpaper] block at the end of starship.toml."""
+    path = os.path.join(CFG, "starship.toml")
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        text = f.read()
+    if STARSHIP_MARK not in text:
+        return
+    a = p["ansi"]["normal"]
+    block = "\n".join([
+        STARSHIP_MARK,
+        "[palettes.wallpaper]",
+        f'accent = "{p["accent"]}"',
+        f'accent2 = "{p["accent2"]}"',
+        f'text = "{p["text"]}"',
+        f'dim = "{p["textDim"]}"',
+        f'faint = "{p["textFaint"]}"',
+        f'border = "{p["borderAccent"]}"',
+        f'frame = "{p["textFaint"]}"',
+        f'danger = "{p["danger"]}"',
+        f'yellow = "{a["yellow"]}"',
+        f'magenta = "{a["magenta"]}"',
+        "",
+    ])
+    write(path, text[:text.index(STARSHIP_MARK)] + block)
+
+
+def edit_keys(path, sections):
+    """Rewrite `key=value` lines in an ini-ish file.
+
+    sections maps a section name ("" = before any header) to {key: value}.
+    Only existing keys are changed; everything else is left untouched.
+    """
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        lines = f.read().split("\n")
+    section = ""
+    for i, line in enumerate(lines):
+        st = line.strip()
+        m = re.match(r"^\[(.+)\]$", st)
+        if m:
+            section = m.group(1)
+            continue
+        km = re.match(r"^([\w-]+)\s*=", st)
+        if km and km.group(1) in sections.get(section, {}):
+            lines[i] = "%s=%s" % (km.group(1), sections[section][km.group(1)])
+    write(path, "\n".join(lines))
+
+
+def write_mako(p):
+    edit_keys(os.path.join(CFG, "mako", "config"), {
+        "": {"background-color": p["bg"] + "ee",
+             "text-color": p["text"],
+             "border-color": p["accent"]},
+        "urgency=high": {"background-color": p["bg"] + "ee",
+                         "border-color": p["danger"]},
+    })
+    subprocess.run(["makoctl", "reload"], capture_output=True)
+
+
+def write_fuzzel(p):
+    x = lambda c, a="ff": c.lstrip("#") + a
+    edit_keys(os.path.join(CFG, "fuzzel", "fuzzel.ini"), {
+        "colors": {"background": x(p["bgPanel"], "f2"),
+                   "text": x(p["textDim"]),
+                   "prompt": x(p["accent"]),
+                   "placeholder": x(p["textFaint"]),
+                   "input": x(p["text"]),
+                   "match": x(p["accent"]),
+                   "selection": x(p["surface"]),
+                   "selection-text": x(p["text"]),
+                   "selection-match": x(p["accent"]),
+                   "border": x(p["accent"], "99")},
+    })
+
+
+def write_niri(p):
+    """Recolour focus-ring and border inside the top-level layout block.
+
+    niri watches its config and reloads on change, so this applies live.
+    """
+    path = os.path.join(CFG, "niri", "config.kdl")
+    with open(path) as f:
+        lines = f.read().split("\n")
+
+    in_layout, block = False, None
+    for i, line in enumerate(lines):
+        if re.match(r"^layout\s*\{", line):
+            in_layout = True
+            continue
+        if in_layout and re.match(r"^\}", line):
+            break
+        if not in_layout:
+            continue
+        m = re.match(r"^\s*(focus-ring|border)\s*\{", line)
+        if m:
+            block = m.group(1)
+            continue
+        if block and re.match(r"^\s*\}", line):
+            block = None
+            continue
+        indent = re.match(r"^(\s*)", line).group(1)
+        if block == "focus-ring":
+            if re.match(r"^\s*active-gradient\b", line):
+                lines[i] = f'{indent}active-gradient from="{p["accent"]}" to="{p["accent2"]}" angle=45'
+            elif re.match(r"^\s*active-color\b", line):
+                lines[i] = f'{indent}active-color "{p["accent"]}"'
+            elif re.match(r"^\s*inactive-color\b", line):
+                lines[i] = f'{indent}inactive-color "{p["border"]}"'
+        elif block == "border":
+            if re.match(r"^\s*active-color\b", line):
+                lines[i] = f'{indent}active-color "{p["accent"]}"'
+            elif re.match(r"^\s*inactive-color\b", line):
+                lines[i] = f'{indent}inactive-color "{p["border"]}"'
+            elif re.match(r"^\s*urgent-color\b", line):
+                lines[i] = f'{indent}urgent-color "{p["danger"]}"'
+
+    write(path, "\n".join(lines))
+
+
+GTK_MARK = "/* Generated by ~/.config/theme/wallpaper-theme */"
+
+
+def rgba(hex_, a):
+    r, g, b = (round(c * 255) for c in hex_to_rgb(hex_))
+    return f"rgba({r}, {g}, {b}, {a})"
+
+
+def write_gtk(p):
+    legacy = f"""@define-color accent_color {p['accent']};
+@define-color accent_bg_color {p['accent']};
+@define-color accent_fg_color {p['accentFg']};
+@define-color window_bg_color {p['bg']};
+@define-color window_fg_color {p['text']};
+@define-color view_bg_color {p['bgPanel']};
+@define-color view_fg_color {p['text']};
+@define-color headerbar_bg_color {p['bgCard']};
+@define-color headerbar_fg_color {p['text']};
+@define-color headerbar_backdrop_color {p['bg']};
+@define-color sidebar_bg_color {p['bgCard']};
+@define-color sidebar_fg_color {p['text']};
+@define-color card_bg_color {p['surface']};
+@define-color card_fg_color {p['text']};
+@define-color dialog_bg_color {p['bgCard']};
+@define-color dialog_fg_color {p['text']};
+@define-color popover_bg_color {p['bgCard']};
+@define-color popover_fg_color {p['text']};
+@define-color theme_selected_bg_color {p['accent']};
+@define-color theme_selected_fg_color {p['accentFg']};
+"""
+
+    # libadwaita >= 1.6 reads CSS variables; the @define-color names above
+    # only reach GTK3 and older libadwaita.
+    adw = f"""
+:root {{
+  --accent-color: {p['accent']};
+  --accent-bg-color: {p['accent']};
+  --accent-fg-color: {p['accentFg']};
+  --destructive-bg-color: {p['danger']};
+  --destructive-color: {p['danger']};
+  --success-color: {p['ok']};
+
+  --window-bg-color: {p['bg']};
+  --window-fg-color: {p['text']};
+  --view-bg-color: {p['bgPanel']};
+  --view-fg-color: {p['text']};
+  --headerbar-bg-color: {p['bgCard']};
+  --headerbar-fg-color: {p['text']};
+  --headerbar-backdrop-color: {p['bg']};
+  --headerbar-border-color: {p['border']};
+  --headerbar-shade-color: rgba(0, 0, 0, 0.36);
+  --sidebar-bg-color: {p['bgCard']};
+  --sidebar-fg-color: {p['text']};
+  --sidebar-backdrop-color: {p['bgCard']};
+  --sidebar-border-color: {p['border']};
+  --sidebar-shade-color: rgba(0, 0, 0, 0.25);
+  --secondary-sidebar-bg-color: {p['bg']};
+  --secondary-sidebar-fg-color: {p['text']};
+  --card-bg-color: {p['surface']};
+  --card-fg-color: {p['text']};
+  --card-shade-color: rgba(0, 0, 0, 0.36);
+  --dialog-bg-color: {p['bgCard']};
+  --dialog-fg-color: {p['text']};
+  --popover-bg-color: {p['bgCard']};
+  --popover-fg-color: {p['text']};
+  --popover-shade-color: rgba(0, 0, 0, 0.3);
+  --thumbnail-bg-color: {p['surface']};
+  --thumbnail-fg-color: {p['text']};
+  --shade-color: rgba(0, 0, 0, 0.36);
+
+  /* used by nautilus-hud.css */
+  --hud-accent: {p['accent']};
+  --hud-accent2: {p['accent2']};
+  --hud-panel: {p['bgPanel']};
+  --hud-bg: {p['bg']};
+  --hud-card: {p['bgCard']};
+  --hud-track: {p['trackBg']};
+  --hud-border: {p['border']};
+  --hud-border-accent: {p['borderAccent']};
+  --hud-text: {p['text']};
+  --hud-dim: {p['textDim']};
+  --hud-faint: {p['textFaint']};
+}}
+
+/* ---- touches to match the shell: tighter radii, accent selections ---- */
+
+button, entry, spinbutton, dropdown > button, .linked > button,
+.navigation-sidebar > row, list.boxed-list, row.activatable {{
+  border-radius: 4px;
+}}
+
+.navigation-sidebar > row:selected {{
+  background-color: {rgba(p['accent'], 0.16)};
+  color: {p['accent']};
+}}
+.navigation-sidebar > row:selected image {{
+  color: {p['accent']};
+}}
+
+popover > contents, popover.menu > contents {{
+  border: 1px solid {p['border']};
+  border-radius: 6px;
+}}
+
+"""
+
+    imports = '@import url("nautilus-hud.css");\n\n'
+    for d, css in (("gtk-3.0", legacy), ("gtk-4.0", imports + legacy + adw)):
+        path = os.path.join(CFG, d, "gtk.css")
+        if os.path.exists(path):
+            with open(path) as f:
+                if GTK_MARK not in f.read():
+                    print(f"wallpaper-theme: skipping {path} (not generated by us)")
+                    continue
+        write(path, GTK_MARK + "\n" + css)
+
+
+# Papirus folder colours (papirus-folders names) and roughly what they look like
+PAPIRUS_FOLDERS = {
+    "red": "#e25252", "carmine": "#a30002", "deeporange": "#eb6637",
+    "orange": "#ee923a", "paleorange": "#eeca8f", "yellow": "#f9bd30",
+    "green": "#87b158", "teal": "#16a085", "darkcyan": "#45abb7",
+    "cyan": "#00bcd4", "blue": "#5294e2", "indigo": "#5c6bc0",
+    "violet": "#7e57c2", "magenta": "#ca71df", "pink": "#f06292",
+    "brown": "#ae8e6c", "palebrown": "#d1bfae",
+}
+
+
+def write_icons(p):
+    """Recolour Papirus folders to the nearest match for the accent."""
+    tool = os.path.join(HOME, ".local", "bin", "papirus-folders")
+    if not os.path.exists(tool) or not os.path.isdir(os.path.join(HOME, ".local/share/icons/Papirus-Dark")):
+        return
+    if p["mono"]:
+        colour = "grey"
+    else:
+        ah, al, _ = colorsys.rgb_to_hls(*hex_to_rgb(p["accent"]))
+
+        def dist(item):
+            h, l, s = colorsys.rgb_to_hls(*hex_to_rgb(item[1]))
+            return hue_dist(h, ah) * 4 + abs(l - al) + (0.5 if s < 0.25 else 0)
+
+        colour = min(PAPIRUS_FOLDERS.items(), key=dist)[0]
+
+    state = os.path.join(CACHE, "papirus-folders")
+    try:
+        with open(state) as f:
+            if f.read().strip() == colour:
+                return
+    except OSError:
+        pass
+    r = subprocess.run([tool, "-C", colour, "--theme", "Papirus-Dark"],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        write(state, colour + "\n")
+    else:
+        print("wallpaper-theme: papirus-folders failed: " + (r.stderr or r.stdout).strip(),
+              file=sys.stderr)
+
+
+# ---------------------------------------------------------------- main
+
+def current_wallpaper():
+    out = subprocess.run(["awww", "query"], capture_output=True, text=True).stdout
+    m = re.search(r"image: (.*)$", out, re.M)
+    if not m:
+        raise SystemExit("wallpaper-theme: no image given and awww shows none")
+    return m.group(1).strip()
+
+
+def main():
+    args = sys.argv[1:]
+    dry = "--print" in args
+    args = [a for a in args if a != "--print"]
+    image = os.path.abspath(os.path.expanduser(args[0])) if args else current_wallpaper()
+
+    palette = build_palette(extract(image), image)
+
+    if dry:
+        print(json.dumps(palette, indent=2))
+        return
+
+    for writer in (write_quickshell, write_alacritty, write_niri,
+                   write_mako, write_fuzzel, write_gtk, write_icons,
+                   write_starship):
+        try:
+            writer(palette)
+        except Exception as e:  # one broken target shouldn't stop the rest
+            print(f"wallpaper-theme: {writer.__name__} failed: {e}", file=sys.stderr)
+
+    print(f"wallpaper-theme: {palette['accent']} / {palette['accent2']}"
+          f"{' (mono)' if palette['mono'] else ''} from {os.path.basename(image)}")
+
+
+if __name__ == "__main__":
+    main()

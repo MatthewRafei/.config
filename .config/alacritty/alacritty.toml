@@ -1,0 +1,51 @@
+# Alacritty — HUD edition. Colours (incl. the bell flash) are generated from
+# the wallpaper by ~/.config/theme/wallpaper-theme into colors.toml.
+
+[general]
+import = ["~/.config/alacritty/colors.toml"]
+live_config_reload = true
+
+[env]
+TERM = "xterm-256color"
+
+[window]
+padding = { x = 22, y = 18 }
+dynamic_padding = true
+decorations = "None"
+opacity = 0.88
+blur = true
+startup_mode = "Windowed"
+title = "Terminal"
+dynamic_title = true
+
+[font]
+normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }
+bold = { family = "JetBrainsMono Nerd Font", style = "Bold" }
+italic = { family = "JetBrainsMono Nerd Font", style = "Italic" }
+bold_italic = { family = "JetBrainsMono Nerd Font", style = "Bold Italic" }
+size = 11.0
+# a little air between lines, glyphs kept vertically centred
+offset = { x = 0, y = 3 }
+glyph_offset = { x = 0, y = 1 }
+
+[scrolling]
+history = 10000
+multiplier = 3
+
+[cursor]
+style = { shape = "Block", blinking = "On" }
+vi_mode_style = { shape = "Underline", blinking = "Off" }
+blink_interval = 600
+blink_timeout = 0
+unfocused_hollow = true
+
+[selection]
+save_to_clipboard = true
+
+[mouse]
+hide_when_typing = true
+
+[[keyboard.bindings]]
+key = "Return"
+mods = "Shift"
+chars = "\u001B\r"
