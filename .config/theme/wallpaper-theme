@@ -17,7 +17,7 @@ written to:
     ~/.config/fuzzel/fuzzel.ini        [colors] keys (in place)
     ~/.config/gtk-{3,4}.0/gtk.css      libadwaita colours + Nautilus styling
     Papirus-Dark folder colour         nearest to the accent (papirus-folders)
-    Chromium profile Preferences       "Customize Chrome" colour (while closed)
+    Chromium                           BrowserThemeColor policy (live) or Preferences
     ~/.config/fastfetch/config.jsonc   whole HUD layout
     ~/.config/mpv/theme.conf + script-opts/{osc,console}.conf
 
@@ -361,12 +361,24 @@ def chromium_running():
     return subprocess.run(["pgrep", "-x", "chromium"], capture_output=True).returncode == 0
 
 
-def write_chromium(p):
-    """Set Chromium's "Customize Chrome" colour (Material You) to the accent.
+CHROMIUM_POLICY_DIR = "/etc/chromium/policies/managed"
 
-    Chromium rewrites Preferences on exit, so this only touches it while
-    Chromium is closed; ~/.local/bin/chromium re-applies it at every launch.
+
+def write_chromium(p):
+    """Theme Chromium with the accent colour.
+
+    Preferred: the BrowserThemeColor policy, which Chromium watches and
+    applies live. Needs /etc/chromium/policies/managed to be writable by
+    this user (one-time: doas install -d -o $USER /etc/chromium/policies/managed).
+
+    Fallback: the "Customize Chrome" colour in the profile's Preferences.
+    Chromium rewrites Preferences on exit, so that only works while it's
+    closed; ~/.local/bin/chromium re-applies it at every launch.
     """
+    if os.access(CHROMIUM_POLICY_DIR, os.W_OK):
+        write(os.path.join(CHROMIUM_POLICY_DIR, "wallpaper-theme.json"),
+              json.dumps({"BrowserThemeColor": p["accent"]}) + "\n")
+        return
     if not os.path.exists(CHROMIUM_PREFS) or chromium_running():
         return
     with open(CHROMIUM_PREFS) as f:
