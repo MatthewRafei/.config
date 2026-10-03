@@ -18,4 +18,5 @@ ShellRoot {
     PowerMenu {}
     QuickPanel {}
     CalendarPanel {}
+    CalendarWindow {}
 }

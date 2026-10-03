@@ -51,170 +51,11 @@ PanelWindow {
         return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
     }
 
-    // "9", "930", "9:30", "9:30pm", "21:30", "9 pm" -> minutes after midnight, or -1
-    function parseTime(s) {
-        const m = String(s).trim().toLowerCase().match(/^(\d{1,2})(?::?(\d{2}))?\s*([ap])?\.?m?\.?$/)
-        if (!m) return -1
-        let h = +m[1], min = +(m[2] || 0)
-        if (min > 59 || h > 23) return -1
-        if (m[3] === "p" && h < 12) h += 12
-        if (m[3] === "a" && h === 12) h = 0
-        return h * 60 + min
-    }
-
-    function fmtTime(min) {
-        return Qt.formatTime(new Date(2000, 0, 1, Math.floor(min / 60), min % 60), "h:mm AP")
-    }
-
-    // ---- form state ----
-    property var editing: null           // the event being edited, or null for a new one
-    property date formDate: new Date()
-    property bool fAllDay: false
-    property int fStart: 9 * 60
-    property int fEnd: 10 * 60
-    property string fRepeat: "none"
-    property int fReminder: 10
-    property string formError: ""
-
-    function newEvent() {
-        editing = null
-        formDate = selected
-        fAllDay = false
-        const now = new Date()
-        fStart = sameDay(selected, now) ? Math.min(23 * 60, (now.getHours() + 1) * 60) : 9 * 60
-        fEnd = Math.min(fStart + 60, 23 * 60 + 59)
-        fRepeat = "none"
-        fReminder = 10
-        formError = ""
-        titleIn.text = ""; locationIn.text = ""; notesIn.text = ""
-        startIn.text = fmtTime(fStart); endIn.text = fmtTime(fEnd)
-        mode = "edit"
-        titleIn.forceActiveFocus()
-    }
-
-    function editEvent(ev) {
-        editing = ev
-        formDate = ev.start                 // repeating: edit the series from its start
-        fAllDay = ev.allDay
-        fStart = ev.start.getHours() * 60 + ev.start.getMinutes()
-        fEnd = ev.end.getHours() * 60 + ev.end.getMinutes()
-        fRepeat = ev.repeat
-        fReminder = ev.reminder
-        formError = ""
-        titleIn.text = ev.title; locationIn.text = ev.location; notesIn.text = ev.notes
-        startIn.text = fmtTime(fStart); endIn.text = fmtTime(fEnd)
-        mode = "edit"
-        titleIn.forceActiveFocus()
-    }
-
-    function saveForm() {
-        if (titleIn.text.trim() === "") { formError = "give it a title"; titleIn.forceActiveFocus(); return }
-        const s = parseTime(startIn.text), e = parseTime(endIn.text)
-        if (!fAllDay && (s < 0 || e < 0)) { formError = "times look like 9:30 AM or 14:00"; return }
-        const d = formDate
-        let start, end
-        if (fAllDay) {
-            start = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-            end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
-        } else {
-            start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(s / 60), s % 60)
-            end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(e / 60), e % 60)
-            if (end <= start) end = new Date(end.getTime() + 86400000)   // runs past midnight
-        }
-        Calendar.save({
-            uid: editing ? editing.uid : undefined,
-            file: editing ? editing.file : undefined,
-            title: titleIn.text.trim(),
-            start: start, end: end, allDay: fAllDay,
-            location: locationIn.text.trim(), notes: notesIn.text.trim(),
-            reminder: fReminder, repeat: fRepeat, interval: editing ? editing.interval : 1,
-            until: editing ? editing.until : undefined
-        })
-        selected = start
-        mode = "day"
-    }
-
-    function deleteEditing() {
-        if (editing) Calendar.remove(editing)
-        mode = "day"
-    }
+    function newEvent() { mode = "edit"; form.startNew(selected) }
+    function editEvent(ev) { mode = "edit"; form.edit(ev) }
 
     // ================================================================ UI
     MouseArea { anchors.fill: parent; onClicked: root.close() }
-
-    // shared bits
-    component Btn: Rectangle {
-        id: btn
-        property string label
-        property bool on: false
-        property bool danger: false
-        signal clicked()
-        width: btnText.implicitWidth + 20
-        height: 26
-        radius: Theme.radius
-        readonly property color tint: danger ? Theme.danger : Theme.accent
-        color: on ? Theme.alpha(tint, 0.15) : btnMouse.containsMouse ? Theme.bgCard : "transparent"
-        border.color: on || btnMouse.containsMouse ? tint : Theme.border
-        Text {
-            id: btnText
-            anchors.centerIn: parent
-            text: btn.label
-            color: btn.on || btnMouse.containsMouse ? btn.tint : Theme.textDim
-            font.family: Theme.fontFamily
-            font.pixelSize: 9
-            font.bold: btn.on
-            font.letterSpacing: 1
-        }
-        MouseArea {
-            id: btnMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: btn.clicked()
-        }
-    }
-
-    component Field: Rectangle {
-        id: field
-        property alias text: input.text
-        property alias input: input
-        property string placeholder
-        signal accepted()
-        signal finished()
-        height: 30
-        radius: Theme.radius
-        color: Theme.bgCard
-        border.color: input.activeFocus ? Theme.accent : Theme.border
-        TextInput {
-            id: input
-            anchors.fill: parent
-            anchors.leftMargin: 10
-            anchors.rightMargin: 10
-            verticalAlignment: TextInput.AlignVCenter
-            clip: true
-            color: Theme.text
-            selectionColor: Theme.alpha(Theme.accent, 0.4)
-            font.family: Theme.fontFamily
-            font.pixelSize: 11
-            onAccepted: field.accepted()
-            onEditingFinished: field.finished()
-            Text {
-                visible: input.text === "" && !input.activeFocus
-                anchors.verticalCenter: parent.verticalCenter
-                text: field.placeholder
-                color: Theme.textFaint
-                font: input.font
-            }
-        }
-    }
-
-    component Label: Text {
-        width: 74
-        color: Theme.textFaint
-        font.family: Theme.fontFamily
-        font.pixelSize: 9
-        font.letterSpacing: 2
-    }
 
     Rectangle {
         id: panel
@@ -263,12 +104,12 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 4
-                    Btn { label: "‹"; onClicked: root.shiftMonth(-1) }
-                    Btn {
+                    HudButton { label: "‹"; onClicked: root.shiftMonth(-1) }
+                    HudButton {
                         label: "TODAY"
                         onClicked: { root.selected = new Date(); root.viewYear = root.selected.getFullYear(); root.viewMonth = root.selected.getMonth() }
                     }
-                    Btn { label: "›"; onClicked: root.shiftMonth(1) }
+                    HudButton { label: "›"; onClicked: root.shiftMonth(1) }
                 }
             }
 
@@ -309,7 +150,7 @@ PanelWindow {
                         readonly property date day: new Date(root.viewYear, root.viewMonth, 1 - days.first.getDay() + index)
                         readonly property bool inMonth: day.getMonth() === root.viewMonth
                         readonly property bool isToday: root.sameDay(day, clock.date)
-                        readonly property bool isSel: root.sameDay(day, root.mode === "edit" ? root.formDate : root.selected)
+                        readonly property bool isSel: root.sameDay(day, root.mode === "edit" ? form.date : root.selected)
                         readonly property int count: inMonth ? (days.counts[day.getDate()] || 0) : 0
 
                         width: gridSide.width / 7
@@ -354,7 +195,7 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (root.mode === "edit") root.formDate = cell.day
+                                if (root.mode === "edit") form.date = cell.day
                                 else root.selected = cell.day
                                 if (!cell.inMonth) { root.viewYear = cell.day.getFullYear(); root.viewMonth = cell.day.getMonth() }
                             }
@@ -401,12 +242,15 @@ PanelWindow {
                         font.pixelSize: 10
                         font.letterSpacing: 2
                     }
-                    Btn {
+                    Row {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        label: "+  NEW"
-                        on: true
-                        onClicked: root.newEvent()
+                        spacing: 6
+                        HudButton {
+                            label: "OPEN ⤢"
+                            onClicked: { Calendar.panelOpen = false; Calendar.windowOpen = true }
+                        }
+                        HudButton { label: "+  NEW"; on: true; onClicked: root.newEvent() }
                     }
                 }
 
@@ -507,118 +351,11 @@ PanelWindow {
             }
 
             // ================= add / edit form =================
-            Column {
+            EventForm {
+                id: form
                 visible: root.mode === "edit"
                 width: parent.width
-                spacing: 9
-
-                Item {
-                    width: parent.width
-                    height: 26
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: (root.editing ? "EDIT EVENT" : "NEW EVENT") + "  ·  "
-                            + Qt.formatDate(root.formDate, "ddd dd MMM yyyy").toUpperCase()
-                        color: Theme.textDim
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 10
-                        font.letterSpacing: 2
-                    }
-                }
-
-                Field {
-                    id: titleIn
-                    width: parent.width
-                    placeholder: "title"
-                    onAccepted: root.saveForm()
-                }
-
-                Row {
-                    spacing: 6
-                    Label { text: "WHEN"; anchors.verticalCenter: parent.verticalCenter }
-                    Btn { label: "ALL DAY"; on: root.fAllDay; onClicked: root.fAllDay = !root.fAllDay }
-                    Field {
-                        id: startIn
-                        visible: !root.fAllDay
-                        width: 86
-                        placeholder: "9:00 AM"
-                        onAccepted: root.saveForm()
-                        onFinished: { const t = root.parseTime(text); if (t >= 0) { root.fStart = t; text = root.fmtTime(t) } }
-                    }
-                    Text {
-                        visible: !root.fAllDay
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "–"
-                        color: Theme.textFaint
-                        font.family: Theme.fontFamily
-                    }
-                    Field {
-                        id: endIn
-                        visible: !root.fAllDay
-                        width: 86
-                        placeholder: "10:00 AM"
-                        onAccepted: root.saveForm()
-                        onFinished: { const t = root.parseTime(text); if (t >= 0) { root.fEnd = t; text = root.fmtTime(t) } }
-                    }
-                }
-
-                Row {
-                    spacing: 4
-                    Label { text: "REPEAT"; anchors.verticalCenter: parent.verticalCenter }
-                    Repeater {
-                        model: [["none", "NO"], ["daily", "DAY"], ["weekly", "WEEK"], ["monthly", "MONTH"], ["yearly", "YEAR"]]
-                        Btn {
-                            required property var modelData
-                            label: modelData[1]
-                            on: root.fRepeat === modelData[0]
-                            onClicked: root.fRepeat = modelData[0]
-                        }
-                    }
-                }
-
-                Row {
-                    spacing: 4
-                    Label { text: "REMIND"; anchors.verticalCenter: parent.verticalCenter }
-                    Repeater {
-                        model: [[-1, "NO"], [0, "AT START"], [10, "10M"], [30, "30M"], [60, "1H"], [1440, "1D"]]
-                        Btn {
-                            required property var modelData
-                            label: modelData[1]
-                            on: root.fReminder === modelData[0]
-                            onClicked: root.fReminder = modelData[0]
-                        }
-                    }
-                }
-
-                Field { id: locationIn; width: parent.width; placeholder: "location"; onAccepted: root.saveForm() }
-                Field { id: notesIn; width: parent.width; placeholder: "notes"; onAccepted: root.saveForm() }
-
-                Item {
-                    width: parent.width
-                    height: 28
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: root.formError !== ""
-                        text: root.formError
-                        color: Theme.danger
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 9
-                    }
-
-                    Row {
-                        anchors.right: parent.right
-                        spacing: 6
-                        Btn {
-                            visible: root.editing !== null
-                            label: root.editing && root.editing.repeat !== "none" ? "DELETE SERIES" : "DELETE"
-                            danger: true
-                            onClicked: root.deleteEditing()
-                        }
-                        Btn { label: "CANCEL"; onClicked: root.mode = "day" }
-                        Btn { label: "SAVE"; on: true; onClicked: root.saveForm() }
-                    }
-                }
+                onClosed: { root.selected = form.savedStart; root.mode = "day" }
             }
         }
     }

@@ -16,6 +16,7 @@ import QtQuick
 // through Syncthing show up on their own. Reminders pop up as notifications.
 //
 //   qs ipc call calendar toggle      open/close the dropdown (CalendarPanel.qml)
+//   qs ipc call calendar open        open/close the big window (CalendarWindow.qml)
 Singleton {
     id: root
 
@@ -24,6 +25,7 @@ Singleton {
     property var events: []       // parsed events, see parse()
     property int revision: 0      // bumps on every reload so views re-evaluate
     property bool panelOpen: false
+    property bool windowOpen: false      // CalendarWindow.qml
 
     // ================================================================ loading
     Process {
@@ -314,6 +316,7 @@ Singleton {
     IpcHandler {
         target: "calendar"
         function toggle(): void { root.panelOpen = !root.panelOpen }
+        function open(): void { root.panelOpen = false; root.windowOpen = !root.windowOpen }
         function reload(): void { root.reload() }
     }
 }
