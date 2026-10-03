@@ -59,7 +59,7 @@ Singleton {
     function clearAll() {
         var l = list.slice()
         for (var i = 0; i < l.length; i++)
-            l[i].dismiss()
+            if (l[i]) l[i].dismiss()   // skip ones already gone
         popupModel.clear()
     }
 

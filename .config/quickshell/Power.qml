@@ -114,6 +114,23 @@ Singleton {
     property int cycles: -1
     property string batModel: ""
 
+    // charge limit: -1 = this battery can't do it (UI hides it)
+    property int chargeLimit: -1
+    // the privileged helper from ~/.local/src/battery-charge-limit is installed
+    property bool limitHelper: false
+    readonly property string limitSetup: "doas sh ~/.local/src/battery-charge-limit/install.sh"
+
+    function setChargeLimit(v) {
+        if (!limitHelper || chargeLimit < 0) return
+        chargeLimit = v   // optimistic; the next probe confirms
+        Quickshell.execDetached(["sh", "-c",
+            "doas -n /usr/local/bin/battery-charge-limit \"$1\" 2>/dev/null || sudo -n /usr/local/bin/battery-charge-limit \"$1\"",
+            "sh", String(v)])
+        limitRecheck.restart()
+    }
+
+    Timer { id: limitRecheck; interval: 800; onTriggered: if (!batProbe.running) batProbe.running = true }
+
     readonly property real health: energyDesign > 0 ? energyFull / energyDesign : -1
     // hours until empty (discharging) or full (charging), -1 if unknown
     readonly property real hoursLeft: powerW < 0.1 ? -1
@@ -132,9 +149,10 @@ Singleton {
         // energy_* may be charge_* (µAh) on some batteries; convert with voltage
         command: ["sh", "-c",
             "for a in /sys/class/power_supply/A*/online; do [ -r \"$a\" ] && { echo ac $(cat \"$a\"); break; }; done; "
+            + "[ -x /usr/local/bin/battery-charge-limit ] && echo helper 1; "
             + "for b in /sys/class/power_supply/BAT*; do [ -r \"$b/capacity\" ] || continue; "
             + "echo bat $(cat \"$b/capacity\"); "
-            + "for f in status energy_now energy_full energy_full_design power_now charge_now charge_full charge_full_design current_now voltage_now cycle_count manufacturer model_name; do "
+            + "for f in status energy_now energy_full energy_full_design power_now charge_now charge_full charge_full_design current_now voltage_now cycle_count manufacturer model_name charge_control_end_threshold; do "
             + "[ -r \"$b/$f\" ] && echo \"$f $(cat \"$b/$f\" 2>/dev/null)\"; done; break; done"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -144,7 +162,13 @@ Singleton {
                     if (i > 0) v[line.slice(0, i)] = line.slice(i + 1).trim()
                 }
                 if (v.ac !== undefined) root.onAC = v.ac === "1"
-                if (v.bat === undefined) return
+                root.limitHelper = v.helper === "1"
+                if (v.bat === undefined) {
+                    // no battery (desktop, or it was removed): hide everything battery
+                    root.hasBattery = false
+                    root.chargeLimit = -1
+                    return
+                }
                 root.battery = parseInt(v.bat)
                 root.hasBattery = true
                 root.batStatus = v.status || ""
@@ -158,6 +182,8 @@ Singleton {
                             : (parseFloat(v.current_now) || 0) / 1e6 * volts
                 root.cycles = v.cycle_count !== undefined ? parseInt(v.cycle_count) : -1
                 root.batModel = [v.manufacturer, v.model_name].filter(x => x).join(" ")
+                root.chargeLimit = v.charge_control_end_threshold !== undefined
+                    ? parseInt(v.charge_control_end_threshold) : -1
             }
         }
     }

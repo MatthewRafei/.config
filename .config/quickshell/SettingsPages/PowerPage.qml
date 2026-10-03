@@ -197,7 +197,74 @@ Item {
             font.letterSpacing: 1
         }
 
-        Rectangle { visible: Power.available; width: parent.width; height: 1; color: Theme.border }
+        // ---- charge limit (only on batteries that support it) ----
+        Row {
+            visible: Power.hasBattery && Power.chargeLimit >= 0
+            spacing: 10
+
+            Column {
+                width: 150
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 3
+                Text {
+                    text: "CHARGE LIMIT"
+                    color: Theme.text
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 10
+                    font.bold: true
+                    font.letterSpacing: 2
+                }
+                Text {
+                    text: Power.chargeLimit >= 100 ? "charges to full" : "stops at " + Power.chargeLimit + "%, resumes below " + (Power.chargeLimit - 5) + "%"
+                    color: Theme.textFaint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 8
+                }
+            }
+
+            // with the helper installed: pick a limit
+            Repeater {
+                model: Power.limitHelper ? [60, 70, 80, 90, 100] : []
+                Rectangle {
+                    required property int modelData
+                    readonly property bool on: Power.chargeLimit === modelData
+                    width: 64
+                    height: 30
+                    radius: Theme.radius
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: on ? Theme.alpha(Theme.accent, 0.14) : limMouse.containsMouse ? Theme.bgCard : "transparent"
+                    border.width: 1
+                    border.color: on || limMouse.containsMouse ? Theme.accent : Theme.border
+                    Text {
+                        anchors.centerIn: parent
+                        text: modelData === 100 ? "OFF" : modelData + "%"
+                        color: parent.on ? Theme.accent : Theme.textDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 10
+                        font.bold: parent.on
+                    }
+                    MouseArea {
+                        id: limMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Power.setChargeLimit(modelData)
+                    }
+                }
+            }
+
+            // without it: say how to enable
+            Text {
+                visible: !Power.limitHelper
+                anchors.verticalCenter: parent.verticalCenter
+                text: "one-time setup to change it:  " + Power.limitSetup
+                color: Theme.textDim
+                font.family: Theme.fontFamily
+                font.pixelSize: 10
+            }
+        }
+
+        Rectangle { visible: Power.available && Power.hasBattery; width: parent.width; height: 1; color: Theme.border }
 
         // ---- current profile ----
         Column {

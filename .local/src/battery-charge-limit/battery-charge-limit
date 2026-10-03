@@ -1,0 +1,31 @@
+#!/bin/sh
+# battery-charge-limit STOP
+# Stop charging at STOP% (50-100) on every battery that supports it; resume
+# below STOP-5%. 100 = no limit. Installed to /usr/local/bin and allowed
+# for the user via doas by install.sh, so it must stay strict about input.
+set -eu
+
+case "${1:-}" in
+    ''|*[!0-9]*) echo "usage: battery-charge-limit 50-100" >&2; exit 2 ;;
+esac
+stop=$1
+[ "$stop" -ge 50 ] && [ "$stop" -le 100 ] || { echo "limit must be 50-100" >&2; exit 2; }
+if [ "$stop" -eq 100 ]; then start=0; else start=$((stop - 5)); fi
+
+found=0
+for b in /sys/class/power_supply/BAT*; do
+    end="$b/charge_control_end_threshold"
+    beg="$b/charge_control_start_threshold"
+    [ -w "$end" ] || continue
+    found=1
+    # firmware requires start < end at every step, so order the writes
+    cur=$(cat "$end")
+    if [ "$stop" -ge "$cur" ]; then
+        echo "$stop" > "$end"
+        [ -w "$beg" ] && echo "$start" > "$beg"
+    else
+        [ -w "$beg" ] && echo "$start" > "$beg"
+        echo "$stop" > "$end"
+    fi
+done
+[ "$found" -eq 1 ] || { echo "no battery with a charge limit found" >&2; exit 1; }
