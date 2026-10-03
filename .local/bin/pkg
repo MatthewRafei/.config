@@ -1,0 +1,464 @@
+#!/usr/bin/env python3
+"""pkg: fuzzy package finder (apk + flatpak) in a small TUI box.
+
+    pkg                 open it (Mod+P opens it in a floating window)
+
+Tabs (alt-1/2/3 or shift-←/→):
+    APK        all repo packages; sub-packages (-devel, -doc, -man, ...) are
+               folded under their base package: ctrl-e expands / collapses
+    FLATPAK    Flathub apps
+    INSTALLED  what you explicitly installed (apk world + flatpak apps)
+
+Keys: enter install (INSTALLED tab: remove) · tab mark several ·
+      ctrl-r refresh indexes · ctrl-u update everything · esc back/quit
+
+Network: browsing never touches it. Lists and previews come from caches
+built from apk's local index (always run with --no-network) and flatpak's
+local appstream (--cached). The repos are only contacted when you install,
+remove, update, or press ctrl-r.
+"""
+
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+import time
+
+HOME = os.path.expanduser("~")
+CACHE = os.path.join(HOME, ".cache", "pkg")
+APK_CACHE = os.path.join(CACHE, "apk.json")
+FP_CACHE = os.path.join(CACHE, "flatpak.json")
+APK_INDEXES = "/var/cache/apk"
+APK_DB = "/lib/apk/db/installed"
+APK_WORLD = "/etc/apk/world"
+SELF = os.path.abspath(__file__)
+
+# sub-package suffixes folded under their base package
+SUB = {"devel", "doc", "man", "locale", "pycache", "bashcomp", "zshcomp",
+       "fishcomp", "nucomp", "dinit", "static", "dbg", "libs", "udev"}
+
+TABS = ["apk", "flatpak", "installed"]
+
+
+# ------------------------------------------------------------------ colours
+def palette():
+    try:
+        with open(os.path.join(HOME, ".cache", "theme", "palette.json")) as f:
+            return json.load(f)
+    except Exception:
+        return {"accent": "#ffffff", "accent2": "#bfbfbf", "text": "#eeeeee",
+                "textDim": "#888888", "textFaint": "#4a4a4a", "border": "#2a2a2a",
+                "bg": "#0d0d0d", "bgCard": "#141414", "danger": "#ff5c7a", "ok": "#00ff9c"}
+
+
+P = palette()
+
+
+def fg(hexcol):
+    h = hexcol.lstrip("#")
+    return "\033[38;2;%d;%d;%dm" % (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+
+RESET, BOLD = "\033[0m", "\033[1m"
+A, A2, T, D, F, OK, DANGER = (fg(P[k]) for k in ("accent", "accent2", "text", "textDim", "textFaint", "ok", "danger"))
+
+
+# ------------------------------------------------------------------ helpers
+def mtime(path):
+    try:
+        return os.path.getmtime(path)
+    except OSError:
+        return 0
+
+
+def newest_index():
+    try:
+        return max((mtime(os.path.join(APK_INDEXES, f)) for f in os.listdir(APK_INDEXES)
+                    if f.startswith("APKINDEX")), default=0)
+    except OSError:
+        return 0
+
+
+def run(cmd):
+    return subprocess.run(cmd, capture_output=True, text=True).stdout
+
+
+def human(n):
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if n < 1024 or unit == "GiB":
+            return ("%d %s" if unit == "B" else "%.1f %s") % (n, unit)
+        n /= 1024
+
+
+def base_of(name, names):
+    """acl-devel-man -> acl (if acl exists); clang -> clang."""
+    parts = name.split("-")
+    best = name
+    # strip every trailing sub-package suffix, keeping the shortest name that
+    # is a real package (acl-devel-man -> acl-devel -> acl)
+    while len(parts) > 1 and parts[-1] in SUB:
+        parts.pop()
+        cand = "-".join(parts)
+        if cand in names:
+            best = cand
+    return best
+
+
+# ------------------------------------------------------------------ caches
+def apk_data():
+    """{name: {...}} from apk's *local* index; rebuilt only when it changes."""
+    if mtime(APK_CACHE) >= newest_index() and os.path.exists(APK_CACHE):
+        with open(APK_CACHE) as f:
+            return json.load(f)
+    out = run(["apk", "--no-network", "query", "--from", "repositories",
+               "--fields", "name,origin,version,description,url,installed-size,license,depends",
+               "--format", "json", "*"])
+    pkgs = {p["name"]: p for p in json.loads(out or "[]")}
+    names = set(pkgs)
+    subs = {}
+    for n in pkgs:
+        b = base_of(n, names)
+        if b != n:
+            pkgs[n]["base"] = b
+            subs.setdefault(b, []).append(n)
+    for b, lst in subs.items():
+        pkgs[b]["subs"] = sorted(lst)
+    os.makedirs(CACHE, exist_ok=True)
+    with open(APK_CACHE + ".tmp", "w") as f:
+        json.dump(pkgs, f)
+    os.replace(APK_CACHE + ".tmp", APK_CACHE)
+    return pkgs
+
+
+def apk_installed():
+    cache = os.path.join(CACHE, "apk-installed.json")
+    if mtime(cache) >= mtime(APK_DB) and os.path.exists(cache):
+        with open(cache) as f:
+            return set(json.load(f))
+    out = run(["apk", "--no-network", "query", "--installed", "--fields", "name", "--format", "json", "*"])
+    inst = [p["name"] for p in json.loads(out or "[]")]
+    os.makedirs(CACHE, exist_ok=True)
+    with open(cache, "w") as f:
+        json.dump(inst, f)
+    return set(inst)
+
+
+def apk_world():
+    try:
+        with open(APK_WORLD) as f:
+            return [re.split(r"[<>=~!]", l.strip())[0] for l in f if l.strip()]
+    except OSError:
+        return []
+
+
+def have_flatpak():
+    return subprocess.run(["sh", "-c", "command -v flatpak"], capture_output=True).returncode == 0
+
+
+def flatpak_data():
+    """Flathub apps from flatpak's local appstream cache (--cached: no network)."""
+    if not have_flatpak():
+        return {}
+    if os.path.exists(FP_CACHE) and time.time() - mtime(FP_CACHE) < 3600:
+        with open(FP_CACHE) as f:
+            return json.load(f)
+    apps = {}
+    out = run(["flatpak", "remote-ls", "--cached", "--app",
+               "--columns=application,name,description,version,origin"])
+    for line in out.splitlines():
+        c = line.split("\t")
+        if len(c) >= 2 and c[0] not in apps:
+            apps[c[0]] = {"id": c[0], "name": c[1], "description": c[2] if len(c) > 2 else "",
+                          "version": c[3] if len(c) > 3 else "", "remote": c[4] if len(c) > 4 else ""}
+    os.makedirs(CACHE, exist_ok=True)
+    with open(FP_CACHE, "w") as f:
+        json.dump(apps, f)
+    return apps
+
+
+def flatpak_installed():
+    if not have_flatpak():
+        return set()
+    return set(run(["flatpak", "list", "--app", "--columns=application"]).split())
+
+
+# ------------------------------------------------------------------ lists
+def line(tab, key, text):
+    print(tab + "\t" + key + "\t" + text)
+
+
+def mark(inst):
+    return OK + "✓ " + RESET if inst else "  "
+
+
+def list_apk():
+    pkgs, inst = apk_data(), apk_installed()
+    for n in sorted(pkgs):
+        p = pkgs[n]
+        if "base" in p:
+            continue
+        extra = F + "  +" + str(len(p["subs"])) + RESET if p.get("subs") else ""
+        line("apk", n, mark(n in inst) + T + n.ljust(28) + RESET + " " + D + p.get("description", "") + RESET + extra)
+
+
+def list_family(base):
+    pkgs, inst = apk_data(), apk_installed()
+    for n in [base] + pkgs.get(base, {}).get("subs", []):
+        p = pkgs.get(n, {})
+        indent = "" if n == base else F + "└ " + RESET
+        line("fam:" + base, n, mark(n in inst) + indent + T + n.ljust(28) + RESET + " " + D + p.get("description", "") + RESET)
+
+
+def list_flatpak():
+    apps, inst = flatpak_data(), flatpak_installed()
+    for i in sorted(apps, key=lambda k: apps[k]["name"].lower()):
+        a = apps[i]
+        line("flatpak", i, mark(i in inst) + T + a["name"][:28].ljust(28) + RESET + " " + D + a["description"] + RESET + F + "  " + i + RESET)
+
+
+def list_installed():
+    pkgs = apk_data()
+    for n in sorted(set(apk_world())):
+        line("installed", "apk:" + n, OK + "✓ " + RESET + T + n.ljust(28) + RESET + " " + D
+             + pkgs.get(n, {}).get("description", "") + RESET + F + "  apk" + RESET)
+    apps = flatpak_data()
+    for i in sorted(flatpak_installed()):
+        a = apps.get(i, {"name": i, "description": ""})
+        line("installed", "flatpak:" + i, OK + "✓ " + RESET + T + a["name"][:28].ljust(28) + RESET + " " + D
+             + a["description"] + RESET + F + "  flatpak" + RESET)
+
+
+def do_list(tab):
+    if tab.startswith("fam:"):
+        list_family(tab[4:])
+    elif tab == "flatpak":
+        list_flatpak()
+    elif tab == "installed":
+        list_installed()
+    else:
+        list_apk()
+
+
+# ------------------------------------------------------------------ preview
+def preview(tab, key):
+    if tab == "flatpak" or key.startswith("flatpak:"):
+        i = key.split(":", 1)[-1]
+        a = flatpak_data().get(i)
+        if not a:
+            print(D + i + RESET)
+            return
+        inst = i in flatpak_installed()
+        print(BOLD + T + a["name"] + RESET + "  " + (OK + "✓ installed" if inst else F + "not installed") + RESET)
+        print(F + i + RESET + "\n")
+        print(T + a["description"] + RESET + "\n")
+        for k, v in (("version", a["version"] or "—"), ("remote", a["remote"] or "—")):
+            print(F + k.upper().ljust(10) + RESET + T + v + RESET)
+        print("\n" + F + ("enter: install" if tab == "flatpak" else "enter: remove") + RESET)
+        return
+
+    name = key.split(":", 1)[-1]
+    p = apk_data().get(name)
+    if not p:
+        print(D + name + " (not in the repository index)" + RESET)
+        return
+    inst = name in apk_installed()
+    print(BOLD + T + name + RESET + "  " + A + p.get("version", "") + RESET + "  "
+          + (OK + "✓ installed" if inst else F + "not installed") + RESET)
+    print("\n" + T + p.get("description", "") + RESET + "\n")
+    deps = [d for d in p.get("depends", []) if not d.startswith(("so:", "cmd:", "pc:", "py3."))]
+    rows = [("website", p.get("url") or "—"),
+            ("license", p.get("license") or "—"),
+            ("size", human(p.get("installed-size") or 0)),
+            ("depends", ", ".join(deps) or "—")]
+    if p.get("base"):
+        rows.append(("part of", p["base"]))
+    for k, v in rows:
+        print(F + k.upper().ljust(10) + RESET + T + v + RESET)
+    subs = p.get("subs", [])
+    if subs:
+        print("\n" + F + "SUB-PACKAGES  (ctrl-e)" + RESET)
+        for s in subs:
+            print("  " + (OK + "✓ " if s in apk_installed() else "  ") + D + s + RESET)
+    print("\n" + F + ("enter: remove" if tab == "installed" else "enter: install") + RESET)
+
+
+# ------------------------------------------------------------------ fzf glue
+def current_tab():
+    """The tab lives in the prompt: '// apk  ', '// acl +  ', ..."""
+    m = re.match(r"//\s+(\S+)(\s+\+)?", os.environ.get("FZF_PROMPT", ""))
+    if not m:
+        return "apk"
+    return ("fam:" + m.group(1)) if m.group(2) else m.group(1)
+
+
+def prompt_for(tab):
+    return "// " + (tab[4:] + " +" if tab.startswith("fam:") else tab) + "  "
+
+
+def header_for(tab):
+    cur = "apk" if tab.startswith("fam:") else tab
+    names = {"apk": "APK", "flatpak": "FLATPAK", "installed": "INSTALLED"}
+    tabs = "  ".join((BOLD + A + "[" + names[t] + "]" + RESET) if t == cur else (F + " " + names[t] + " " + RESET)
+                     for t in TABS)
+    if tab.startswith("fam:"):
+        keys = "enter install · ctrl-e/esc back to all packages"
+    elif tab == "installed":
+        keys = "enter remove · tab mark · ctrl-u update all · ctrl-r refresh"
+    else:
+        keys = "enter install · tab mark · ctrl-e sub-packages · ctrl-u update all · ctrl-r refresh"
+    return tabs + "   " + F + keys + RESET
+
+
+def switch_to(tab):
+    return ("reload(%s list %s)+change-prompt(%s)+change-header(%s)+first+clear-query"
+            % (shlex.quote(SELF), shlex.quote(tab), prompt_for(tab), header_for(tab)))
+
+
+def transform(what, key=""):
+    tab = current_tab()
+    if what == "expand":
+        if tab.startswith("fam:"):
+            print(switch_to("apk"))
+            return
+        if tab == "apk" and key:
+            pkgs = apk_data()
+            base = pkgs.get(key, {}).get("base", key)
+            if pkgs.get(base, {}).get("subs"):
+                print(switch_to("fam:" + base))
+        return
+    if what == "esc":
+        print(switch_to("apk") if tab.startswith("fam:") else "abort")
+        return
+    order = TABS if have_flatpak() else ["apk", "installed"]
+    cur = "apk" if tab.startswith("fam:") else tab
+    i = order.index(cur) if cur in order else 0
+    if what in ("next", "prev"):
+        print(switch_to(order[(i + (1 if what == "next" else -1)) % len(order)]))
+    elif what in TABS and what in order:
+        print(switch_to(what))
+
+
+# ------------------------------------------------------------------ actions
+def pause(ok):
+    print("\n" + (OK + "done" if ok else DANGER + "failed") + RESET + F + " · press enter" + RESET, end="", flush=True)
+    try:
+        input()
+    except EOFError:
+        pass
+
+
+def act(tab, keys):
+    keys = [k for k in keys if k]
+    if not keys:
+        return
+    apk_add, apk_del, fp_add, fp_del = [], [], [], []
+    for k in keys:
+        if tab == "installed":
+            kind, name = k.split(":", 1)
+            (apk_del if kind == "apk" else fp_del).append(name)
+        elif tab == "flatpak":
+            fp_add.append(k)
+        else:
+            apk_add.append(k)
+    ok = True
+    print(A + "// " + ("removing" if tab == "installed" else "installing") + RESET + "\n")
+    if apk_add:
+        ok &= subprocess.call(["doas", "apk", "add"] + apk_add) == 0
+    if apk_del:
+        ok &= subprocess.call(["doas", "apk", "del"] + apk_del) == 0
+    if fp_add:
+        ok &= subprocess.call(["flatpak", "install", "-y", "flathub"] + fp_add) == 0
+    if fp_del:
+        ok &= subprocess.call(["flatpak", "uninstall", "-y"] + fp_del) == 0
+    pause(ok)
+
+
+def update_all():
+    print(A + "// updating everything" + RESET + "\n")
+    ok = subprocess.call(["doas", "apk", "upgrade", "--update-cache"]) == 0
+    if have_flatpak():
+        ok &= subprocess.call(["flatpak", "update", "-y"]) == 0
+    pause(ok)
+
+
+def refresh():
+    """The one place that deliberately fetches fresh indexes."""
+    print(A + "// refreshing package indexes" + RESET + "\n")
+    ok = subprocess.call(["doas", "apk", "update"]) == 0
+    if have_flatpak():
+        ok &= subprocess.call(["flatpak", "update", "--appstream"]) == 0
+        try:
+            os.remove(FP_CACHE)
+        except OSError:
+            pass
+    pause(ok)
+
+
+# ------------------------------------------------------------------ main
+def ui():
+    if subprocess.run(["sh", "-c", "command -v fzf"], capture_output=True).returncode != 0:
+        print("pkg needs fzf:  doas apk add fzf")
+        input()
+        return
+    me = shlex.quote(SELF)
+    colors = ",".join([
+        "fg:" + P["textDim"], "fg+:" + P["text"], "bg:-1", "bg+:" + P["bgCard"],
+        "hl:" + P["accent"], "hl+:" + P["accent"], "prompt:" + P["accent"],
+        "pointer:" + P["accent"], "marker:" + P["accent2"], "info:" + P["textFaint"],
+        "header:" + P["textDim"], "border:" + P["border"], "separator:" + P["border"],
+        "scrollbar:" + P["textFaint"], "preview-border:" + P["border"], "query:" + P["text"],
+        "gutter:-1", "spinner:" + P["accent"],
+    ])
+    reload_cur = "reload(%s list \"$(%s tab)\")" % (me, me)
+    args = [
+        "fzf", "--ansi", "--multi", "--layout=reverse", "--info=inline-right",
+        "--delimiter=\t", "--with-nth=3", "--tiebreak=begin,length",
+        "--prompt", prompt_for("apk"), "--header", header_for("apk"), "--header-first",
+        "--pointer=▌", "--marker=+", "--no-scrollbar", "--color", colors,
+        "--preview", me + " preview {1} {2}",
+        "--preview-window", "right,46%,wrap,border-left",
+        "--bind", "enter:execute(%s act {1} {+2})+%s" % (me, reload_cur),
+        "--bind", "ctrl-e:transform(%s transform expand {2})" % me,
+        "--bind", "esc:transform(%s transform esc)" % me,
+        "--bind", "shift-right:transform(%s transform next)" % me,
+        "--bind", "shift-left:transform(%s transform prev)" % me,
+        "--bind", "alt-1:transform(%s transform apk)" % me,
+        "--bind", "alt-2:transform(%s transform flatpak)" % me,
+        "--bind", "alt-3:transform(%s transform installed)" % me,
+        "--bind", "ctrl-u:execute(%s update)+%s" % (me, reload_cur),
+        "--bind", "ctrl-r:execute(%s refresh)+%s" % (me, reload_cur),
+    ]
+    lst = subprocess.Popen([SELF, "list", "apk"], stdout=subprocess.PIPE)
+    subprocess.call(args, stdin=lst.stdout)
+
+
+def main(argv):
+    if not argv:
+        ui()
+        return
+    cmd = argv[0]
+    if cmd == "list":
+        do_list(argv[1] if len(argv) > 1 else "apk")
+    elif cmd == "preview":
+        preview(argv[1], argv[2] if len(argv) > 2 else "")
+    elif cmd == "transform":
+        transform(argv[1], argv[2] if len(argv) > 2 else "")
+    elif cmd == "tab":
+        print(current_tab())
+    elif cmd == "act":
+        act(argv[1], argv[2:])
+    elif cmd == "update":
+        update_all()
+    elif cmd == "refresh":
+        refresh()
+    elif cmd in ("-h", "--help", "help"):
+        print(__doc__.strip())
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except BrokenPipeError:
+        pass

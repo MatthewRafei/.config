@@ -132,6 +132,14 @@ window-rule {
     clip-to-geometry true
 }
 
+// package finder (Mod+Shift+P -> ~/.local/bin/pkg-open): small centred box
+window-rule {
+    match app-id="^pkg-finder$"
+    open-floating true
+    default-column-width { fixed 1100; }
+    default-window-height { fixed 620; }
+}
+
 
 window-rule {
     match app-id="^Alacritty$"
@@ -300,6 +308,7 @@ binds {
     Mod+P      { screenshot; }
     Mod+Ctrl+P { screenshot-screen; }	
     Mod+Alt+P  { screenshot-window; }
+    Mod+Shift+P  hotkey-overlay-title="Package finder" { spawn-sh "~/.local/bin/pkg-open"; }
 
 
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }

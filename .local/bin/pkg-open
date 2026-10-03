@@ -1,0 +1,10 @@
+#!/bin/sh
+# Toggle the package finder box (Mod+Shift+P): close it if open, else open a
+# floating, centred terminal running `pkg` (niri window-rule: app-id pkg-finder).
+id=$(niri msg --json windows 2>/dev/null | python3 -c 'import json,sys
+for w in json.load(sys.stdin):
+    if w.get("app_id") == "pkg-finder": print(w["id"]); break' 2>/dev/null)
+if [ -n "$id" ]; then
+    exec niri msg action close-window --id "$id"
+fi
+exec alacritty --class pkg-finder -T "pkg" -o window.padding.x=14 -o window.padding.y=12 -e "$HOME/.local/bin/pkg"
