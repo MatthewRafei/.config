@@ -3,7 +3,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// Night light (gammastep -O <K>) with an optional schedule.
+// Night light (via nightlightd, flicker-free) with an optional schedule.
 //
 // Lives for the whole session (shell.qml instantiates it), so the schedule
 // runs with the settings window closed and the setting is restored at login.
@@ -136,28 +136,46 @@ Singleton {
     }
 
     // ---------------- applying ----------------
-    property int appliedTemp: -2   // -2 unknown (forces first apply), -1 off
+    // ~/.local/bin/nightlightd (source in ~/.local/src/nightlightd) holds the
+    // gamma control and fades to each temperature written to its stdin, so
+    // dragging the slider or toggling never flashes white the way
+    // restarting gammastep did. 6500K = neutral (off).
+    readonly property int neutral: 6500
 
     function apply() {
-        const want = active ? temperature : -1
-        if (want === appliedTemp)
-            return
-        appliedTemp = want
-        Quickshell.execDetached(["sh", "-c", want < 0
-            ? "pkill -x gammastep"
-            : "pkill -x gammastep; sleep 0.05; setsid gammastep -O " + want + " >/dev/null 2>&1 &"])
+        if (daemon.running)
+            daemon.write((active ? temperature : neutral) + "\n")
     }
 
     onActiveChanged: apply()
-    onTemperatureChanged: if (active) applyTimer.restart()   // slider drags
+    onTemperatureChanged: if (active) apply()
 
-    Timer {
-        id: applyTimer
-        interval: 150
-        onTriggered: root.apply()
+    Process {
+        id: daemon
+        command: [Quickshell.env("HOME") + "/.local/bin/nightlightd"]
+        stdinEnabled: true
+        onStarted: root.apply()
+        // compositor restarted / crashed: try again shortly
+        onExited: restartTimer.start()
+        stderr: StdioCollector {
+            onStreamFinished: if (text.trim() !== "") console.log("nightlightd:", text.trim())
+        }
     }
 
-    Component.onCompleted: apply()
+    Timer {
+        id: restartTimer
+        interval: 2000
+        onTriggered: daemon.running = true
+    }
+
+    // gammastep (from the old setup) would hold the gamma control; stop it first
+    Process {
+        id: stopGammastep
+        command: ["pkill", "-x", "gammastep"]
+        onExited: daemon.running = true
+    }
+
+    Component.onCompleted: stopGammastep.running = true
 
     IpcHandler {
         target: "nightlight"

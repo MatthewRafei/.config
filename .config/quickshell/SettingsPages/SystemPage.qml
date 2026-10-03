@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import "../"
 
@@ -83,6 +84,10 @@ Item {
         }
     }
 
+    // distro logo: os-release's LOGO= names an icon in the icon theme
+    // (Chimera: "chimera-logo"); falls back to a generic Linux icon
+    property string osLogo: ""
+
     Process {
         id: pOs
 
@@ -96,6 +101,14 @@ Item {
 
         stdout: StdioCollector {
             onStreamFinished: page.os = text.trim()
+        }
+    }
+
+    Process {
+        command: ["sh", "-c", "grep '^LOGO=' /etc/os-release | cut -d= -f2 | tr -d '\"'"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: page.osLogo = text.trim() || "distributor-logo"
         }
     }
 
@@ -223,7 +236,7 @@ Item {
         }
 
         // --------------------------------------------------------
-        // PROFILE + SYSTEM INFORMATION
+        // OS LOGO + SYSTEM INFORMATION
         // --------------------------------------------------------
 
         Row {
@@ -239,12 +252,13 @@ Item {
                 Image {
                     anchors.centerIn: parent
 
-                    source: page.homeDir !== ""
-                        ? "file://" + page.homeDir + "/.config/fastfetch/pfp3.png"
+                    source: page.osLogo !== ""
+                        ? Quickshell.iconPath(page.osLogo, "distributor-logo")
                         : ""
+                    sourceSize: Qt.size(280, 280)
 
-                    width: 140
-                    height: 140
+                    width: 120
+                    height: 120
 
                     fillMode: Image.PreserveAspectFit
 

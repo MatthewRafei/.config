@@ -679,26 +679,57 @@ Item {
                             }
                         }
 
-                        Slider {
+                        // scale presets (a free slider made niri rescale under
+                        // the mouse and landed on odd values like 1.37x)
+                        Row {
+                            id: scaleRow
+                            readonly property var mon: modelData
                             width: parent.width
+                            spacing: 6
 
-                            label:
-                                "SCALE (" +
-                                modelData.scale.toFixed(2) +
-                                "x)"
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 70
+                                text: "SCALE"
+                                color: Theme.textDim
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 10
+                                font.letterSpacing: 2
+                            }
 
-                            icon: "\uf00e"
+                            Repeater {
+                                model: [1.0, 1.25, 1.5, 1.75, 2.0]
 
-                            value:
-                                (
-                                    modelData.scale - 0.5
-                                ) / 1.5
+                                Rectangle {
+                                    required property real modelData
+                                    readonly property bool current: Math.abs(scaleRow.mon.scale - modelData) < 0.01
 
-                            onCommitted: (value) =>
-                                page.setScale(
-                                    modelData,
-                                    0.5 + value * 1.5
-                                )
+                                    width: (scaleRow.width - 70 - scaleRow.spacing * 5) / 5
+                                    height: 28
+                                    radius: Theme.radius
+                                    color: current ? Theme.alpha(Theme.accent, 0.14)
+                                         : scaleMouse.containsMouse ? Theme.bgCard : "transparent"
+                                    border.width: 1
+                                    border.color: current || scaleMouse.containsMouse ? Theme.accent : Theme.border
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData.toFixed(2) + "×"
+                                        color: parent.current ? Theme.accent : Theme.textDim
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 10
+                                        font.bold: parent.current
+                                    }
+
+                                    MouseArea {
+                                        id: scaleMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: if (!parent.current) page.setScale(scaleRow.mon, modelData)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
