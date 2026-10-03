@@ -3,13 +3,14 @@
 
     pkg                 open it (Mod+P opens it in a floating window)
 
-Tabs (alt-1/2/3 or shift-←/→):
+Tabs (alt-1..4 or shift-←/→):
     APK        all repo packages; sub-packages (-devel, -doc, -man, ...) are
                folded under their base package: ctrl-e expands / collapses
     FLATPAK    Flathub apps
-    INSTALLED  what you explicitly installed (apk world + flatpak apps)
+    INSTALLED APK      packages you explicitly installed (apk world)
+    INSTALLED FLATPAK  installed flatpak apps
 
-Keys: enter install (INSTALLED tab: remove) · tab mark several ·
+Keys: enter install (INSTALLED tabs: remove) · tab mark several ·
       ctrl-r refresh indexes · ctrl-u update everything · esc back/quit
 
 Network: browsing never touches it. Lists and previews come from caches
@@ -39,7 +40,7 @@ SELF = os.path.abspath(__file__)
 SUB = {"devel", "doc", "man", "locale", "pycache", "bashcomp", "zshcomp",
        "fishcomp", "nucomp", "dinit", "static", "dbg", "libs", "udev"}
 
-TABS = ["apk", "flatpak", "installed"]
+TABS = ["apk", "flatpak", "inst-apk", "inst-flatpak"]
 
 
 # ------------------------------------------------------------------ colours
@@ -218,16 +219,24 @@ def list_flatpak():
         line("flatpak", i, mark(i in inst) + T + a["name"][:28].ljust(28) + RESET + " " + D + a["description"] + RESET + F + "  " + i + RESET)
 
 
-def list_installed():
+def list_installed_apk():
     pkgs = apk_data()
     for n in sorted(set(apk_world())):
-        line("installed", "apk:" + n, OK + "✓ " + RESET + T + n.ljust(28) + RESET + " " + D
-             + pkgs.get(n, {}).get("description", "") + RESET + F + "  apk" + RESET)
+        line("inst-apk", "apk:" + n, OK + "✓ " + RESET + T + n.ljust(26) + RESET + " " + D
+             + pkgs.get(n, {}).get("description", "") + RESET)
+
+
+def list_installed_flatpak():
+    if not have_flatpak():
+        return
     apps = flatpak_data()
-    for i in sorted(flatpak_installed()):
-        a = apps.get(i, {"name": i, "description": ""})
-        line("installed", "flatpak:" + i, OK + "✓ " + RESET + T + a["name"][:28].ljust(28) + RESET + " " + D
-             + a["description"] + RESET + F + "  flatpak" + RESET)
+    # names from the local install (the remote catalogue can be terse, e.g. "desktop")
+    local = dict(l.split("\t", 1) for l in run(["flatpak", "list", "--app", "--columns=application,name"]).splitlines()
+                 if "\t" in l)
+    for i in sorted(local, key=lambda k: local[k].lower()):
+        a = apps.get(i, {"description": ""})
+        line("inst-flatpak", "flatpak:" + i, OK + "✓ " + RESET + T + local[i][:26].ljust(26) + RESET + " " + D
+             + a["description"] + RESET + F + "  " + i + RESET)
 
 
 def do_list(tab):
@@ -235,8 +244,10 @@ def do_list(tab):
         list_family(tab[4:])
     elif tab == "flatpak":
         list_flatpak()
-    elif tab == "installed":
-        list_installed()
+    elif tab == "inst-apk":
+        list_installed_apk()
+    elif tab == "inst-flatpak":
+        list_installed_flatpak()
     else:
         list_apk()
 
@@ -284,6 +295,10 @@ def preview(tab, key):
 
 
 # ------------------------------------------------------------------ fzf glue
+def tab_order():
+    return TABS if have_flatpak() else ["apk", "inst-apk"]
+
+
 def current_tab():
     """The tab lives in the prompt: '// apk  ', '// acl +  ', ..."""
     m = re.match(r"//\s+(\S+)(\s+\+)?", os.environ.get("FZF_PROMPT", ""))
@@ -298,9 +313,9 @@ def prompt_for(tab):
 
 def header_for(tab):
     cur = "apk" if tab.startswith("fam:") else tab
-    names = {"apk": "APK", "flatpak": "FLATPAK", "installed": "INSTALLED"}
+    names = {"apk": "APK", "flatpak": "FLATPAK", "inst-apk": "INSTALLED APK", "inst-flatpak": "INSTALLED FLATPAK"}
     tabs = "  ".join((BOLD + A + "[" + names[t] + "]" + RESET) if t == cur else (F + " " + names[t] + " " + RESET)
-                     for t in TABS)
+                     for t in tab_order())
     if tab.startswith("fam:"):
         return tabs + F + "    sub-packages of " + RESET + A + tab[4:] + RESET
     return tabs
@@ -309,10 +324,10 @@ def header_for(tab):
 def footer_for(tab):
     if tab.startswith("fam:"):
         keys = "enter install · tab mark · ctrl-e/esc back"
-    elif tab == "installed":
-        keys = "enter remove · tab mark · ctrl-u update all · ctrl-r refresh · alt-1/2/3 tabs"
+    elif tab.startswith("inst-"):
+        keys = "enter remove · tab mark · ctrl-u update all · ctrl-r refresh · alt-1..4 tabs"
     else:
-        keys = "enter install · tab mark · ctrl-e sub-packages · ctrl-u update all · ctrl-r refresh · alt-1/2/3 tabs"
+        keys = "enter install · tab mark · ctrl-e sub-packages · ctrl-u update all · ctrl-r refresh · alt-1..4 tabs"
     return " " + F + keys + RESET + " "
 
 
@@ -336,7 +351,7 @@ def transform(what, key=""):
     if what == "esc":
         print(switch_to("apk") if tab.startswith("fam:") else "abort")
         return
-    order = TABS if have_flatpak() else ["apk", "installed"]
+    order = tab_order()
     cur = "apk" if tab.startswith("fam:") else tab
     i = order.index(cur) if cur in order else 0
     if what in ("next", "prev"):
@@ -360,7 +375,7 @@ def act(tab, keys):
         return
     apk_add, apk_del, fp_add, fp_del = [], [], [], []
     for k in keys:
-        if tab == "installed":
+        if tab.startswith("inst-"):
             kind, name = k.split(":", 1)
             (apk_del if kind == "apk" else fp_del).append(name)
         elif tab == "flatpak":
@@ -368,7 +383,7 @@ def act(tab, keys):
         else:
             apk_add.append(k)
     ok = True
-    print(A + "// " + ("removing" if tab == "installed" else "installing") + RESET + "\n")
+    print(A + "// " + ("removing" if tab.startswith("inst-") else "installing") + RESET + "\n")
     if apk_add:
         ok &= subprocess.call(["doas", "apk", "add"] + apk_add) == 0
     if apk_del:
@@ -432,7 +447,8 @@ def ui():
         "--bind", "shift-left:transform(%s transform prev)" % me,
         "--bind", "alt-1:transform(%s transform apk)" % me,
         "--bind", "alt-2:transform(%s transform flatpak)" % me,
-        "--bind", "alt-3:transform(%s transform installed)" % me,
+        "--bind", "alt-3:transform(%s transform inst-apk)" % me,
+        "--bind", "alt-4:transform(%s transform inst-flatpak)" % me,
         "--bind", "ctrl-u:execute(%s update)+%s" % (me, reload_cur),
         "--bind", "ctrl-r:execute(%s refresh)+%s" % (me, reload_cur),
     ]
