@@ -42,11 +42,13 @@ the folder icons. A mostly grey wallpaper gets a monochrome theme.
 - **The quote slot:** quotes from games, anime and hacker culture type themselves out next to the
   clock. Long ones scroll past like a news ticker.
 
+<p align="center"><img src="screenshots/quotes.gif" alt="Quotes typing out next to the clock" width="100%"></p>
+
 ### Skits
 
 Every few quote changes, a little skit plays instead. There are 19 of them.
 
-<p align="center"><img src="screenshots/skits.webp" alt="Bar skits" width="70%"></p>
+<p align="center"><img src="screenshots/skits.gif" alt="Bar skits: table flip, Pac-Man, Naruto run, bonfire, fishing" width="100%"></p>
 
 The bar also **reacts to the machine**:
 - **Battery and power:** it begs for a charge at low battery, thanks you for plugging in, and
