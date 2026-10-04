@@ -109,6 +109,13 @@ PanelWindow {
         return ps.length > 0 ? ps[0] : null
     }
 
+    // Caffeine.qml: while on, tell the compositor we're not idle, so the
+    // screensaver and lock (which respect inhibitors) stay away
+    IdleInhibitor {
+        window: bar
+        enabled: Caffeine.on && bar.screen === Quickshell.screens[0]
+    }
+
     SystemClock {
         id: clock
         precision: SystemClock.Seconds
@@ -919,6 +926,21 @@ PanelWindow {
             }
         }
 
+        Connections {
+            target: Caffeine
+            function onOnChanged() {
+                if (Caffeine.on) quote.react("caffeine", [
+                    { t: "( ・_・)_旦", ms: 500 },
+                    { t: "( ˘▽˘)っ旦 ~", ms: 700 },
+                    { t: "(ﾟ∀ﾟ) caffeinated. no sleep for me!", ms: 1800, color: "accent2", sparkle: true }
+                ], 5)
+                else quote.react("decaf", [
+                    { t: "( -_-) decaf...", ms: 1100, color: "dim" },
+                    { t: "( -_-) zZ okay, i can nap now", ms: 1600, color: "dim" }
+                ], 5)
+            }
+        }
+
         // do not disturb, night light
         Connections {
             target: Notifs
@@ -1473,6 +1495,13 @@ PanelWindow {
                 else
                     Quickshell.execDetached(["qs", "ipc", "call", "quick", "vpn"])
             }
+        }
+
+        // caffeine: keep awake (no screensaver, idle lock or idle suspend)
+        Chip {
+            icon: Caffeine.on ? "󰅶" : "󰛊"
+            accent: Caffeine.on ? Theme.accent : Theme.textFaint
+            onClicked: Caffeine.toggle()
         }
 
         Divider {}

@@ -27,6 +27,7 @@ there are no symlinks and no install script that copies files.
   Power.qml, PowerMenu.qml     power profiles, battery, charge limit; power menu (Mod+Shift+E)
   NightLight.qml               night light (drives ~/.local/bin/nightlightd)
   Vpn.qml                      Tailscale state; bar chip + dropdown (click the VPN icon)
+  Caffeine.qml                 keep awake: bar coffee chip blocks screensaver, idle lock and idle suspend
   QuickPanel.qml, VolumeOsd.qml, PerspectivePanel.qml, Hud*.qml, Slider.qml   shared UI bits
   hyprquickpaper/              wallpaper picker, a separate qs config (Mod+Shift+W)
   quotes/quotes                quotes shown in the bar and on the lock screen
