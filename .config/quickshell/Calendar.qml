@@ -2,18 +2,27 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "CalendarLib.js" as Lib
 
 // Calendar store: one iCalendar file per event in ~/Calendar, so the folder
 // can be synced between PCs with Syncthing without edit conflicts, and any
 // .ics-aware app can read it too.
 //
 // Times are stored as "floating" local time (no time zone), which is what you
-// want when every synced machine is in the same zone. Supports all-day and
-// timed events, location, notes, one reminder, and simple repeats
-// (daily / weekly / monthly / yearly, optional end date).
+// want when every synced machine is in the same zone (TZID on imported events
+// is ignored). Supports all-day, timed and multi-day events, location, notes,
+// one reminder, and repeats (daily / weekly / monthly / yearly with interval,
+// end date, count, BYDAY such as "Mon/Wed/Fri" or "2nd Tuesday", skipped days
+// and moved occurrences). Parsing and repeat logic live in CalendarLib.js.
+// Anything an imported file has that we don't edit (other VEVENTs in the same
+// file, VTIMEZONE, CATEGORIES, ...) is written back unchanged.
 //
-// The folder is re-read every 30s and after every change, so edits arriving
-// through Syncthing show up on their own. Reminders pop up as notifications.
+// The folder is re-read every 15s and after every change, so edits arriving
+// through Syncthing show up on their own. Writes go to a hidden temp file and
+// are renamed into place, so Syncthing never picks up half a file. Syncthing's
+// "*.sync-conflict-*.ics" copies are hidden and listed in `conflicts`, which
+// CalendarWindow.qml shows so you can pick a side. Reminders pop up as
+// notifications.
 //
 //   qs ipc call calendar toggle      open/close the dropdown (CalendarPanel.qml)
 //   qs ipc call calendar open        open/close the big window (CalendarWindow.qml)
@@ -22,7 +31,20 @@ Singleton {
 
     readonly property string dir: Quickshell.env("HOME") + "/Calendar"
 
-    property var events: []       // parsed events, see parse()
+    property var events: []       // parsed events, see CalendarLib.js
+    property var conflicts: []    // [{ kept, other }] Syncthing conflict copies
+    property int fileCount: 0
+    property int lastConflicts: 0
+    onConflictsChanged: {
+        if (conflicts.length > lastConflicts)
+            Quickshell.execDetached(["busctl", "--user", "call",
+                "org.freedesktop.Notifications", "/org/freedesktop/Notifications",
+                "org.freedesktop.Notifications", "Notify", "susssasa{sv}i",
+                "Calendar", "0", "x-office-calendar", "Calendar sync conflict",
+                "An event was changed on two machines. Open the calendar (Super+C) to pick a version.",
+                "0", "0", "0"])
+        lastConflicts = conflicts.length
+    }
     property int revision: 0      // bumps on every reload so views re-evaluate
     property bool panelOpen: false
     property bool windowOpen: false      // CalendarWindow.qml
@@ -36,25 +58,44 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const out = []
+                let files = 0
                 for (const chunk of text.split("\u001eFILE ")) {
                     if (!chunk.trim()) continue
                     const nl = chunk.indexOf("\n")
                     const file = chunk.slice(0, nl)
-                    for (const ev of root.parseIcs(chunk.slice(nl + 1))) {
+                    const body = chunk.slice(nl + 1).replace(/\n$/, "")   // the loader's trailing echo
+                    files++
+                    for (const ev of Lib.parse(body)) {
                         ev.file = file
+                        ev.text = body
+                        if (!ev.uid) ev.uid = file
                         out.push(ev)
                     }
                 }
-                root.events = out
+                const r = Lib.resolveConflicts(out)
+                root.events = r.events
+                root.conflicts = r.conflicts
+                root.fileCount = files
                 root.revision++
             }
         }
     }
 
-    function reload() { if (!loader.running) loader.running = true }
+    // a reload asked for mid-read runs again right after, so a save is never missed
+    property bool reloadPending: false
+    function reload() {
+        if (loader.running) reloadPending = true
+        else loader.running = true
+    }
+    Connections {
+        target: loader
+        function onRunningChanged() {
+            if (!loader.running && root.reloadPending) { root.reloadPending = false; loader.running = true }
+        }
+    }
 
     Timer {
-        interval: 30000
+        interval: 15000
         repeat: true
         running: true
         triggeredOnStart: true
@@ -63,196 +104,64 @@ Singleton {
 
     Timer { id: reloadSoon; interval: 250; onTriggered: root.reload() }
 
-    // ================================================================ iCalendar
-    function icsUnescape(s) {
-        return s.replace(/\\n/gi, "\n").replace(/\\([,;\\])/g, "$1")
-    }
-
-    function icsEscape(s) {
-        return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;")
-            .replace(/,/g, "\\,").replace(/\r?\n/g, "\\n")
-    }
-
-    // "20261003" / "20261003T093000" / "20261003T143000Z" -> { date, allDay }
-    function parseDate(value, params) {
-        const m = value.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?$/)
-        if (!m) return null
-        if (!m[4] || /VALUE=DATE(?!-)/.test(params))
-            return { date: new Date(+m[1], +m[2] - 1, +m[3]), allDay: true }
-        if (m[7])
-            return { date: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0))), allDay: false }
-        return { date: new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)), allDay: false }
-    }
-
-    function pad(n) { return (n < 10 ? "0" : "") + n }
-
-    function fmtDate(d) { return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) }
-    function fmtDateTime(d) { return fmtDate(d) + "T" + pad(d.getHours()) + pad(d.getMinutes()) + "00" }
-
-    function parseIcs(text) {
-        // unfold continuation lines
-        const lines = text.replace(/\r\n/g, "\n").replace(/\n[ \t]/g, "").split("\n")
-        const out = []
-        let ev = null, inAlarm = false
-        for (const line of lines) {
-            if (line === "BEGIN:VEVENT") { ev = { reminder: -1, repeat: "none", interval: 1, location: "", notes: "", title: "" }; continue }
-            if (line === "END:VEVENT") {
-                if (ev && ev.start) {
-                    if (!ev.end)
-                        ev.end = ev.allDay ? new Date(ev.start.getFullYear(), ev.start.getMonth(), ev.start.getDate() + 1)
-                                           : new Date(ev.start.getTime() + 3600000)
-                    out.push(ev)
-                }
-                ev = null
-                continue
-            }
-            if (!ev) continue
-            if (line === "BEGIN:VALARM") { inAlarm = true; continue }
-            if (line === "END:VALARM") { inAlarm = false; continue }
-
-            const colon = line.indexOf(":")
-            if (colon < 0) continue
-            const head = line.slice(0, colon)
-            const value = line.slice(colon + 1)
-            const semi = head.indexOf(";")
-            const name = (semi < 0 ? head : head.slice(0, semi)).toUpperCase()
-            const params = semi < 0 ? "" : head.slice(semi + 1).toUpperCase()
-
-            if (inAlarm) {
-                if (name === "TRIGGER") {
-                    const t = value.match(/^-?P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?/)
-                    if (t) ev.reminder = (+(t[1] || 0)) * 1440 + (+(t[2] || 0)) * 60 + (+(t[3] || 0))
-                }
-                continue
-            }
-
-            switch (name) {
-            case "UID": ev.uid = value; break
-            case "SUMMARY": ev.title = icsUnescape(value); break
-            case "LOCATION": ev.location = icsUnescape(value); break
-            case "DESCRIPTION": ev.notes = icsUnescape(value); break
-            case "DTSTART": {
-                const d = parseDate(value, params)
-                if (d) { ev.start = d.date; ev.allDay = d.allDay }
-                break
-            }
-            case "DTEND": {
-                const d = parseDate(value, params)
-                if (d) ev.end = d.date
-                break
-            }
-            case "RRULE": {
-                const r = {}
-                for (const part of value.split(";")) {
-                    const kv = part.split("=")
-                    r[kv[0].toUpperCase()] = kv[1]
-                }
-                const freq = (r.FREQ || "").toLowerCase()
-                if (["daily", "weekly", "monthly", "yearly"].indexOf(freq) >= 0) ev.repeat = freq
-                ev.interval = parseInt(r.INTERVAL) || 1
-                if (r.COUNT) ev.count = parseInt(r.COUNT)
-                if (r.UNTIL) { const u = parseDate(r.UNTIL, ""); if (u) ev.until = u.date }
-                break
-            }
-            }
-        }
-        return out
-    }
-
-    function fold(line) {
-        let out = ""
-        while (line.length > 74) { out += line.slice(0, 74) + "\r\n "; line = line.slice(74) }
-        return out + line
-    }
-
-    function toIcs(ev) {
-        const now = new Date()
-        const stamp = now.getUTCFullYear() + pad(now.getUTCMonth() + 1) + pad(now.getUTCDate()) + "T"
-            + pad(now.getUTCHours()) + pad(now.getUTCMinutes()) + pad(now.getUTCSeconds()) + "Z"
-        const L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//quickshell-hud//calendar//EN",
-                   "BEGIN:VEVENT", "UID:" + ev.uid, "DTSTAMP:" + stamp]
-        if (ev.allDay) {
-            L.push("DTSTART;VALUE=DATE:" + fmtDate(ev.start))
-            L.push("DTEND;VALUE=DATE:" + fmtDate(ev.end))
-        } else {
-            L.push("DTSTART:" + fmtDateTime(ev.start))
-            L.push("DTEND:" + fmtDateTime(ev.end))
-        }
-        L.push("SUMMARY:" + icsEscape(ev.title))
-        if (ev.location) L.push("LOCATION:" + icsEscape(ev.location))
-        if (ev.notes) L.push("DESCRIPTION:" + icsEscape(ev.notes))
-        if (ev.repeat && ev.repeat !== "none") {
-            let rule = "FREQ=" + ev.repeat.toUpperCase()
-            if (ev.interval > 1) rule += ";INTERVAL=" + ev.interval
-            if (ev.until) rule += ";UNTIL=" + fmtDate(ev.until)
-            L.push("RRULE:" + rule)
-        }
-        if (ev.reminder >= 0)
-            L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + icsEscape(ev.title),
-                   "TRIGGER:-PT" + ev.reminder + "M", "END:VALARM")
-        L.push("END:VEVENT", "END:VCALENDAR")
-        return L.map(fold).join("\r\n") + "\r\n"
-    }
-
     // ================================================================ changes
     function newUid() {
         return Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e9).toString(36) + "@quickshell"
     }
 
-    // ev: { uid?, title, start: Date, end: Date, allDay, location, notes,
-    //       reminder (minutes, -1 = none), repeat, interval, until? }
+    // atomic write: hidden temp file in the same folder, then rename
+    function writeFile(file, text) {
+        Quickshell.execDetached(["sh", "-c",
+            'd="$(dirname "$1")"; t="$d/.$(basename "$1").tmp"; mkdir -p "$d" && printf "%s" "$2" > "$t" && mv -f "$t" "$1"',
+            "sh", file, text])
+    }
+
+    // ev: an event from `events` with fields changed (Object.assign({}, ev, {...}))
+    // or a new one: { title, start: Date, end: Date, allDay, location, notes,
+    // reminder (minutes, -1 = none), repeat, interval, until? }
     function save(ev) {
         if (!ev.uid) ev.uid = newUid()
+        if (ev.interval === undefined) ev.interval = 1
         const file = ev.file || (root.dir + "/" + ev.uid.replace(/[^A-Za-z0-9._-]/g, "_") + ".ics")
-        Quickshell.execDetached(["sh", "-c",
-            'mkdir -p "$(dirname "$1")" && printf "%s" "$2" > "$1.tmp" && mv "$1.tmp" "$1"',
-            "sh", file, toIcs(ev)])
+        // files with several VEVENTs (imports with moved occurrences): replace only ours
+        const text = ev.file && ev.blocks > 1 && ev.text
+            ? Lib.spliceEvent(ev.text, ev.index, Lib.veventBlock(ev))
+            : Lib.toIcs(ev)
+        writeFile(file, text)
         reloadSoon.restart()
         return ev.uid
     }
 
+    // deletes the event; for a series that also removes its moved occurrences
     function remove(ev) {
-        if (ev && ev.file)
-            Quickshell.execDetached(["rm", "-f", ev.file])
+        if (!ev || !ev.file) return
+        let rest = ""
+        if (ev.blocks > 1 && ev.text)
+            rest = ev.recurrenceId ? Lib.spliceEvent(ev.text, ev.index, "") : Lib.removeUid(ev.text, ev.uid)
+        if (Lib.hasEvents(rest)) writeFile(ev.file, rest)
+        else Quickshell.execDetached(["rm", "-f", ev.file])
+        reloadSoon.restart()
+    }
+
+    // skip one occurrence of a repeating event (EXDATE)
+    function skip(o) {
+        if (!o || o.ev.repeat === "none" || o.ev.recurrenceId) return
+        save(Object.assign({}, o.ev, { exdates: o.ev.exdates.concat([o.start]), origRepeat: o.ev.repeat }))
+    }
+
+    // Syncthing conflict: keep this machine's version, or take the other one
+    function keepConflict(c) {
+        Quickshell.execDetached(["rm", "-f", c.other.file])
+        reloadSoon.restart()
+    }
+    function useConflict(c) {
+        Quickshell.execDetached(["mv", "-f", c.other.file, c.kept.file])
         reloadSoon.restart()
     }
 
     // ================================================================ queries
     // every occurrence overlapping [from, to), sorted by start
-    function occurrences(from, to) {
-        const out = []
-        for (const ev of events) {
-            const dur = ev.end - ev.start
-            if (ev.repeat === "none") {
-                if (ev.start < to && ev.end > from) out.push({ ev: ev, start: ev.start, end: ev.end })
-                continue
-            }
-            const d0 = ev.start
-            for (let i = 0, n = 0; i < 4000; i++) {
-                const k = i * ev.interval
-                let s
-                switch (ev.repeat) {
-                case "daily": s = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + k, d0.getHours(), d0.getMinutes()); break
-                case "weekly": s = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + 7 * k, d0.getHours(), d0.getMinutes()); break
-                case "monthly":
-                    s = new Date(d0.getFullYear(), d0.getMonth() + k, d0.getDate(), d0.getHours(), d0.getMinutes())
-                    if (s.getDate() !== d0.getDate()) continue   // no 31st this month
-                    break
-                case "yearly":
-                    s = new Date(d0.getFullYear() + k, d0.getMonth(), d0.getDate(), d0.getHours(), d0.getMinutes())
-                    if (s.getDate() !== d0.getDate()) continue   // Feb 29
-                    break
-                }
-                if (s >= to) break
-                if (ev.until && s > new Date(ev.until.getFullYear(), ev.until.getMonth(), ev.until.getDate(), 23, 59)) break
-                if (ev.count && ++n > ev.count) break
-                const e = new Date(s.getTime() + dur)
-                if (e > from) out.push({ ev: ev, start: s, end: e })
-            }
-        }
-        out.sort((a, b) => (a.start - b.start) || ((b.ev.allDay ? 1 : 0) - (a.ev.allDay ? 1 : 0)))
-        return out
-    }
+    function occurrences(from, to) { return Lib.occurrences(events, from, to) }
 
     function onDay(d) {
         const a = new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -266,7 +175,7 @@ Singleton {
         const a = new Date(year, month, 1), b = new Date(year, month + 1, 1)
         for (const o of occurrences(a, b)) {
             const first = o.start < a ? a : o.start
-            const last = new Date(Math.min(o.end - 1, b - 1))
+            const last = new Date(Math.max(first, Math.min(o.end - 1, b - 1)))
             for (let d = new Date(first.getFullYear(), first.getMonth(), first.getDate()); d <= last; d.setDate(d.getDate() + 1))
                 counts[d.getDate()] = (counts[d.getDate()] || 0) + 1
         }
@@ -279,8 +188,11 @@ Singleton {
     }
 
     function timeLabel(o) {
-        if (o.ev.allDay) return "ALL DAY"
+        const days = Lib.daysBetween(o.start, new Date(o.end - (o.ev.allDay ? 1 : 0)))
+        if (o.ev.allDay) return days > 0 ? "ALL DAY  ·  " + (days + 1) + " DAYS" : "ALL DAY"
+        if (o.end - o.start === 0) return Qt.formatTime(o.start, "h:mm AP")
         return Qt.formatTime(o.start, "h:mm AP") + " – " + Qt.formatTime(o.end, "h:mm AP")
+            + (days > 0 ? " +" + days + "D" : "")
     }
 
     // ================================================================ reminders

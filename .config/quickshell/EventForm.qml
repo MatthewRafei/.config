@@ -3,8 +3,10 @@ import QtQuick
 // Add / edit form for one calendar event, shared by the bar dropdown
 // (CalendarPanel) and the big window (CalendarWindow).
 //
-//   form.startNew(day)   blank event on that day
+//   form.startNew(day)   blank event on that day (startNew(day, min) at a time)
 //   form.edit(ev)        load an existing event (repeating: edits the series)
+//                        fields the form doesn't show (imported RRULE parts,
+//                        skipped days, CATEGORIES, ...) are kept as they were
 //   form.date = d        move the event to another day (e.g. a grid click)
 //   closed()             saved / deleted / cancelled; `savedStart` is the day to show after
 Column {
@@ -15,6 +17,8 @@ Column {
     property bool allDay: false
     property int startMin: 9 * 60
     property int endMin: 10 * 60
+    // extra days the event runs: all-day = days - 1, timed = days its end is after its start
+    property int spanDays: 0
     property string repeat: "none"
     property int reminder: 10
     property string error: ""
@@ -43,19 +47,26 @@ Column {
         return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
     }
 
-    function startNew(day) {
+    function daysBetween(a, b) {
+        return Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000)
+    }
+
+    function startNew(day, atMin) {
         editing = null
         date = day
         savedStart = day
         allDay = false
+        spanDays = 0
         const now = new Date()
-        startMin = sameDay(day, now) ? Math.min(23 * 60, (now.getHours() + 1) * 60) : 9 * 60
+        startMin = atMin !== undefined ? atMin
+                 : sameDay(day, now) ? Math.min(23 * 60, (now.getHours() + 1) * 60) : 9 * 60
         endMin = Math.min(startMin + 60, 23 * 60 + 59)
         repeat = "none"
         reminder = 10
         error = ""
         titleIn.text = ""; locationIn.text = ""; notesIn.text = ""
         startIn.text = fmtTime(startMin); endIn.text = fmtTime(endMin)
+        daysIn.text = "1"
         titleIn.focusInput()
     }
 
@@ -66,11 +77,13 @@ Column {
         allDay = ev.allDay
         startMin = ev.start.getHours() * 60 + ev.start.getMinutes()
         endMin = ev.end.getHours() * 60 + ev.end.getMinutes()
+        spanDays = ev.allDay ? Math.max(0, daysBetween(ev.start, ev.end) - 1) : daysBetween(ev.start, ev.end)
         repeat = ev.repeat
         reminder = ev.reminder
         error = ""
         titleIn.text = ev.title; locationIn.text = ev.location; notesIn.text = ev.notes
         startIn.text = fmtTime(startMin); endIn.text = fmtTime(endMin)
+        daysIn.text = spanDays + 1
         titleIn.focusInput()
     }
 
@@ -78,25 +91,28 @@ Column {
         if (titleIn.text.trim() === "") { error = "give it a title"; titleIn.focusInput(); return }
         const s = parseTime(startIn.text), e = parseTime(endIn.text)
         if (!allDay && (s < 0 || e < 0)) { error = "times look like 9:30 AM or 14:00"; return }
+        const days = parseInt(daysIn.text)
+        if (allDay && !(days >= 1 && days <= 366)) { error = "days is 1 or more"; return }
         const d = date
         let start, end
         if (allDay) {
             start = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-            end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+            end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + days)
         } else {
+            // a timed event that was already longer than a day keeps its extra days
+            const extra = editing && !editing.allDay ? spanDays : 0
             start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(s / 60), s % 60)
-            end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(e / 60), e % 60)
+            end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + extra, Math.floor(e / 60), e % 60)
             if (end <= start) end = new Date(end.getTime() + 86400000)   // runs past midnight
         }
-        Calendar.save({
-            uid: editing ? editing.uid : undefined,
-            file: editing ? editing.file : undefined,
+        // start from the loaded event so fields the form doesn't show are kept
+        Calendar.save(Object.assign({}, editing || {}, {
             title: titleIn.text.trim(),
             start: start, end: end, allDay: allDay,
             location: locationIn.text.trim(), notes: notesIn.text.trim(),
-            reminder: reminder, repeat: repeat, interval: editing ? editing.interval : 1,
-            until: editing ? editing.until : undefined
-        })
+            reminder: reminder, repeat: repeat,
+            origRepeat: editing ? editing.repeat : "none"
+        }))
         savedStart = start
         closed()
     }
@@ -137,6 +153,22 @@ Column {
         Label { text: "WHEN" }
         HudButton { label: "ALL DAY"; on: form.allDay; onClicked: form.allDay = !form.allDay }
         HudField {
+            id: daysIn
+            visible: form.allDay
+            width: 46
+            placeholder: "1"
+            onAccepted: form.save()
+        }
+        Text {
+            visible: form.allDay
+            anchors.verticalCenter: parent.verticalCenter
+            text: parseInt(daysIn.text) === 1 ? "DAY" : "DAYS"
+            color: Theme.textFaint
+            font.family: Theme.fontFamily
+            font.pixelSize: 9
+            font.letterSpacing: 2
+        }
+        HudField {
             id: startIn
             visible: !form.allDay
             width: 86
@@ -158,6 +190,14 @@ Column {
             placeholder: "10:00 AM"
             onAccepted: form.save()
             onFinished: { const t = form.parseTime(text); if (t >= 0) { form.endMin = t; text = form.fmtTime(t) } }
+        }
+        Text {
+            visible: !form.allDay && form.editing !== null && !form.editing.allDay && form.spanDays > 0
+            anchors.verticalCenter: parent.verticalCenter
+            text: "+" + form.spanDays + "D"
+            color: Theme.textFaint
+            font.family: Theme.fontFamily
+            font.pixelSize: 9
         }
     }
 

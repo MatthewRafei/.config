@@ -8,7 +8,8 @@ import QtQuick
 //
 //   sidebar   today, sun times, next event countdown, views, stats, + NEW
 //   main      MONTH grid (titles in cells) / WEEK timeline / AGENDA list
-//   right     selected day's events, an event's full details, or the form
+//   right     selected day's events, an event's full details, the form, or
+//             Syncthing conflicts (sidebar warning when ~/Calendar has any)
 //
 //   keys      Esc back/close · ←/→ previous/next month or week · T today
 //             N new event · M / W / A switch view
@@ -31,7 +32,7 @@ PanelWindow {
 
     // ---------------- state ----------------
     property string view: "month"          // month | week | agenda
-    property string pane: "day"            // day | event | edit
+    property string pane: "day"            // day | event | edit | conflicts
     property date selDay: new Date()
     property var selOcc: null              // { ev, start, end }
     property int viewYear: selDay.getFullYear()
@@ -106,7 +107,7 @@ PanelWindow {
         confirmDelete = false
     }
 
-    function newEvent(day) { pane = "edit"; form.startNew(day || selDay) }
+    function newEvent(day, atMin) { pane = "edit"; form.startNew(day || selDay, atMin) }
 
     // "in 2d 4h" / "in 25m" / "now" / "3h ago"
     function relative(o) {
@@ -130,10 +131,18 @@ PanelWindow {
     }
 
     function repeatText(ev) {
-        if (ev.repeat === "none") return "does not repeat"
+        if (ev.repeat === "none") return ev.recurrenceId ? "moved occurrence of a series" : "does not repeat"
         const unit = { daily: "day", weekly: "week", monthly: "month", yearly: "year" }[ev.repeat]
-        return "every " + (ev.interval > 1 ? ev.interval + " " + unit + "s" : unit)
+        const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        const nth = n => n === -1 ? "last " : n < 0 ? (-n) + "th last " : n === 1 ? "1st " : n === 2 ? "2nd " : n === 3 ? "3rd " : n > 0 ? n + "th " : ""
+        let on = ""
+        if (ev.byday.length) on = " on " + ev.byday.map(b => (ev.repeat === "monthly" ? "the " + nth(b.n) : "") + names[b.wd]).join(", ")
+        else if (ev.bymonthday.length) on = " on day " + ev.bymonthday.join(", ")
+        return "every " + (ev.interval > 1 ? ev.interval + " " + unit + "s" : unit) + on
             + (ev.until ? " until " + Qt.formatDate(ev.until, "dd MMM yyyy") : "")
+            + (ev.count ? ", " + ev.count + " times" : "")
+            + (ev.exdates.length ? ", " + ev.exdates.length + " skipped" : "")
+            + (ev.approx ? " (simplified)" : "")
     }
 
     function reminderText(ev) {
@@ -194,7 +203,7 @@ PanelWindow {
                 }
                 switch (event.key) {
                 case Qt.Key_Escape:
-                    if (root.pane === "event") root.pane = "day"
+                    if (root.pane === "event" || root.pane === "conflicts") root.pane = "day"
                     else root.close()
                     break
                 case Qt.Key_Left: root.step(-1); break
@@ -438,6 +447,30 @@ PanelWindow {
                         anchors.bottom: parent.bottom
                         width: parent.width
                         spacing: 10
+                        Rectangle {
+                            visible: Calendar.conflicts.length > 0
+                            width: parent.width
+                            height: 34
+                            radius: Theme.radius
+                            color: Theme.alpha(Theme.danger, conflictMouse.containsMouse || root.pane === "conflicts" ? 0.25 : 0.12)
+                            border.color: Theme.danger
+                            Text {
+                                anchors.centerIn: parent
+                                text: "󰓦  " + Calendar.conflicts.length + " SYNC CONFLICT" + (Calendar.conflicts.length === 1 ? "" : "S")
+                                color: Theme.danger
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 10
+                                font.bold: true
+                                font.letterSpacing: 2
+                            }
+                            MouseArea {
+                                id: conflictMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.pane = "conflicts"
+                            }
+                        }
                         HudButton {
                             width: parent.width
                             height: 34
@@ -447,7 +480,7 @@ PanelWindow {
                             onClicked: root.newEvent()
                         }
                         Text {
-                            text: "~/Calendar  ·  " + Calendar.events.length + " files"
+                            text: "~/Calendar  ·  " + Calendar.fileCount + (Calendar.fileCount === 1 ? " file" : " files")
                             color: Theme.textFaint
                             font.family: Theme.fontFamily
                             font.pixelSize: 9
@@ -790,9 +823,7 @@ PanelWindow {
                                             onDoubleClicked: mouse => {
                                                 const min = Math.floor(mouse.y / weekView.hourH * 2) * 30
                                                 root.pickDay(dayCol.day)
-                                                root.newEvent(dayCol.day)
-                                                form.startMin = min
-                                                form.endMin = Math.min(min + 60, 1439)
+                                                root.newEvent(dayCol.day, min)
                                             }
                                             onClicked: root.pickDay(dayCol.day)
                                         }
@@ -989,8 +1020,15 @@ PanelWindow {
                     height: parent.height
 
                     // ---- selected day ----
-                    Column {
+                    Flickable {
                         visible: root.pane === "day"
+                        anchors.fill: parent
+                        clip: true
+                        contentHeight: dayCol.implicitHeight
+                        boundsBehavior: Flickable.StopAtBounds
+
+                    Column {
+                        id: dayCol
                         width: parent.width
                         spacing: 12
 
@@ -1065,6 +1103,7 @@ PanelWindow {
                                 }
                             }
                         }
+                    }
                     }
 
                     // ---- event details ----
@@ -1154,6 +1193,15 @@ PanelWindow {
                         anchors.right: parent.right
                         spacing: 6
                         HudButton {
+                            visible: root.selOcc !== null && root.selOcc.ev.repeat !== "none" && !root.confirmDelete
+                            label: "SKIP THIS ONE"
+                            onClicked: {
+                                Calendar.skip(root.selOcc)
+                                root.selOcc = null
+                                root.pane = "day"
+                            }
+                        }
+                        HudButton {
                             label: root.confirmDelete ? "CONFIRM DELETE" : (root.selOcc && root.selOcc.ev.repeat !== "none" ? "DELETE SERIES" : "DELETE")
                             danger: true
                             on: root.confirmDelete
@@ -1165,6 +1213,92 @@ PanelWindow {
                             }
                         }
                         HudButton { label: "EDIT"; on: true; onClicked: { root.pane = "edit"; form.edit(root.selOcc.ev) } }
+                    }
+
+                    // ---- Syncthing conflicts ----
+                    // Syncthing keeps the newer edit under the normal name and the other
+                    // one as *.sync-conflict-*.ics; pick which to keep.
+                    Flickable {
+                        visible: root.pane === "conflicts"
+                        anchors.fill: parent
+                        clip: true
+                        contentHeight: conflictCol.implicitHeight
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        Column {
+                            id: conflictCol
+                            width: parent.width
+                            spacing: 12
+
+                            HudButton { label: "‹  BACK"; onClicked: root.pane = "day" }
+
+                            Text {
+                                width: parent.width
+                                wrapMode: Text.Wrap
+                                text: Calendar.conflicts.length
+                                    ? "The same event was changed on two machines before they synced. Keep one version per event."
+                                    : "no sync conflicts"
+                                color: Theme.textDim
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 10
+                                lineHeight: 1.3
+                            }
+
+                            Repeater {
+                                model: Calendar.conflicts
+                                Rectangle {
+                                    id: crow
+                                    required property var modelData
+                                    width: conflictCol.width
+                                    height: ccol.implicitHeight + 20
+                                    radius: Theme.radius
+                                    color: Theme.alpha(Theme.bgCard, 0.6)
+                                    border.color: Theme.border
+
+                                    function describe(ev) {
+                                        return (ev.title || "(untitled)") + "\n"
+                                            + Qt.formatDate(ev.start, "ddd dd MMM yyyy") + "  ·  "
+                                            + (ev.allDay ? "all day" : Qt.formatTime(ev.start, "h:mm AP") + " – " + Qt.formatTime(ev.end, "h:mm AP"))
+                                            + (ev.repeat !== "none" ? "  ·  " + ev.repeat : "")
+                                            + (ev.location ? "\n" + ev.location : "")
+                                            + (ev.stamp ? "\nedited " + Qt.formatDateTime(ev.stamp, "dd MMM h:mm AP") : "")
+                                    }
+
+                                    Column {
+                                        id: ccol
+                                        x: 10; y: 10
+                                        width: parent.width - 20
+                                        spacing: 8
+
+                                        Repeater {
+                                            model: [["NEWER (KEPT BY SYNCTHING)", crow.modelData.kept], ["OTHER", crow.modelData.other]]
+                                            Column {
+                                                required property var modelData
+                                                width: ccol.width
+                                                spacing: 3
+                                                Text { text: modelData[0]; color: Theme.textFaint; font.family: Theme.fontFamily; font.pixelSize: 8; font.letterSpacing: 2 }
+                                                Text {
+                                                    width: parent.width
+                                                    wrapMode: Text.Wrap
+                                                    text: crow.describe(modelData[1])
+                                                    color: Theme.text
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: 10
+                                                    lineHeight: 1.2
+                                                }
+                                            }
+                                        }
+
+                                        Row {
+                                            anchors.right: parent.right
+                                            spacing: 6
+                                            HudButton { label: "USE OTHER"; onClicked: Calendar.useConflict(crow.modelData) }
+                                            HudButton { label: "KEEP NEWER"; on: true; onClicked: Calendar.keepConflict(crow.modelData) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // ---- form ----
