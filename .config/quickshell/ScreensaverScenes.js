@@ -56,6 +56,25 @@ function title(ctx, t, text, sub, color, at, until) {
 
 const RAMP = " .:-=+*#%@"
 
+// braille art -> dot image { w, h, dots[y][x] }. Each braille character is
+// 2 x 4 dots: bits 0-2 and 6 are the left column, 3-5 and 7 the right.
+function brailleDots(lines) {
+    const DOT = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [0, 3], [1, 3]]
+    const w = lines[0].length * 2, h = lines.length * 4
+    const dots = []
+    for (let y = 0; y < h; y++) dots.push(new Array(w).fill(false))
+    for (let r = 0; r < lines.length; r++)
+        for (let c = 0; c < lines[r].length; c++) {
+            const m = lines[r].charCodeAt(c) - 0x2800
+            for (let k = 0; k < 8; k++)
+                if (m & (1 << k)) dots[r * 4 + DOT[k][1]][c * 2 + DOT[k][0]] = true
+        }
+    return { w: w, h: h, dots: dots }
+}
+
+// quarter blocks indexed by mask (1 top-left, 2 top-right, 4 bottom-left, 8 bottom-right)
+const QUAD = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"
+
 // ================================================================== HALF-LIFE
 const halfLife = {
     id: "halflife", name: "Half-Life",
@@ -100,20 +119,10 @@ const halfLife = {
         "> BLACK MESA RESEARCH FACILITY",
         "> SECTOR C  ·  ANOMALOUS MATERIALS"
     ],
-    QUAD: " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█",
     init(ctx) {
         newLayers(ctx, 4)
-        // braille -> dots: bits 0-2 and 6 are the left column, 3-5 and 7 the right
-        const DOT = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [0, 3], [1, 3]]
-        const sw = this.logo[0].length * 2, sh = this.logo.length * 4
-        const dots = []
-        for (let y = 0; y < sh; y++) dots.push(new Array(sw).fill(false))
-        for (let r = 0; r < this.logo.length; r++)
-            for (let c = 0; c < this.logo[r].length; c++) {
-                const m = this.logo[r].charCodeAt(c) - 0x2800
-                for (let k = 0; k < 8; k++)
-                    if (m & (1 << k)) dots[r * 4 + DOT[k][1]][c * 2 + DOT[k][0]] = true
-            }
+        const img = brailleDots(this.logo)
+        const sw = img.w, sh = img.h, dots = img.dots
         // size: about 80% of the height, kept round (a cell is asp times taller
         // than wide), and clear of the boot log on the left
         const C = ctx.cols, R = ctx.rows, asp = ctx.asp
@@ -131,7 +140,7 @@ const halfLife = {
                     const sx = Math.floor((dx + 0.5) / qw * sw), sy = Math.floor((dy + 0.5) / qh * sh)
                     if (dots[sy][sx]) m |= 1 << q
                 }
-                if (m) cells.push({ x: x0 + x, y: y0 + y, ch: this.QUAD[m],
+                if (m) cells.push({ x: x0 + x, y: y0 + y, ch: QUAD[m],
                                     d: (x / W + y / L) / 2, n: Math.random() })
             }
         ctx.hl = { cells: cells, cx: x0 + W / 2, cy: y0 + L / 2, rad: L * 0.36 }
@@ -329,6 +338,142 @@ const deathNote = {
     }
 }
 
+// ================================================================== NINTENDO 64
+const n64 = {
+    id: "n64", name: "Nintendo 64",
+    // green, red, blue faces, yellow edges, dark sides, then the wordmark
+    colors: ["#2bb34a", "#e52521", "#2d5fe0", "#f7c51e", "#2a2a36", "#e52521", "#ffe6e0"],
+    logo: [
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣠⣴⣶⣿⣶⣦⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⣶⣾⡿⠿⠛⠋⠉⠀⠉⠙⠛⠿⢿⣷⣶⣤⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⡟⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣤⣾⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⡟⠀⠀⠀⠀⠀⠀⠀⠀⣠⣶⣾⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⢀⣀⣤⣶⣶⣿⣿⣶⣦⣤⣀⠀⠀⠀⢠⣿⡟⠀⠀⠀⠀⠀⠀⠀⠀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⢀⣀⣤⣶⣾⡿⠿⢿⣷⣶⣤⣄⡀⠀⠀⠀",
+        "⣴⣶⣿⠿⠟⠛⠉⠁⠀⠀⠈⠙⠛⠿⢿⣷⣶⣿⡟⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⣠⣴⣾⡿⠿⠛⠉⠀⠀⠀⠀⠀⠉⠛⠻⠿⣿⣶⡆",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣤⣾⣿⣿⡀⠀⠀⠀⠀⠀⠀⢀⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣇⣠⣾⡿⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣶⣾⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⢠⣶⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⢀⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⢠⣴⣾⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⢠⣿⣿⣿⣿⠿⠛⠻⢿⣿⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣧⠀⠠⠿⠟⠋⠁⠀⠀⠀⠀⠀⠀⠉⠛⠿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣶⣾⣿⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⢀⣤⣴⣾⣿⣿⣿⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣄⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⡀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡄⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣆⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⣿⡄⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⡀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⣿⣿⣄⠀⠀⠀⠀⠀⠀⠈⢿⣿⡇⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠈⢿⡇⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⡇⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠙⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠈⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠙⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⣿⣿⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣄⠀⠀⠀⠀⠈⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇",
+        "⠿⣿⣶⣤⣄⡀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⢿⣷⣶⣤⣄⣀⠀⠙⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠇",
+        "⠀⠀⠉⠙⠻⢿⣷⣶⣤⣿⣿⣿⣿⠿⠟⠋⠙⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠈⠉⠛⠻⠿⣿⣶⣮⣿⣿⣿⣿⣿⠿⠟⠋⠁⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠉⠛⠟⠋⠉⠀⠀⠀⠀⠀⠘⢿⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠈⠙⠛⠟⠛⠉⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣷⡀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣷⣤⣄⡀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⠿⠟⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠙⠻⢿⣷⣶⣤⣀⣸⣿⣿⣿⣿⣿⠿⠟⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠿⢿⡿⠟⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
+    ],
+    // 5 x 5 pixel font for the wordmark
+    FONT: {
+        N: ["#...#", "##..#", "#.#.#", "#..##", "#...#"],
+        I: ["#####", "..#..", "..#..", "..#..", "#####"],
+        T: ["#####", "..#..", "..#..", "..#..", "..#.."],
+        E: ["#####", "#....", "####.", "#....", "#####"],
+        D: ["####.", "#...#", "#...#", "#...#", "####."],
+        O: [".###.", "#...#", "#...#", "#...#", ".###."],
+        "6": [".###.", "#....", "####.", "#...#", ".###."],
+        "4": ["#..#.", "#..#.", "#####", "...#.", "...#."],
+        " ": ["...", "...", "...", "...", "..."]
+    },
+    init(ctx) {
+        newLayers(ctx, 7)
+        const img = brailleDots(this.logo)
+        // colour per dot: thin outline -> yellow, solid parts by position
+        const w = img.w, h = img.h, d = img.dots
+        const col = []
+        for (let y = 0; y < h; y++) {
+            const row = new Array(w).fill(-1)
+            for (let x = 0; x < w; x++) {
+                if (!d[y][x]) continue
+                let n = 0
+                for (let j = y - 2; j <= y + 2; j++)
+                    for (let i = x - 2; i <= x + 2; i++)
+                        if (j >= 0 && i >= 0 && j < h && i < w && d[j][i]) n++
+                const u = x / w
+                row[x] = n < 17 ? 3 : u < 0.4 ? 0 : u < 0.585 ? 1 : 2
+            }
+            col.push(row)
+        }
+        const C = ctx.cols, R = ctx.rows, asp = ctx.asp
+        const L = Math.floor(Math.min(R * 0.62, (C * 0.6) / asp))
+        const W = Math.round(L * asp * (w / h))
+        // the wordmark: each font pixel is 2 cells wide, 1 tall
+        const word = "NINTENDO 64"
+        let ww = 0
+        for (const ch of word) ww += (this.FONT[ch][0].length + 1) * 2
+        ww -= 2
+        const top = Math.max(1, Math.floor((R - L - 3 - 5) / 2))
+        ctx.n64 = { col: col, sw: w, sh: h, L: L, W: W, cx: C / 2, y0: top,
+                    word: word, wx: Math.floor((C - ww) / 2), wy: top + L + 3, ww: ww }
+    },
+    // draw the logo turned by angle a (around the vertical axis) into the
+    // layers; `side` draws the silhouette in the dark side colour only
+    face(ctx, a, shift, side) {
+        const n = ctx.n64, k = Math.cos(a)
+        if (Math.abs(k) < 0.02) return
+        const halfW = n.W / 2, qw = n.W * 2, qh = n.L * 2
+        const x0 = Math.floor(n.cx - halfW * Math.abs(k) + shift) - 1
+        const x1 = Math.ceil(n.cx + halfW * Math.abs(k) + shift) + 1
+        for (let y = 0; y < n.L; y++)
+            for (let x = x0; x <= x1; x++) {
+                let m = 0
+                const votes = [0, 0, 0, 0]
+                for (let q = 0; q < 4; q++) {
+                    // this quarter-dot's place on the turned logo, back to source
+                    const px = x + 0.25 + 0.5 * (q & 1) - n.cx - shift
+                    const u = px / (halfW * k)
+                    if (u < -1 || u >= 1) continue
+                    const sx = Math.floor((u + 1) / 2 * n.sw)
+                    const sy = Math.floor((y * 2 + (q >> 1) + 0.5) / qh * n.sh)
+                    const c = n.col[sy][sx]
+                    if (c < 0) continue
+                    m |= 1 << q
+                    votes[c]++
+                }
+                if (!m) continue
+                let best = 0
+                for (let i = 1; i < 4; i++) if (votes[i] > votes[best]) best = i
+                if (!side) ctx.layers[4].put(x, n.y0 + y, " ")   // the face hides the side
+                ctx.layers[side ? 4 : best].put(x, n.y0 + y, QUAD[m])
+            }
+    },
+    frame(ctx, t) {
+        clearAll(ctx)
+        const n = ctx.n64
+        const a = t * 1.1
+        // extruded sides first (dark), offset towards the turn, then the face
+        const depth = 3
+        for (let i = depth; i >= 1; i--) this.face(ctx, a, Math.sin(a) * i * 0.9, true)
+        this.face(ctx, a, 0, false)
+        // wordmark, with a light sweep every 4 s
+        const band = ((t % 4) / 4) * (n.ww + 40) - 20
+        let x = n.wx
+        for (const ch of n.word) {
+            const g = this.FONT[ch]
+            for (let r = 0; r < 5; r++)
+                for (let c = 0; c < g[r].length; c++)
+                    if (g[r][c] === "#") {
+                        const px = x + c * 2, lit = Math.abs(px - n.wx - band + r * 2) < 5
+                        ctx.layers[lit ? 6 : 5].text(px, n.wy + r, "██")
+                    }
+            x += (g[0].length + 1) * 2
+        }
+        title(ctx, t, "", "", "#e52521", 0, 99)
+    }
+}
+
 // ================================================================== GIF scenes
 // Pre-rendered from screensaver/gifs by screensaver/gif2ascii.py; the engine
 // loads the converted frames into ctx.gif before init(). Each palette colour
@@ -384,7 +529,7 @@ const gifScenes = [
 ]
 
 // hand-drawn scenes
-const scenes = [halfLife, osScene, naruto, deathNote].concat(gifScenes)
+const scenes = [halfLife, osScene, naruto, deathNote, n64].concat(gifScenes)
 
 function list() { return scenes.map(s => s.id) }
 function get(id) { return scenes.find(s => s.id === id) || scenes[0] }

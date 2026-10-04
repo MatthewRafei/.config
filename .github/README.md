@@ -164,7 +164,8 @@ Screensaver after 3 minutes (`Screensaver.qml`, `timeout: 180`), lock after 5 mi
 locks before suspend.
 
 Screensaver scenes are in `ScreensaverScenes.js`. Hand-drawn scenes: Half-Life, your OS (logo
-from fastfetch: Chimera, Gentoo, ...), Naruto, Death Note. GIF scenes come from
+from fastfetch: Chimera, Gentoo, ...), Naruto, Death Note, a spinning Nintendo 64 logo. Logos can
+be pasted in as braille art (see `brailleDots()`); they are redrawn with quarter blocks. GIF scenes come from
 `screensaver/gifs/` and are converted to coloured block characters by `screensaver/gif2ascii.py`.
 The converted frames are cached in `~/.cache/screensaver/` per screen size. To add one, drop a GIF
 in `screensaver/gifs/` and add a `gifScene(...)` line in `ScreensaverScenes.js`.
