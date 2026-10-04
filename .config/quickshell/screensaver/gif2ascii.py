@@ -12,6 +12,12 @@ Options (set per scene in ScreensaverScenes.js):
                    foreground only. For light backgrounds, where the normal
                    brightness shading would fill the screen.
     keytol=N       how close counts as background (RGB distance, default 40)
+                   key also takes several colours (key=#3b3b3b,#454545, e.g. a
+                   checkerboard) or "alpha" (transparent pixels are background)
+    size=F         fit into this fraction of the screen (default 1)
+    pixel=1        pixel art: scale without smoothing
+    still=1        a still image: animate it with a slow bob and a light
+                   sweep (48 frames)
 
 COLS x ROWS is the screen's character grid, ASPECT the cell height/width
 ratio. The picture is fitted inside the grid (letterboxed) and centred.
@@ -26,6 +32,7 @@ maps pixels to characters and colours.
 """
 
 import json
+import math
 import os
 import subprocess
 import sys
@@ -54,6 +61,8 @@ def main(gif, cols, rows, asp, out, *extra):
     crop = opt.get("crop")
     key = opt.get("key")
     keytol = float(opt.get("keytol", 40))
+    size = float(opt.get("size", 1))
+    still = opt.get("still") == "1"
 
     info = run(["magick", "identify", "-format", "%T %w %h\n", gif]).split("\n")
     info = [l.split() for l in info if l.strip()]
@@ -67,14 +76,29 @@ def main(gif, cols, rows, asp, out, *extra):
 
     # fit the picture inside the grid; a cell is `asp` times taller than wide
     aspect = gw / gh
-    h = rows
+    fr, fc = max(1, int(rows * size)), max(1, int(cols * size))
+    h = fr
     w = round(h * asp * aspect)
-    if w > cols:
-        w = cols
+    if w > fc:
+        w = fc
         h = max(1, round(w / (asp * aspect)))
     x, y = (cols - w) // 2, (rows - h) // 2
 
-    raw = run(["magick", gif, "-coalesce"] + pre + ["-resize", "%dx%d!" % (w, h), "-depth", "8", "rgb:-"], binary=True)
+    filt = ["-filter", "point"] if opt.get("pixel") == "1" else []
+    keys = (key or "").split(",")
+    if "alpha" in keys:
+        # keep transparency: it is the background (plus any colours listed)
+        rgba = run(["magick", gif, "-coalesce"] + pre + filt + ["-resize", "%dx%d!" % (w, h), "-depth", "8", "rgba:-"], binary=True)
+        n = len(rgba) // (w * h * 4)
+        px = [(rgba[p], rgba[p + 1], rgba[p + 2]) for p in range(0, len(rgba) - 3, 4)]
+        cols_ = [tuple(int(k.strip().lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)) for k in keys if k != "alpha"]
+        tol2 = keytol * keytol
+        bgm = [rgba[p + 3] < 128 or any((rgba[p] - b[0]) ** 2 + (rgba[p + 1] - b[1]) ** 2 + (rgba[p + 2] - b[2]) ** 2 < tol2
+                                        for b in cols_)
+               for p in range(0, len(rgba) - 3, 4)]
+        return keyed(px, bgm, n, w, h, x, y, cols, rows, asp, delays, out, ncolors, still)
+    raw = run(["magick", gif, "-coalesce"] + pre + ["-background", "black", "-alpha", "remove", "-alpha", "off"]
+              + filt + ["-resize", "%dx%d!" % (w, h), "-depth", "8", "rgb:-"], binary=True)
     n = len(raw) // (w * h * 3)
     delays = (delays + [delays[-1]] * n)[:n]
 
@@ -90,7 +114,19 @@ def main(gif, cols, rows, asp, out, *extra):
     palette = palette[:9] or [(255, 255, 255)]
 
     if key:
-        return keyed(raw, n, w, h, x, y, cols, rows, asp, delays, out, key, keytol, ncolors)
+        px = [(raw[p], raw[p + 1], raw[p + 2]) for p in range(0, len(raw) - 2, 3)]
+        if key == "auto":
+            counts = {}
+            for c in px[:w * h]:
+                q = (c[0] >> 3, c[1] >> 3, c[2] >> 3)
+                counts[q] = counts.get(q, 0) + 1
+            q = max(counts, key=counts.get)
+            bgs = [(q[0] * 8 + 4, q[1] * 8 + 4, q[2] * 8 + 4)]
+        else:
+            bgs = [tuple(int(k.strip().lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)) for k in key.split(",")]
+        tol2 = keytol * keytol
+        bgm = [any((c[0] - b[0]) ** 2 + (c[1] - b[1]) ** 2 + (c[2] - b[2]) ** 2 < tol2 for b in bgs) for c in px]
+        return keyed(px, bgm, n, w, h, x, y, cols, rows, asp, delays, out, ncolors, still)
 
     # brightness range across the whole clip, for contrast stretching
     lum = [0] * 256
@@ -153,25 +189,39 @@ def main(gif, cols, rows, asp, out, *extra):
     os.replace(out + ".tmp", out)
 
 
-def keyed(raw, n, w, h, x, y, cols, rows, asp, delays, out, key, keytol, ncolors):
-    """Flat-background mode: background -> empty, foreground -> solid blocks."""
-    px = [(raw[p], raw[p + 1], raw[p + 2]) for p in range(0, len(raw) - 2, 3)]
-    if key == "auto":
-        counts = {}
-        for c in px[:w * h]:
-            q = (c[0] >> 3, c[1] >> 3, c[2] >> 3)
-            counts[q] = counts.get(q, 0) + 1
-        q = max(counts, key=counts.get)
-        bg = (q[0] * 8 + 4, q[1] * 8 + 4, q[2] * 8 + 4)
-    else:
-        bg = tuple(int(key.lstrip("#")[k:k + 2], 16) for k in (0, 2, 4))
-    tol2 = keytol * keytol
+def animate_still(px, bgm, w, h, frames=48):
+    """A still image -> frames: bobs one row up and down and a band of light
+    sweeps across it diagonally once per loop."""
+    opx, obg, delays = [], [], []
+    for f in range(frames):
+        ph = f / frames
+        dy = round(math.sin(ph * 2 * math.pi))           # -1, 0, 1 rows
+        band = ph * 1.8 - 0.4
+        for yy in range(h):
+            sy = yy - dy
+            for xx in range(w):
+                if not 0 <= sy < h:
+                    opx.append((0, 0, 0)); obg.append(True); continue
+                i = sy * w + xx
+                c = px[i]
+                if not bgm[i]:
+                    d = abs((xx / w + sy / h) / 2 - band)
+                    if d < 0.07:
+                        k = 0.55 * (1 - d / 0.07)
+                        c = tuple(int(v + (255 - v) * k) for v in c)
+                opx.append(c); obg.append(bgm[i])
+        delays.append(80)
+    return opx, obg, frames, delays
 
-    def isbg(c):
-        return (c[0] - bg[0]) ** 2 + (c[1] - bg[1]) ** 2 + (c[2] - bg[2]) ** 2 < tol2
+
+def keyed(px, bgm, n, w, h, x, y, cols, rows, asp, delays, out, ncolors, still):
+    """Flat-background mode: background -> empty, foreground -> solid blocks.
+    px: (r, g, b) per pixel for all frames, bgm: True where it's background."""
+    if still:
+        px, bgm, n, delays = animate_still(px[:w * h], bgm[:w * h], w, h)
 
     # palette: k-means over a sample of foreground pixels
-    fg = [c for c in px[::7] if not isbg(c)] or [(255, 255, 255)]
+    fg = [c for c, b in zip(px[::7], bgm[::7]) if not b] or [(255, 255, 255)]
     step = max(1, len(fg) // 4000)
     sample = fg[::step]
     # seed with colours far apart (so small but distinct areas, like a red
@@ -201,8 +251,10 @@ def keyed(raw, n, w, h, x, y, cols, rows, asp, delays, out, key, keytol, ncolors
     frames = []
     for f in range(n):
         chars, kinds = [], []
-        for c in px[f * w * h:(f + 1) * w * h]:
-            if isbg(c):
+        base = f * w * h
+        for i in range(w * h):
+            c = px[base + i]
+            if bgm[base + i]:
                 chars.append(" ")
                 kinds.append("0")
                 continue

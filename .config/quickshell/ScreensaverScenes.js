@@ -391,7 +391,20 @@ const gifScenes = [
     gifScene("fa-gear", "Factorio", "factorio-gear.gif", { title: "THE FACTORY MUST GROW", color: "#e0a33a", titleY: 0.9 }),
     gifScene("fa-engineer", "Factorio · Engineer", "factorio-engineer.gif"),
     // the console's boot screen: crop to the logo and title, drop the grey background
-    gifScene("n64", "Nintendo 64", "nintendo-64.gif", { convert: ["8", "crop=380x228+40+0", "key=auto", "keytol=70"] })
+    gifScene("n64", "Nintendo 64", "nintendo-64.gif", { convert: ["8", "crop=380x228+40+0", "key=auto", "keytol=70"] }),
+    gifScene("htb", "Hack The Box", "hackthebox.gif", { convert: ["8", "key=alpha", "size=0.85"] }),
+    // still logos: the converter adds a slow bob and a light sweep
+    gifScene("emacs", "GNU Emacs", "emacs.png", { convert: ["8", "key=alpha", "still=1", "size=0.75"] }),
+    gifScene("vim", "Vim", "vim.png", { convert: ["8", "key=alpha,#000000", "keytol=60", "still=1", "size=0.75"] }),
+    // these two have a checkerboard baked in where the transparency was
+    gifScene("fa-reactor", "Factorio · Nuclear Reactor", "factorio-reactor.gif",
+             { convert: ["8", "key=#3b3b3b,#454545,#404040", "keytol=16"] }),
+    gifScene("fa-building", "Factorio", "factorio-building.gif",
+             { convert: ["8", "key=#3b3b3b,#454545", "keytol=10"] }),
+    gifScene("fa-spin", "Factorio · Gear", "factorio-spinning-gear.gif", { convert: ["8", "key=alpha", "size=0.9"] }),
+    gifScene("headcrab", "Half-Life · Headcrab", "headcrab.gif", { convert: ["8", "key=auto", "keytol=40"] }),
+    gifScene("bb-doll", "Bloodborne · The Doll", "bloodborne-doll.gif", { convert: ["8", "key=alpha", "pixel=1"] }),
+    gifScene("ds-bonfire", "Dark Souls · Bonfire", "bonfire.gif", { convert: ["8", "key=alpha", "pixel=1"] })
 ]
 
 // hand-drawn scenes

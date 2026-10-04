@@ -171,7 +171,11 @@ The converted frames are cached in `~/.cache/screensaver/` per screen size. To a
 in `screensaver/gifs/` and add a `gifScene(...)` line in `ScreensaverScenes.js`.
 GIFs with a flat light background (like the Nintendo 64 boot screen) need converter options in
 the scene: `{ convert: ["8", "crop=WxH+X+Y", "key=auto", "keytol=70"] }` crops, removes the
-background, and draws the rest as solid colour blocks (see `screensaver/gif2ascii.py`).
+background, and draws the rest as solid colour blocks. Other options: `key=alpha` (transparent
+GIFs/PNGs, can be combined with colours: `key=alpha,#000000`), several key colours for a baked-in
+checkerboard, `size=0.75`, `pixel=1` for pixel art, and `still=1`, which turns a still logo into an
+animation (slow bob + light sweep). All options are documented at the top of
+`screensaver/gif2ascii.py`.
 
 ## Hyprland
 
