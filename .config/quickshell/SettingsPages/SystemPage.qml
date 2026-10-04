@@ -59,7 +59,7 @@ Item {
         command: [
             "sh",
             "-c",
-            "hostnamectl --static 2>/dev/null || cat /etc/hostname"
+            "hostnamectl --static 2>/dev/null || cat /etc/hostname 2>/dev/null || uname -n"
         ]
 
         running: true
@@ -85,7 +85,7 @@ Item {
     }
 
     // distro logo: os-release's LOGO= names an icon in the icon theme
-    // (Chimera: "chimera-logo"); falls back to a generic Linux icon
+    // (Chimera: "chimera-logo"), else distributor-logo-<ID>; then a generic icon
     property string osLogo: ""
 
     Process {
@@ -94,7 +94,7 @@ Item {
         command: [
             "sh",
             "-c",
-            "grep PRETTY_NAME /etc/os-release | cut -d= -f2 | tr -d '\"'"
+            ". /etc/os-release; echo \"$PRETTY_NAME\""
         ]
 
         running: true
@@ -105,7 +105,8 @@ Item {
     }
 
     Process {
-        command: ["sh", "-c", "grep '^LOGO=' /etc/os-release | cut -d= -f2 | tr -d '\"'"]
+        // no LOGO= (Gentoo): Papirus names it distributor-logo-<ID>
+        command: ["sh", "-c", ". /etc/os-release; echo \"${LOGO:-distributor-logo-$ID}\""]
         running: true
         stdout: StdioCollector {
             onStreamFinished: page.osLogo = text.trim() || "distributor-logo"
@@ -218,7 +219,7 @@ Item {
 
             color: Theme.text
 
-            font.family: "JetBrainsMono Nerd Font"
+            font.family: Theme.fontFamily
             font.pixelSize: 18
             font.bold: false
             font.letterSpacing: 3
@@ -281,7 +282,7 @@ Item {
 
                         color: Theme.accent
 
-                        font.family: "JetBrainsMono Nerd Font"
+                        font.family: Theme.fontFamily
                         font.pixelSize: 10
                         font.letterSpacing: 2
                     }
@@ -304,7 +305,7 @@ Item {
 
                         color: Theme.accent
 
-                        font.family: "JetBrainsMono Nerd Font"
+                        font.family: Theme.fontFamily
                         font.pixelSize: 10
                         font.letterSpacing: 2
                     }
@@ -330,7 +331,7 @@ Item {
 
                         color: Theme.accent
 
-                        font.family: "JetBrainsMono Nerd Font"
+                        font.family: Theme.fontFamily
                         font.pixelSize: 10
                         font.letterSpacing: 2
                     }
@@ -368,7 +369,7 @@ Item {
 
                     color: Theme.accent
 
-                    font.family: "JetBrainsMono Nerd Font"
+                    font.family: Theme.fontFamily
                     font.pixelSize: page.hardwareLabelSize
                     font.letterSpacing: 2
                 }
@@ -399,7 +400,7 @@ Item {
 
                     color: Theme.accent
 
-                    font.family: "JetBrainsMono Nerd Font"
+                    font.family: Theme.fontFamily
                     font.pixelSize: page.hardwareLabelSize
                     font.letterSpacing: 2
                 }
@@ -430,7 +431,7 @@ Item {
 
                     color: Theme.accent
 
-                    font.family: "JetBrainsMono Nerd Font"
+                    font.family: Theme.fontFamily
                     font.pixelSize: page.hardwareLabelSize
                     font.letterSpacing: 2
                 }
@@ -458,7 +459,7 @@ Item {
 
                     color: Theme.accent
 
-                    font.family: "JetBrainsMono Nerd Font"
+                    font.family: Theme.fontFamily
                     font.pixelSize: page.hardwareLabelSize
                     font.letterSpacing: 2
                 }

@@ -38,6 +38,7 @@ hl.env("XCURSOR_SIZE",                 "24")
 hl.env("PROTON_ENABLE_WAYLAND",        "1")
 hl.env("ADW_DISABLE_PORTAL",           "1")
 hl.env("GTK_THEME",                    "Adwaita:dark")   -- recoloured by wallpaper-theme's gtk.css
+hl.env("QS_ICON_THEME",                "Papirus-Dark")   -- quickshell's icons (tray, distro logo)
 
 -- ── General ───────────────────────────────────────────────────────────────────
 

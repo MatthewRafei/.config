@@ -583,6 +583,8 @@ PanelWindow {
 
         IpcHandler {
             target: "bar"
+            // one target per shell: answer from the first monitor's bar only
+            enabled: bar.screen === Quickshell.screens[0]
             function peek(): void { quote.peek() }
         }
 

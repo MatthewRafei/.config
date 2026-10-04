@@ -8,7 +8,14 @@ ShellRoot {
     // singletons are lazy; touch NightLight so its schedule runs from login
     readonly property bool nightLightActive: NightLight.active
 
-    Bar {}
+    // one bar per monitor
+    Variants {
+        model: Quickshell.screens
+        Bar {
+            required property var modelData
+            screen: modelData
+        }
+    }
     VolumeOsd {}
     SettingsWindow {}
     TelemetryHud {}
