@@ -13,7 +13,6 @@ written to:
     ~/.config/alacritty/colors.toml    imported by alacritty.toml (live reload)
     ~/.config/starship.toml            [palettes.wallpaper] block at the end
     ~/.config/niri/config.kdl          focus-ring / border colours (in place)
-    ~/.config/mako/config              colour keys (in place) + makoctl reload
     ~/.config/fuzzel/fuzzel.ini        [colors] keys (in place)
     ~/.config/gtk-{3,4}.0/gtk.css      libadwaita colours + Nautilus styling
     Papirus-Dark folder colour         nearest to the accent (papirus-folders)
@@ -458,17 +457,6 @@ def edit_keys(path, sections):
     write(path, "\n".join(lines))
 
 
-def write_mako(p):
-    edit_keys(os.path.join(CFG, "mako", "config"), {
-        "": {"background-color": p["bg"] + "ee",
-             "text-color": p["text"],
-             "border-color": p["accent"]},
-        "urgency=high": {"background-color": p["bg"] + "ee",
-                         "border-color": p["danger"]},
-    })
-    subprocess.run(["makoctl", "reload"], capture_output=True)
-
-
 def write_fuzzel(p):
     x = lambda c, a="ff": c.lstrip("#") + a
     edit_keys(os.path.join(CFG, "fuzzel", "fuzzel.ini"), {
@@ -716,7 +704,7 @@ def main():
         return
 
     for writer in (write_quickshell, write_alacritty, write_niri,
-                   write_mako, write_fuzzel, write_gtk, write_icons,
+                   write_fuzzel, write_gtk, write_icons,
                    write_starship, write_chromium, write_fastfetch,
                    write_mpv):
         try:

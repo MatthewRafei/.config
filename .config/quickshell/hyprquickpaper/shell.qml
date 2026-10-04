@@ -75,7 +75,7 @@ PanelWindow {
 
     FolderListModel {
         id: folderModel
-        folder: configs.wallpaper_path ? "file://" + configs.wallpaper_path : ""
+        folder: configs.wallpaper_path ? "file://" + main.expand(configs.wallpaper_path) : ""
         showDirs: false
         nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]
         sortField: FolderListModel.Name
@@ -187,7 +187,12 @@ PanelWindow {
     }
 
     function thumbFor(fileName) {
-        return "file://" + configs.cache_path + fileName
+        return "file://" + expand(configs.cache_path) + fileName
+    }
+
+    // config.json paths may start with ~ so it works for any user
+    function expand(p) {
+        return p.startsWith("~/") ? Quickshell.env("HOME") + p.slice(1) : p
     }
 
     // =========================================================

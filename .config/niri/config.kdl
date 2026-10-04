@@ -54,15 +54,15 @@ layout {
 
     focus-ring {
         width 3
-        active-gradient from="#f174e3" to="#98f17e" angle=45
-        inactive-color "#2e1f2c"
+        active-gradient from="#ba86df" to="#e18ed6" angle=45
+        inactive-color "#281f2e"
     }
 
     border {
         off
         width 2
-        active-color "#f174e3"
-        inactive-color "#2e1f2c"
+        active-color "#ba86df"
+        inactive-color "#281f2e"
         urgent-color "#f04c69"
     }
 
@@ -82,12 +82,9 @@ layout {
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
-// spawn-at-startup "waybar"  // replaced by quickshell Bar.qml
 spawn-at-startup "awww-daemon"
 spawn-at-startup "qs"
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"  // clipboard history (Mod+V)
-// spawn-at-startup "mako"  // replaced by quickshell Notifs.qml
-// spawn-at-startup "gammastep-indicator"  // fights the settings night-light toggle over gamma control
 spawn-at-startup "polkit-gnome-authentication-agent-1"
 spawn-at-startup "xwayland-satellite"
 //Chimera Linux specific
@@ -203,8 +200,8 @@ binds {
     XF86AudioNext allow-when-locked=true { spawn-sh "playerctl next"; }
 
     // Brightness
-    XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "brillo -A 2.5"; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "brillo -U 2.5"; }
+    XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "brillo -A 2.5 || brightnessctl -q set 3%+"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "brillo -U 2.5 || brightnessctl -q set 3%-"; }
 
     Mod+O repeat=false { toggle-overview; }
     Mod+Q repeat=false { close-window; }
