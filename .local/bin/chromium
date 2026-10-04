@@ -3,9 +3,18 @@
 # (Chromium only reads the colour at startup and rewrites its prefs on exit,
 # so ~/.config/theme/wallpaper-theme can't change it while it's running.)
 "$HOME/.config/theme/wallpaper-theme" --chromium >/dev/null 2>&1
+# keep what Chromium prints (crash reasons, GPU errors) instead of losing it:
+# ~/.cache/chromium/chromium.log, previous session in chromium.log.old
+logdir="${XDG_CACHE_HOME:-$HOME/.cache}/chromium"
+mkdir -p "$logdir"
+log="$logdir/chromium.log"
+if ! pgrep -x chromium >/dev/null; then
+    [ -f "$log" ] && mv -f "$log" "$log.old"
+    printf '=== %s start: %s\n' "$(date '+%F %T')" "$*" >"$log"
+fi
 # Chimera: chromium-browser; elsewhere fall back to Google Chrome (not themed)
 for b in /usr/bin/chromium-browser /usr/bin/chromium google-chrome-stable; do
-    command -v "$b" >/dev/null && exec "$b" "$@"
+    command -v "$b" >/dev/null && exec "$b" "$@" >>"$log" 2>&1
 done
 echo "chromium: no Chromium or Google Chrome found" >&2
 exit 1
