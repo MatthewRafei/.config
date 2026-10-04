@@ -20,7 +20,7 @@ PanelWindow {
     readonly property var actions: [
         { key: "L", label: "LOCK",      icon: "󰌾", confirm: false, cmd: ["qs", "ipc", "call", "lock", "lock"] },
         { key: "S", label: "SUSPEND",   icon: "󰤄", confirm: false, cmd: ["loginctl", "suspend"] },
-        { key: "E", label: "LOG OUT",   icon: "󰍃", confirm: true,  cmd: ["niri", "msg", "action", "quit", "--skip-confirmation"] },
+        { key: "E", label: "LOG OUT",   icon: "󰍃", confirm: true,  cmd: null },  // null: Compositor.quit()
         { key: "R", label: "REBOOT",    icon: "󰜉", confirm: true,  cmd: ["loginctl", "reboot"] },
         { key: "P", label: "SHUT DOWN", icon: "󰐥", confirm: true,  cmd: ["loginctl", "poweroff"] }
     ]
@@ -46,7 +46,7 @@ PanelWindow {
         id: runLater
         property var cmd: []
         interval: 180
-        onTriggered: Quickshell.execDetached(cmd)
+        onTriggered: cmd ? Quickshell.execDetached(cmd) : Compositor.quit()
     }
 
     Timer {

@@ -10,13 +10,11 @@ import QtQuick
 
 // Top bar (replaces waybar). Same HUD language as TelemetryHud.
 //
-//  left   : niri workspaces (sliding indicator) + focused window title
+//  left   : workspaces (sliding indicator) + focused window title
 //  center : quote (fortune) + clock (click: calendar, right-click: date)
 //  right  : media, volume, wifi, cpu, mem, battery, notifications, tray, power
 //
-// Workspace state comes from `niri msg --json event-stream`; any event
-// triggers a debounced re-query of workspaces + focused window, which is
-// simpler and more robust than tracking every event type by hand.
+// Workspace state comes from Compositor.qml (niri or Hyprland).
 PanelWindow {
     id: bar
 
@@ -29,63 +27,13 @@ PanelWindow {
     WlrLayershell.namespace: "quickshell-bar"
 
     // -------------------------
-    // niri
+    // workspaces (Compositor.qml: niri or Hyprland)
     // -------------------------
-    property var workspaces: []
-    property string windowTitle: ""
-    property string windowApp: ""
-
-    Process {
-        id: niriEvents
-        command: ["niri", "msg", "--json", "event-stream"]
-        running: true
-        stdout: SplitParser {
-            onRead: niriDebounce.restart()
-        }
-        // niri restarted / socket dropped: reconnect
-        onRunningChanged: if (!running) niriRetry.start()
-    }
-
-    Timer {
-        id: niriRetry
-        interval: 2000
-        onTriggered: niriEvents.running = true
-    }
-
-    Timer {
-        id: niriDebounce
-        interval: 40
-        onTriggered: if (!niriQuery.running) niriQuery.running = true
-    }
-
-    Process {
-        id: niriQuery
-        command: ["sh", "-c", "niri msg --json workspaces; echo; niri msg --json focused-window"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var parts = text.split("\n").filter(function (l) { return l.trim() !== "" })
-                try {
-                    var ws = JSON.parse(parts[0])
-                    ws.sort(function (a, b) { return a.idx - b.idx })
-                    bar.workspaces = ws.filter(function (w) {
-                        return !bar.screen || w.output === bar.screen.name
-                    })
-                } catch (e) {}
-                try {
-                    var win = JSON.parse(parts[1] || "null")
-                    bar.windowTitle = win ? (win.title || "") : ""
-                    bar.windowApp = win ? (win.app_id || "") : ""
-                } catch (e) {
-                    bar.windowTitle = ""
-                    bar.windowApp = ""
-                }
-            }
-        }
-    }
-
-    function niri(args) {
-        Quickshell.execDetached(["niri", "msg", "action"].concat(args))
-    }
+    readonly property var workspaces: Compositor.workspaces.filter(function (w) {
+        return !bar.screen || w.output === bar.screen.name
+    })
+    readonly property string windowTitle: Compositor.windowTitle
+    readonly property string windowApp: Compositor.windowApp
 
     // -------------------------
     // Stats (cpu / mem / battery / wifi)
@@ -395,14 +343,14 @@ PanelWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: bar.niri(["focus-workspace", String(modelData.idx)])
+                            onClicked: Compositor.focusWorkspace(modelData.idx)
                         }
                     }
                 }
             }
 
             WheelHandler {
-                onWheel: event => bar.niri([event.angleDelta.y > 0 ? "focus-workspace-up" : "focus-workspace-down"])
+                onWheel: event => event.angleDelta.y > 0 ? Compositor.workspaceUp() : Compositor.workspaceDown()
             }
         }
 

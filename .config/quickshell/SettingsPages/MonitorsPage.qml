@@ -12,6 +12,8 @@ Item {
     // Brightness
     // -------------------------
     property real brightnessValue: 0.6
+    // false on desktops (no backlight device) or without brightnessctl
+    property bool hasBacklight: false
 
     Process {
         id: brightnessGet
@@ -22,8 +24,10 @@ Item {
             onStreamFinished: {
                 const parts = text.trim().split(",")
 
-                if (parts.length < 4)
+                if (parts.length < 4 || parts[1] !== "backlight")
                     return
+
+                page.hasBacklight = true
 
                 const pct = parseInt(parts[3])
 
@@ -53,12 +57,13 @@ Item {
     // Night light state and schedule live in ../NightLight.qml (always running).
 
     // -------------------------
-    // Monitor helpers (niri)
+    // Monitor helpers (niri or Hyprland, see ../Compositor.qml)
     // -------------------------
-    // Monitors come from `niri msg --json outputs`; changes go through
-    // `niri msg output <name> ...` (runtime only, like niri's own keybinds;
-    // they reset to config.kdl on restart). niri can't mirror outputs, so
-    // there is no DUPLICATE mode.
+    // niri: monitors come from `niri msg --json outputs`; changes go through
+    // `niri msg output <name> ...`. Hyprland: `hyprctl -j monitors all`, and
+    // changes are `hl.monitor({...})` run with `hyprctl eval`. Both are
+    // runtime only and reset to the compositor config on restart. niri can't
+    // mirror outputs, so there is no DUPLICATE mode.
     function isInternalMonitor(mon) {
         return mon.name.indexOf("eDP") === 0
             || mon.name.indexOf("LVDS") === 0
@@ -90,11 +95,18 @@ Item {
     Process {
         id: pList
 
-        command: ["sh", "-c", "niri msg --json outputs; echo; niri msg --json focused-output"]
+        command: Compositor.hyprland
+            ? ["hyprctl", "-j", "monitors", "all"]
+            : ["sh", "-c", "niri msg --json outputs; echo; niri msg --json focused-output"]
         running: true
 
         stdout: StdioCollector {
             onStreamFinished: {
+                if (Compositor.hyprland) {
+                    page.parseHyprland(text)
+                    return
+                }
+
                 const parts = text.split("\n").filter(l => l.trim() !== "")
 
                 try {
@@ -135,6 +147,27 @@ Item {
         }
     }
 
+    function parseHyprland(text) {
+        try {
+            page.monitors = JSON.parse(text).map(m => ({
+                name: m.name,
+                description: ((m.make || "") + " " + (m.model || "")).trim(),
+                width: m.width,
+                height: m.height,
+                refreshRate: m.refreshRate,
+                enabled: !m.disabled,
+                x: m.x,
+                y: m.y,
+                scale: m.scale,
+                logicalWidth: Math.round(m.width / m.scale),
+                focused: m.focused
+            })).sort((a, b) => a.x - b.x)
+        } catch (error) {
+            console.log("Failed to parse hyprctl monitors:", error)
+            page.monitors = []
+        }
+    }
+
     function refresh() {
         pList.running = true
     }
@@ -149,7 +182,7 @@ Item {
             onStreamFinished: {
                 const output = text.trim()
                 if (output !== "")
-                    console.log("niri output ERROR:", output)
+                    console.log("monitor change ERROR:", output)
             }
         }
 
@@ -173,8 +206,30 @@ Item {
         pMode.running = true
     }
 
+    // Hyprland: one hl.monitor({...}) per change. A rule needs the full
+    // mode/position/scale, so start from the monitor's current values.
+    function hyprMonitor(mon, changes) {
+        const f = Object.assign({
+            mode: mon.width + "x" + mon.height + "@" + mon.refreshRate,
+            position: mon.x + "x" + mon.y,
+            scale: mon.scale
+        }, changes)
+        if (f.disabled)
+            return 'hl.monitor({ output = "' + mon.name + '", disabled = true })'
+        return 'hl.monitor({ output = "' + mon.name + '", mode = "' + f.mode
+            + '", position = "' + f.position + '", scale = ' + f.scale + ' })'
+    }
+
+    function runHyprland(luas) {
+        pMode.command = ["sh", "-c", luas.map(l => "hyprctl eval " + shq(l)).join(" && ")]
+        pMode.running = true
+    }
+
     function setScale(mon, scale) {
-        runOutputs([shq(mon.name) + " scale " + scale.toFixed(2)])
+        if (Compositor.hyprland)
+            runHyprland([hyprMonitor(mon, { scale: scale.toFixed(2) })])
+        else
+            runOutputs([shq(mon.name) + " scale " + scale.toFixed(2)])
     }
 
     // -------------------------
@@ -187,6 +242,22 @@ Item {
 
         if (!internal || !external) {
             page.refresh()
+            return
+        }
+
+        if (Compositor.hyprland) {
+            // a disabled output reports 0x0, so fall back to its preferred mode
+            const on = m => m.enabled ? {} : { mode: "preferred" }
+            const extWidth = Math.round(external.width / (external.enabled ? external.scale : 1))
+            if (mode === "first")
+                runHyprland([hyprMonitor(internal, Object.assign(on(internal), { position: "0x0" })),
+                             hyprMonitor(external, { disabled: true })])
+            else if (mode === "second")
+                runHyprland([hyprMonitor(external, Object.assign(on(external), { position: "0x0" })),
+                             hyprMonitor(internal, { disabled: true })])
+            else if (mode === "extend")
+                runHyprland([hyprMonitor(external, Object.assign(on(external), { position: "0x0" })),
+                             hyprMonitor(internal, Object.assign(on(internal), { position: extWidth + "x0" }))])
             return
         }
 
@@ -263,8 +334,8 @@ Item {
         // MONITOR MODE
         // -------------------------
         Column {
-            // nothing to choose between with a single display
-            visible: page.monitors.length > 1
+            // only for a laptop panel plus an external display
+            visible: page.findMonitors().internal !== null && page.findMonitors().external !== null
             width: parent.width
             spacing: 10
 
@@ -354,6 +425,7 @@ Item {
         // BRIGHTNESS
         // -------------------------
         Item {
+            visible: page.hasBacklight
             width: parent.width
             height: 58
 

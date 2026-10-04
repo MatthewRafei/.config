@@ -3,4 +3,9 @@
 # (Chromium only reads the colour at startup and rewrites its prefs on exit,
 # so ~/.config/theme/wallpaper-theme can't change it while it's running.)
 "$HOME/.config/theme/wallpaper-theme" --chromium >/dev/null 2>&1
-exec /usr/bin/chromium-browser "$@"
+# Chimera: chromium-browser; elsewhere fall back to Google Chrome (not themed)
+for b in /usr/bin/chromium-browser /usr/bin/chromium google-chrome-stable; do
+    command -v "$b" >/dev/null && exec "$b" "$@"
+done
+echo "chromium: no Chromium or Google Chrome found" >&2
+exit 1

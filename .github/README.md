@@ -1,7 +1,8 @@
 # dotfiles
 
 A "HUD" style Wayland desktop for **Chimera Linux**: the [niri](https://github.com/YaLTeR/niri)
-scrolling compositor plus a [Quickshell](https://quickshell.org) shell (bar, notifications,
+scrolling compositor (or [Hyprland](https://hyprland.org), see [Hyprland](#hyprland)) plus a
+[Quickshell](https://quickshell.org) shell (bar, notifications,
 settings, calendar, lock screen, screensaver, telemetry HUD). The colours of everything follow
 the current wallpaper.
 
@@ -11,8 +12,10 @@ there are no symlinks and no install script that copies files.
 ```
 .bashrc                        prompt (starship), PATH, the `dots` alias
 .config/niri/config.kdl        compositor: startup programs, keybinds, layout, colours
+.config/hypr/hyprland.lua      the same for Hyprland (Lua config); loads machine.lua + colors.lua
 .config/quickshell/            the shell (started by niri as `qs`)
   shell.qml                    entry point: lists every component below
+  Compositor.qml               niri/Hyprland detection: workspaces, focused window, actions
   Theme.qml                    colours/fonts; colours come live from ~/.cache/theme/palette.json
   Bar.qml                      top bar (workspaces, quote/face, clock, media, stats, tray, power)
   Notifs.qml + Notification*.qml   notification daemon + popups + center (Mod+N)
@@ -166,6 +169,27 @@ from fastfetch: Chimera, Gentoo, ...), Naruto, Death Note. GIF scenes come from
 The converted frames are cached in `~/.cache/screensaver/` per screen size. To add one, drop a GIF
 in `screensaver/gifs/` and add a `gifScene(...)` line in `ScreensaverScenes.js`.
 
+## Hyprland
+
+The shell detects the compositor at runtime (`Compositor.qml`, from `HYPRLAND_INSTANCE_SIGNATURE`
+/ `NIRI_SOCKET`), so the same files work under both. `~/.config/hypr/hyprland.lua` is the shared
+config: the shell, startup programs and the keybinds in the table below. Two untracked files sit
+next to it:
+
+- `machine.lua`: this machine's monitors, workspace pins, extra programs and binds. It is loaded
+  last; to change a bind the shared file sets, `hl.unbind` it first.
+- `colors.lua`: border colours, written by `wallpaper-theme`.
+
+Extra packages: `hyprland`, `hyprshot` (screenshots go to `~/Pictures/Screenshots`), and
+`hyprpolkitagent` or polkit-gnome. Not needed: `xwayland-satellite`. Notes:
+
+- With a Lua config, `hyprctl dispatch` takes Lua: `hyprctl dispatch 'hl.dsp.focus({ workspace = "m+1" })'`.
+  Check a config with `Hyprland --verify-config -c ~/.config/hypr/hyprland.lua`.
+- The Monitors page changes outputs with `hyprctl eval 'hl.monitor({...})'` (until reload).
+- The package finder (Mod+Shift+P) is apk-only, so it isn't bound under Hyprland yet.
+- `~/.local/bin/chromium` falls back to `google-chrome-stable` (Chrome isn't themed).
+- Don't run waybar, mako, swww or gammastep alongside: the shell replaces them.
+
 ## Other distros
 
 Nothing is Chimera-only except package names, `doas`, and dinit. Notes:
@@ -176,6 +200,9 @@ Nothing is Chimera-only except package names, `doas`, and dinit. Notes:
   file is needed.
 - The OS scene in the screensaver and the package finder detect the system at runtime; the
   package finder only supports apk and flatpak.
+- Desktops without a backlight: the brightness slider hides itself; nothing to install.
+- Gentoo: niri, quickshell, cliphist, xwayland-satellite and the Nerd Font are in GURU. Lock before
+  suspend needs elogind (`elogind-inhibit`), the OpenRC default.
 
 ## For Claude Code (or another agent) setting this up
 
