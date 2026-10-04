@@ -19,6 +19,88 @@ Item {
     property var dns: []
 
     // ------------------------------------------------------------------
+    // VPNs: Tailscale (Vpn.qml) and NetworkManager VPN / WireGuard profiles
+    // ------------------------------------------------------------------
+
+    property var nmVpns: []     // [{ name, type, active }]
+    property string vpnBusy: "" // name of the profile being switched
+
+    function refreshVpns() {
+        if (!pVpns.running) pVpns.running = true
+        Vpn.refresh()
+    }
+
+    function setNmVpn(name, on) {
+        page.vpnBusy = name
+        pVpnSwitch.command = ["nmcli", "connection", on ? "up" : "down", "id", name]
+        pVpnSwitch.running = true
+    }
+
+    Process {
+        id: pVpns
+        command: ["nmcli", "-t", "-f", "NAME,TYPE,ACTIVE", "connection", "show"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const out = []
+                for (const line of text.split("\n")) {
+                    // nmcli -t escapes ':' inside fields as '\:'
+                    const f = line.replace(/\\:/g, "\u0001").split(":").map(x => x.replace(/\u0001/g, ":"))
+                    if (f.length < 3) continue
+                    if (f[1] === "vpn" || f[1] === "wireguard")
+                        out.push({ name: f[0], type: f[1] === "vpn" ? "VPN" : "WIREGUARD", active: f[2] === "yes" })
+                }
+                page.nmVpns = out
+            }
+        }
+    }
+
+    Process {
+        id: pVpnSwitch
+        onExited: { page.vpnBusy = ""; page.refreshVpns() }
+    }
+
+    Timer {
+        interval: 3000
+        repeat: true
+        running: page.visible
+        triggeredOnStart: true
+        onTriggered: page.refreshVpns()
+    }
+
+    // on/off pill, same look as the Wi-Fi switch
+    component Toggle: Rectangle {
+        id: tog
+        property bool on: false
+        property bool busy: false
+        signal toggled()
+
+        width: 44
+        height: 22
+        radius: 11
+        opacity: busy ? 0.5 : 1
+        color: on ? Theme.accent : Theme.trackBg
+        border.color: Theme.border
+        border.width: 1
+
+        Rectangle {
+            width: 16
+            height: 16
+            radius: 8
+            color: Theme.text
+            anchors.verticalCenter: parent.verticalCenter
+            x: tog.on ? parent.width - width - 3 : 3
+            Behavior on x { NumberAnimation { duration: Theme.animFast } }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            enabled: !tog.busy
+            cursorShape: Qt.PointingHandCursor
+            onClicked: tog.toggled()
+        }
+    }
+
+    // ------------------------------------------------------------------
     // Global content margins
     // ------------------------------------------------------------------
 
@@ -559,6 +641,281 @@ Item {
 
                     width: parent.width
                     spacing: 6
+
+                    // ------------------------------------------------------
+                    // VPN
+                    // ------------------------------------------------------
+
+                    Text {
+                        visible: Vpn.installed || page.nmVpns.length > 0
+                        text: "// VPN"
+                        color: Theme.textDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        font.letterSpacing: 3
+                    }
+
+                    // Tailscale
+                    Rectangle {
+                        id: tsCard
+                        visible: Vpn.installed
+
+                        readonly property var rows: [
+                            { k: "STATUS", v: Vpn.state === "Running" ? "Connected"
+                                            : Vpn.state === "NeedsLogin" ? "Logged out (run: tailscale up)"
+                                            : Vpn.state === "Stopped" ? "Disconnected"
+                                            : Vpn.state.toLowerCase() },
+                            { k: "ADDRESS", v: Vpn.selfIp || "none" },
+                            { k: "DEVICE", v: Vpn.selfName || "none" },
+                            { k: "TAILNET", v: Vpn.tailnet || "none" },
+                            { k: "DEVICES", v: Vpn.onlineCount + " of " + Vpn.peers.length + " online" }
+                        ]
+
+                        width: list.width
+                        height: tsCol.height + 24
+                        radius: Theme.radius
+                        color: Vpn.running ? Theme.alpha(Theme.accent, 0.10) : "#00000000"
+                        border.width: 1
+                        border.color: Vpn.running ? Theme.accent : Theme.border
+
+                        Column {
+                            id: tsCol
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 12
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 14
+                            spacing: 8
+
+                            // name + switch
+                            Item {
+                                width: parent.width
+                                height: 22
+
+                                Row {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 9
+                                    Text {
+                                        text: "󰖂"
+                                        color: Vpn.running ? Theme.accent : Theme.textDim
+                                        font.family: Theme.iconFont
+                                        font.pixelSize: 14
+                                    }
+                                    Text {
+                                        text: "Tailscale"
+                                        color: Theme.text
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 12
+                                        font.bold: true
+                                    }
+                                }
+
+                                Row {
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 12
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: Vpn.busy !== "" ? "···"
+                                            : Vpn.running ? (Vpn.exitNode !== "" ? "VIA " + Vpn.exitNode.toUpperCase() : "CONNECTED")
+                                            : "OFF"
+                                        color: Vpn.running ? Theme.ok : Theme.textFaint
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 10
+                                        font.letterSpacing: 1
+                                    }
+                                    Toggle {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        on: Vpn.running
+                                        busy: Vpn.busy === "up" || Vpn.busy === "down"
+                                        onToggled: Vpn.toggle()
+                                    }
+                                }
+                            }
+
+                            Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+                            Text {
+                                visible: Vpn.error !== ""
+                                width: parent.width
+                                wrapMode: Text.Wrap
+                                text: Vpn.error
+                                color: Theme.danger
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 10
+                            }
+
+                            Repeater {
+                                model: tsCard.rows
+                                delegate: Row {
+                                    required property var modelData
+                                    width: tsCol.width
+                                    spacing: 12
+                                    Text {
+                                        width: 80
+                                        text: modelData.k
+                                        color: Theme.textFaint
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 10
+                                        font.letterSpacing: 1
+                                    }
+                                    Text {
+                                        width: parent.width - 92
+                                        text: modelData.v
+                                        color: Theme.text
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 11
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
+
+                            // exit node chips: none + peers that offer it
+                            Row {
+                                visible: Vpn.running
+                                width: tsCol.width
+                                spacing: 12
+                                Text {
+                                    width: 80
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "EXIT NODE"
+                                    color: Theme.textFaint
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 10
+                                    font.letterSpacing: 1
+                                }
+                                Flow {
+                                    width: parent.width - 92
+                                    spacing: 6
+                                    Repeater {
+                                        model: [{ name: "None", ip: "", exit: Vpn.exitNode === "", online: true }]
+                                               .concat(Vpn.peers.filter(p => p.exitOption))
+                                        delegate: Rectangle {
+                                            required property var modelData
+                                            width: exitTxt.implicitWidth + 18
+                                            height: 22
+                                            radius: Theme.radius
+                                            opacity: modelData.online ? 1 : 0.45
+                                            color: modelData.exit ? Theme.alpha(Theme.accent, 0.15)
+                                                 : exitMouse.containsMouse ? Theme.bgCard : "transparent"
+                                            border.color: modelData.exit ? Theme.accent : Theme.border
+                                            Text {
+                                                id: exitTxt
+                                                anchors.centerIn: parent
+                                                text: modelData.name
+                                                color: modelData.exit ? Theme.accent : Theme.text
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                            }
+                                            MouseArea {
+                                                id: exitMouse
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                enabled: !modelData.exit && Vpn.busy === ""
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: Vpn.useExit(modelData.ip)
+                                            }
+                                        }
+                                    }
+                                    Text {
+                                        visible: !Vpn.peers.some(p => p.exitOption)
+                                        height: 22
+                                        verticalAlignment: Text.AlignVCenter
+                                        text: "no device on the tailnet offers one"
+                                        color: Theme.textFaint
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 10
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // NetworkManager VPN / WireGuard profiles
+                    Repeater {
+                        model: page.nmVpns
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: list.width
+                            height: 46
+                            radius: Theme.radius
+                            color: modelData.active ? Theme.alpha(Theme.accent, 0.10) : "#00000000"
+                            border.width: 1
+                            border.color: modelData.active ? Theme.accent : Theme.border
+
+                            Row {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 14
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 9
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "󰌆"
+                                    color: modelData.active ? Theme.accent : Theme.textDim
+                                    font.family: Theme.iconFont
+                                    font.pixelSize: 14
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: modelData.name
+                                    color: Theme.text
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: modelData.type
+                                    color: Theme.textFaint
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 9
+                                    font.letterSpacing: 1
+                                }
+                            }
+
+                            Row {
+                                anchors.right: parent.right
+                                anchors.rightMargin: 14
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 12
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: page.vpnBusy === modelData.name ? "···" : modelData.active ? "CONNECTED" : ""
+                                    color: Theme.ok
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 10
+                                    font.letterSpacing: 1
+                                }
+                                Toggle {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    on: modelData.active
+                                    busy: page.vpnBusy === modelData.name
+                                    onToggled: page.setNmVpn(modelData.name, !modelData.active)
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        visible: !Vpn.installed && page.nmVpns.length === 0
+                        width: parent.width
+                        text: "No VPNs. Install Tailscale, or add a WireGuard / OpenVPN profile with NetworkManager (nmcli connection import ...)."
+                        color: Theme.textFaint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Item { width: 1; height: 14 }
+
+                    Text {
+                        text: page.wired ? "// WIRED" : "// WI-FI"
+                        color: Theme.textDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        font.letterSpacing: 3
+                    }
 
                     // ------------------------------------------------------
                     // Wired
