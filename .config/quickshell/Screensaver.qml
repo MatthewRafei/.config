@@ -142,7 +142,7 @@ Scope {
             for (const g of jobs)
                 sh += "[ -f \"$1/" + g.id + "-" + grid.cols + "x" + grid.rows + ".json\" ] || nice -n 19 python3 \"$2\" \"$3/"
                     + g.file + "\" " + grid.cols + " " + grid.rows + " " + grid.asp.toFixed(3) + " \"$1/" + g.id + "-"
-                    + grid.cols + "x" + grid.rows + ".json\"; "
+                    + grid.cols + "x" + grid.rows + ".json\" " + g.convert.join(" ") + "; "
             return ["sh", "-c", sh, "sh", root.gifCache, root.converter, root.refs]
         }
     }
@@ -169,8 +169,9 @@ Scope {
             loadingId = id
             const out = cachePath(id)
             gifLoader.command = ["sh", "-c",
-                "[ -f \"$5\" ] || { mkdir -p \"$(dirname \"$5\")\"; python3 \"$6\" \"$1\" \"$2\" \"$3\" \"$4\" \"$5\"; }; cat \"$5\"",
-                "sh", refs + "/" + s.gif, String(grid.cols), String(grid.rows), grid.asp.toFixed(3), out, converter]
+                "g=$1 c=$2 r=$3 a=$4 f=$5 py=$6; shift 6; "
+                + "[ -f \"$f\" ] || { mkdir -p \"$(dirname \"$f\")\"; python3 \"$py\" \"$g\" \"$c\" \"$r\" \"$a\" \"$f\" \"$@\"; }; cat \"$f\"",
+                "sh", refs + "/" + s.gif, String(grid.cols), String(grid.rows), grid.asp.toFixed(3), out, converter].concat(s.convert)
             gifLoader.running = true
             return
         }
