@@ -417,7 +417,7 @@ PanelWindow {
     // Now and then (1 in 3 changes, or `qs ipc call bar peek`) a little skit
     // decodes in instead: a face peeking left and right, dozing off, flipping
     // a table, praising the sun, dancing, hacking, shrugging, a cat, a YOU
-    // DIED... then it dissolves and the next quote types in.
+    // DIED, Pac-Man... then it dissolves and the next quote types in.
     // `qs ipc call bar skit <name>` plays a given one.
     // Uses `fortune` if installed, else ~/.local/bin/fortune
     // (quotes live in ~/.config/quickshell/quotes/).
@@ -434,7 +434,10 @@ PanelWindow {
         anchors.right: clockItem.left
         anchors.rightMargin: 18
         height: bar.implicitHeight
-        width: Math.max(0, Math.min(peeking ? faceRow.implicitWidth : quoteRow.implicitWidth, room))
+        // while a skit plays, hold the width of its longest frame so the
+        // characters move instead of the whole line shifting
+        width: Math.max(0, Math.min(peeking ? Math.max(faceRow.implicitWidth, faceMetrics.advanceWidth + 20)
+                                            : quoteRow.implicitWidth, room))
         visible: room > 100 && (body !== "" || peeking)
         clip: true
 
@@ -472,6 +475,7 @@ PanelWindow {
             const first = core[0].t
             for (let k = 0; k <= first.length; k++) f.push({ t: scrambled(first, k), ms: 45 })
             frames = f.concat(core).concat(dissolve(core[core.length - 1].t))
+            faceMetrics.text = core.reduce((a, fr) => fr.t.length > a.length ? fr.t : a, "")
             frameIdx = 0
             face = frames[0].t
             faceColor = ""
@@ -481,7 +485,7 @@ PanelWindow {
             faceTimer.restart()
         }
 
-        property string faceColor: ""   // "" = accent, or "danger" / "dim"
+        property string faceColor: ""   // "" = accent, or "danger" / "accent2" / "dim"
 
         readonly property var skits: ({
             // looks left and right, smiles
@@ -561,6 +565,36 @@ PanelWindow {
                 { t: "(=^･ω･^=)!", ms: 450 },
                 { t: "(=^･ｪ･^=)ﾉ", ms: 1100, sparkle: true }
             ],
+            // Pac-Man eats the dots with a ghost on his tail, gets the power
+            // pellet, turns and eats the ghost
+            pacman: () => {
+                const W = 20, f = []
+                const line = cells => cells.join("").replace(/\s+$/, "")
+                // right: chomp the dots, ghost three behind
+                for (let p = 0; p <= W; p++) {
+                    const c = []
+                    for (let i = 0; i <= W; i++)
+                        c.push(i === W ? "◉" : i > p && i % 2 === 0 ? "•" : " ")
+                    if (p - 4 >= 0) c[p - 4] = "ᗣ"
+                    c[Math.min(p, W)] = p % 2 === 0 ? "ᗧ" : "●"
+                    f.push({ t: line(c), ms: 120 })
+                }
+                // power pellet: the ghost turns and runs, Pac-Man gives chase
+                let g = W - 4, p = W
+                f.push({ t: line(Array(g).fill(" ").concat(["ᗣ", " ", " ", " ", "ᗤ"])), ms: 450, color: "accent2" })
+                for (let k = 0; g > 0 && p - g > 1; k++) {
+                    if (k % 2 === 0) g--
+                    p--
+                    const c = Array(W + 1).fill(" ")
+                    c[g] = "ᗣ"
+                    c[p] = k % 2 === 0 ? "ᗤ" : "●"
+                    f.push({ t: line(c), ms: 110, color: "accent2" })
+                }
+                const c = Array(W + 1).fill(" ")
+                c[g] = "2"; c[g + 1] = "0"; c[g + 2] = "0"
+                f.push({ t: line(c), ms: 900, color: "accent2", sparkle: true })
+                return f.concat([{ t: "Pᗣᗧ•••MᗣN", ms: 1600, sparkle: true }])
+            },
             // gets bodied by a boss, tries again
             died: () => [
                 { t: "(ง •_•)ง", ms: 800 },
@@ -597,6 +631,13 @@ PanelWindow {
             }
         }
 
+        TextMetrics {
+            id: faceMetrics
+            font.family: Theme.fontFamily
+            font.pixelSize: 13
+            font.bold: true
+        }
+
         Row {
             id: faceRow
             visible: quote.peeking
@@ -605,6 +646,7 @@ PanelWindow {
             Text {
                 text: quote.face
                 color: quote.faceColor === "danger" ? Theme.danger
+                     : quote.faceColor === "accent2" ? Theme.accent2
                      : quote.faceColor === "dim" ? Theme.textDim
                      : Theme.accent
                 font.family: Theme.fontFamily
@@ -660,7 +702,7 @@ PanelWindow {
             // one target per shell: answer from the first monitor's bar only
             enabled: bar.screen === Quickshell.screens[0]
             function peek(): void { quote.peek("") }
-            // qs ipc call bar skit sleepy | tableflip | sun | dance | hack | shrug | cat | died | peek
+            // qs ipc call bar skit sleepy | tableflip | sun | dance | hack | shrug | cat | died | pacman | peek
             function skit(name: string): void { quote.peek(name) }
         }
 
