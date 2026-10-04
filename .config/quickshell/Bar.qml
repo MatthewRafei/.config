@@ -851,6 +851,25 @@ PanelWindow {
             }
         }
 
+        // tailscale: dim when stopped, accent + node name through an exit node.
+        // click = VPN dropdown, right-click = connect / disconnect
+        Chip {
+            visible: Vpn.installed
+            icon: "󰖂"
+            value: Vpn.running && Vpn.exitNode !== ""
+                ? (Vpn.exitNode.length > 12 ? Vpn.exitNode.slice(0, 11) + "…" : Vpn.exitNode)
+                : ""
+            accent: !Vpn.running ? Theme.textFaint
+                  : Vpn.exitNode !== "" ? Theme.accent
+                  : Theme.text
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton)
+                    Vpn.toggle()
+                else
+                    Quickshell.execDetached(["qs", "ipc", "call", "quick", "vpn"])
+            }
+        }
+
         Divider {}
 
         // cpu and ram; click either = HUD with the full graphs

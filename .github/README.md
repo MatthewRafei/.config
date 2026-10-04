@@ -26,6 +26,7 @@ there are no symlinks and no install script that copies files.
   TelemetryHud.qml             desktop HUD with graphs (Mod+H)
   Power.qml, PowerMenu.qml     power profiles, battery, charge limit; power menu (Mod+Shift+E)
   NightLight.qml               night light (drives ~/.local/bin/nightlightd)
+  Vpn.qml                      Tailscale state; bar chip + dropdown (click the VPN icon)
   QuickPanel.qml, VolumeOsd.qml, PerspectivePanel.qml, Hud*.qml, Slider.qml   shared UI bits
   hyprquickpaper/              wallpaper picker, a separate qs config (Mod+Shift+W)
   quotes/quotes                quotes shown in the bar and on the lock screen
@@ -56,7 +57,8 @@ doas apk add niri quickshell alacritty fuzzel nautilus chromium \
     clang gmake pkgconf wayland-devel wayland-progs
 ```
 
-Optional: `orca` (screen reader, Super+Alt+S); `brillo` (brightness keys use it when present and
+Optional: `tailscale` (VPN chip in the bar; once: `doas tailscale set --operator=$USER` so the
+bar can connect/disconnect and pick exit nodes); `orca` (screen reader, Super+Alt+S); `brillo` (brightness keys use it when present and
 fall back to `brightnessctl`); a polkit agent (niri starts `polkit-gnome-authentication-agent-1`
 if it exists).
 
