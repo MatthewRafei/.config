@@ -4,9 +4,16 @@ import Quickshell.Io
 import QtQuick
 import "CalendarLib.js" as Lib
 
-// Calendar store: one iCalendar file per event in ~/Calendar, so the folder
-// can be synced between PCs with Syncthing without edit conflicts, and any
-// .ics-aware app can read it too.
+// Calendar store: one iCalendar file per event in a folder (~/.calendar by
+// default), so the folder can be synced between PCs with Syncthing without
+// edit conflicts, and any .ics-aware app can read it too.
+//
+// Folder, first one set wins:
+//   $QS_CALENDAR_DIR
+//   "dir" in ~/.cache/quickshell/calendar.json   e.g. {"dir": "~/Sync/calendar"}
+//   ~/.calendar
+// The folder gets a .stignore line for the hidden temp files saves use
+// (.stignore isn't synced, so each machine adds its own).
 //
 // Times are stored as "floating" local time (no time zone), which is what you
 // want when every synced machine is in the same zone (TZID on imported events
@@ -29,7 +36,24 @@ import "CalendarLib.js" as Lib
 Singleton {
     id: root
 
-    readonly property string dir: Quickshell.env("HOME") + "/Calendar"
+    readonly property string home: Quickshell.env("HOME")
+    readonly property string dir: {
+        const d = Quickshell.env("QS_CALENDAR_DIR") || cfg.dir || "~/.calendar"
+        return (d.startsWith("~/") ? home + d.slice(1) : d).replace(/\/+$/, "")
+    }
+    onDirChanged: Qt.callLater(reload)    // after the loader picks up the new path
+
+    FileView {
+        path: root.home + "/.cache/quickshell/calendar.json"
+        blockLoading: true
+        watchChanges: true
+        onFileChanged: reload()
+        onLoadFailed: cfg.dir = ""   // file deleted: back to the default
+        JsonAdapter {
+            id: cfg
+            property string dir: ""
+        }
+    }
 
     property var events: []       // parsed events, see CalendarLib.js
     property var conflicts: []    // [{ kept, other }] Syncthing conflict copies
@@ -53,7 +77,9 @@ Singleton {
     Process {
         id: loader
         command: ["sh", "-c",
-            'd="$1"; mkdir -p "$d"; for f in "$d"/*.ics; do [ -f "$f" ] || continue; '
+            'd="$1"; mkdir -p "$d"; '
+            + 'grep -qxF ".*.tmp" "$d/.stignore" 2>/dev/null || printf "// quickshell calendar: temp files from saves\\n.*.tmp\\n" >> "$d/.stignore"; '
+            + 'for f in "$d"/*.ics; do [ -f "$f" ] || continue; '
             + 'printf "\\036FILE %s\\n" "$f"; cat "$f"; echo; done', "sh", root.dir]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -185,6 +211,20 @@ Singleton {
     function next(limit) {
         const now = new Date()
         return occurrences(now, new Date(now.getTime() + 60 * 86400000)).slice(0, limit || 5)
+    }
+
+    // plain text -> StyledText with clickable http(s) links
+    function linkify(s) {
+        return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/https?:\/\/[^\s<]*[^\s<.,;:!?)\]'"]/g, u => '<a href="' + u + '">' + u + '</a>')
+            .replace(/\n/g, "<br>")
+    }
+
+    // close the calendar (it sits above other windows) and open the link in the browser
+    function openLink(url) {
+        windowOpen = false
+        panelOpen = false
+        Qt.openUrlExternally(url.replace(/&amp;/g, "&"))
     }
 
     function timeLabel(o) {

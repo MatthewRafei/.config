@@ -5,7 +5,7 @@ import QtQuick
 
 // Calendar dropdown under the bar clock (click the clock; right-click still
 // toggles the date). Left: month grid with event dots. Right: the selected
-// day's events, or the add/edit form. Events live in ~/Calendar (Calendar.qml).
+// day's events, or the add/edit form. Events live in ~/.calendar (Calendar.qml).
 //
 // grid: click a day to select it (while editing, it sets the event's date),
 //       scroll to change month. form: Enter in the title saves, Esc cancels.
@@ -327,10 +327,13 @@ PanelWindow {
                                         font.bold: true
                                     }
                                     Text {
+                                        id: subLine
                                         visible: text !== ""
                                         width: parent.width
                                         elide: Text.ElideRight
-                                        text: [item.modelData.ev.location, item.modelData.ev.notes.split("\n")[0]].filter(x => x).join("  ·  ")
+                                        textFormat: Text.StyledText
+                                        linkColor: Theme.accent
+                                        text: Calendar.linkify([item.modelData.ev.location, item.modelData.ev.notes.split("\n")[0]].filter(x => x).join("  ·  "))
                                         color: Theme.textDim
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 10
@@ -342,7 +345,13 @@ PanelWindow {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.editEvent(item.modelData.ev)
+                                    // a click on a link opens it, anywhere else edits the event
+                                    onClicked: mouse => {
+                                        const p = mapToItem(subLine, mouse.x, mouse.y)
+                                        const link = subLine.visible ? subLine.linkAt(p.x, p.y) : ""
+                                        if (link) Calendar.openLink(link)
+                                        else root.editEvent(item.modelData.ev)
+                                    }
                                 }
                             }
                         }

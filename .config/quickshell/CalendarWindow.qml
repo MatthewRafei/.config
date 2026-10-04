@@ -4,12 +4,12 @@ import Quickshell.Wayland
 import QtQuick
 
 // Full calendar window, opened like Settings (centered card, tilt-in).
-// Same events as the bar dropdown (Calendar.qml, ~/Calendar).
+// Same events as the bar dropdown (Calendar.qml, ~/.calendar).
 //
 //   sidebar   today, sun times, next event countdown, views, stats, + NEW
 //   main      MONTH grid (titles in cells) / WEEK timeline / AGENDA list
 //   right     selected day's events, an event's full details, the form, or
-//             Syncthing conflicts (sidebar warning when ~/Calendar has any)
+//             Syncthing conflicts (sidebar warning when the folder has any)
 //
 //   keys      Esc back/close · ←/→ previous/next month or week · T today
 //             N new event · M / W / A switch view
@@ -480,7 +480,7 @@ PanelWindow {
                             onClicked: root.newEvent()
                         }
                         Text {
-                            text: "~/Calendar  ·  " + Calendar.fileCount + (Calendar.fileCount === 1 ? " file" : " files")
+                            text: Calendar.dir.replace(Calendar.home, "~") + "  ·  " + Calendar.fileCount + (Calendar.fileCount === 1 ? " file" : " files")
                             color: Theme.textFaint
                             font.family: Theme.fontFamily
                             font.pixelSize: 9
@@ -1158,7 +1158,18 @@ PanelWindow {
                                     spacing: 10
                                     Text { text: modelData[0]; width: 16; color: Theme.textDim; font.family: Theme.iconFont; font.pixelSize: 13 }
                                     Text { text: modelData[1]; width: 60; color: Theme.textFaint; font.family: Theme.fontFamily; font.pixelSize: 9; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
-                                    Text { text: modelData[2]; width: detail.width - 96; wrapMode: Text.Wrap; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: 11 }
+                                    Text {
+                                        text: Calendar.linkify(modelData[2])
+                                        textFormat: Text.StyledText
+                                        linkColor: Theme.accent
+                                        width: detail.width - 96
+                                        wrapMode: Text.Wrap
+                                        color: Theme.text
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 11
+                                        onLinkActivated: link => Calendar.openLink(link)
+                                        HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                    }
                                 }
                             }
 
@@ -1168,7 +1179,11 @@ PanelWindow {
                                 visible: evCol.o !== null && evCol.o.ev.notes !== ""
                                 width: parent.width
                                 wrapMode: Text.Wrap
-                                text: evCol.o ? evCol.o.ev.notes : ""
+                                text: evCol.o ? Calendar.linkify(evCol.o.ev.notes) : ""
+                                textFormat: Text.StyledText
+                                linkColor: Theme.accent
+                                onLinkActivated: link => Calendar.openLink(link)
+                                HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
                                 color: Theme.textDim
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 11

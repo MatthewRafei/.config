@@ -20,7 +20,7 @@ there are no symlinks and no install script that copies files.
   Bar.qml                      top bar (workspaces, quote/face, clock, media, stats, tray, power)
   Notifs.qml + Notification*.qml   notification daemon + popups + center (Mod+N)
   SettingsWindow.qml + SettingsPages/  settings (Mod+S): system, sound, monitors, wifi, bluetooth, power
-  Calendar*.qml, CalendarLib.js, EventForm.qml   calendar dropdown + big calendar window (Mod+C); events in ~/Calendar/*.ics
+  Calendar*.qml, CalendarLib.js, EventForm.qml   calendar dropdown + big calendar window (Mod+C); events in ~/.calendar/*.ics (Syncthing-friendly)
   Lock.qml, LockSurface.qml, pam/   lock screen (Mod+Shift+L, after 5 min idle, before suspend)
   Screensaver.qml, ScreensaverScenes.js, screensaver/   ASCII screensaver after 3 min idle
   TelemetryHud.qml             desktop HUD with graphs (Mod+H)
@@ -234,6 +234,10 @@ Follow the steps above in order. Things that will trip you up:
   the battery and charge-limit UI. Without power-profiles-daemon, the profile buttons hide.
   Don't hard-code hardware paths.
 - **Keep private data out of the repo.** No location in `gammastep/config.ini`, no calendar files
-  (`~/Calendar`), no tokens. The repo is public.
+  (`~/.calendar`), no tokens. The repo is public.
 - If a QML component fails to load, the whole shell can come up without a bar. Read `qs log`,
   fix the error, and the shell reloads on save.
+- On a live reload (save while the shell runs) a component that fails to load can be dropped
+  silently: the old version keeps running and `qs log` still says "Configuration Loaded". After
+  changing a file with an `IpcHandler`, check `qs ipc show` lists what you expect. Properties
+  from newer Quickshell docs (e.g. `FileView.printErrors`) may not exist in the packaged version.

@@ -1,0 +1,2 @@
+# Private data that lives in $HOME but must never be committed (this repo is public)
+.calendar/
