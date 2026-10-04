@@ -201,8 +201,11 @@ Nothing is Chimera-only except package names, `doas`, and dinit. Notes:
 - The OS scene in the screensaver and the package finder detect the system at runtime; the
   package finder only supports apk and flatpak.
 - Desktops without a backlight: the brightness slider hides itself; nothing to install.
-- Gentoo: niri, quickshell, cliphist, xwayland-satellite and the Nerd Font are in GURU. Lock before
-  suspend needs elogind (`elogind-inhibit`), the OpenRC default.
+- Gentoo: niri, quickshell, cliphist and xwayland-satellite are in GURU. The font is
+  `media-fonts/nerdfonts` with `USE=jetbrainsmono` (the default build is symbols only, and every
+  config then falls back to a proportional font); without root, unpack `JetBrainsMono.tar.xz` from
+  the Nerd Fonts releases into `~/.local/share/fonts` and run `fc-cache -f`. Lock before suspend
+  needs elogind (`elogind-inhibit`), the OpenRC default.
 
 ## For Claude Code (or another agent) setting this up
 
