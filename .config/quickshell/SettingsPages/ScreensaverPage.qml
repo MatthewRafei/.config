@@ -3,7 +3,9 @@ import Quickshell
 import "../"
 import "../ScreensaverScenes.js" as Scenes
 
-// Settings > Screensaver: when it starts, and a card per scene to preview it.
+// Settings > Screensaver: timings and options (Idle.qml), and a card per
+// scene: click to preview, the switch in its corner keeps it in or out of the
+// random rotation.
 // Previewing closes Settings and plays the scene (move the mouse to end it).
 Item {
     id: page
@@ -14,6 +16,24 @@ Item {
         const s = Scenes.get(id)
         return { id: id, name: s.name, gif: !!s.gif }
     })
+
+    // the settings rows: label, choices, and how to read / write the value
+    readonly property var rows: [
+        { k: "SCREENSAVER", opts: [{ l: "ON", v: true }, { l: "OFF", v: false }],
+          get: () => Idle.screensaver, set: v => Idle.screensaver = v },
+        { k: "START AFTER", opts: [1, 2, 3, 5, 10, 15, 30].map(m => ({ l: m + "M", v: m })),
+          get: () => Idle.screensaverMin, set: v => Idle.screensaverMin = v },
+        { k: "CHANGE SCENE", opts: [{ l: "30S", v: 30 }, { l: "1M", v: 60 }, { l: "2M", v: 120 }, { l: "5M", v: 300 }, { l: "NEVER", v: 0 }],
+          get: () => Idle.sceneSec, set: v => Idle.sceneSec = v },
+        { k: "LOCK AFTER", opts: [2, 5, 10, 15, 30].map(m => ({ l: m + "M", v: m })).concat([{ l: "1H", v: 60 }, { l: "NEVER", v: 0 }]),
+          get: () => Idle.lockMin, set: v => Idle.lockMin = v },
+        { k: "SCREEN OFF", opts: [5, 10, 15, 30].map(m => ({ l: m + "M", v: m })).concat([{ l: "1H", v: 60 }, { l: "NEVER", v: 0 }]),
+          get: () => Idle.screenOffMin, set: v => Idle.screenOffMin = v },
+        { k: "ON BATTERY", opts: [{ l: "SCREENSAVER", v: true }, { l: "SKIP IT", v: false }],
+          get: () => Idle.onBattery, set: v => Idle.onBattery = v },
+        { k: "SCENE NAME", opts: [{ l: "SHOW", v: true }, { l: "HIDE", v: false }],
+          get: () => Idle.showName, set: v => Idle.showName = v }
+    ]
 
     function preview(id) {
         // close Settings first so the scene isn't drawn underneath it
@@ -54,45 +74,68 @@ Item {
 
         Rectangle { width: parent.width; height: 1; color: Theme.border }
 
-        // ---------------- timing + caffeine ----------------
+        // ---------------- settings (Idle.qml) ----------------
         Rectangle {
             width: parent.width
-            height: infoCol.implicitHeight + 24
+            height: setCol.implicitHeight + 24
             radius: Theme.radius
             color: "transparent"
             border.color: Theme.border
 
             Column {
-                id: infoCol
+                id: setCol
                 x: 14
                 y: 12
                 width: parent.width - 28
-                spacing: 8
+                spacing: 6
 
                 Repeater {
-                    model: [
-                        { k: "STARTS", v: "after 3 min idle, a random scene, changing every minute" },
-                        { k: "LOCKS", v: "after 5 min idle" },
-                        { k: "PAUSED BY", v: "video and games (idle inhibitors), and Caffeine" }
-                    ]
+                    model: page.rows
                     delegate: Row {
+                        id: srow
                         required property var modelData
+                        width: setCol.width
                         spacing: 12
                         Text {
-                            width: 90
-                            text: modelData.k
+                            width: 100
+                            height: 22
+                            verticalAlignment: Text.AlignVCenter
+                            text: srow.modelData.k
                             color: Theme.textFaint
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
                             font.letterSpacing: 1
                         }
-                        Text {
-                            text: modelData.v
-                            color: Theme.text
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 11
+                        Flow {
+                            width: parent.width - 112
+                            spacing: 4
+                            Repeater {
+                                model: srow.modelData.opts
+                                HudButton {
+                                    required property var modelData
+                                    label: modelData.l
+                                    on: srow.modelData.get() === modelData.v
+                                    onClicked: srow.modelData.set(modelData.v)
+                                }
+                            }
                         }
                     }
+                }
+
+                // settings that don't add up
+                Text {
+                    width: parent.width
+                    visible: text !== ""
+                    wrapMode: Text.Wrap
+                    topPadding: 2
+                    text: Idle.screensaver && Idle.lockMin > 0 && Idle.lockMin <= Idle.screensaverMin
+                          ? "Locks at or before the screensaver would start, so you'll see the lock screen instead."
+                        : Idle.screensaver && Idle.screenOffMin > 0 && Idle.screenOffMin <= Idle.screensaverMin
+                          ? "The screen turns off before the screensaver would start."
+                        : ""
+                    color: Theme.accent2
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 10
                 }
 
                 Row {
@@ -112,12 +155,25 @@ Item {
             }
         }
 
-        Text {
-            text: "// SCENES  ·  click one to preview it"
-            color: Theme.textDim
-            font.family: Theme.fontFamily
-            font.pixelSize: 11
-            font.letterSpacing: 2
+        Row {
+            width: parent.width
+            spacing: 10
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "// SCENES  ·  " + page.scenes.filter(x => Idle.sceneEnabled(x.id)).length + " IN ROTATION  ·  click to preview"
+                color: Theme.textDim
+                font.family: Theme.fontFamily
+                font.pixelSize: 11
+                font.letterSpacing: 2
+            }
+            HudButton {
+                label: "ALL"
+                onClicked: Idle.disabled = []
+            }
+            HudButton {
+                label: "NONE"
+                onClicked: Idle.disabled = page.scenes.map(x => x.id)
+            }
         }
 
         // ---------------- scene cards ----------------
@@ -140,6 +196,8 @@ Item {
                         width: (cards.width - 2 * cards.spacing) / 3
                         height: 58
                         radius: Theme.radius
+                        readonly property bool inRotation: Idle.sceneEnabled(modelData.id)
+                        opacity: inRotation ? 1 : 0.5
                         color: cardMouse.containsMouse ? Theme.alpha(Theme.accent, 0.10) : "transparent"
                         border.color: cardMouse.containsMouse ? Theme.accent : Theme.border
                         Behavior on color { ColorAnimation { duration: Theme.animFast } }
@@ -159,7 +217,7 @@ Item {
                             anchors.left: cardIcon.right
                             anchors.leftMargin: 10
                             anchors.right: parent.right
-                            anchors.rightMargin: 10
+                            anchors.rightMargin: 40
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 3
 
@@ -181,6 +239,34 @@ Item {
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 9
                                 font.letterSpacing: 1
+                            }
+                        }
+
+                        // in the random rotation or not
+                        Rectangle {
+                            z: 2
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 7
+                            width: 26
+                            height: 14
+                            radius: 7
+                            color: card.inRotation ? Theme.accent : Theme.trackBg
+                            border.color: Theme.border
+                            Rectangle {
+                                width: 10
+                                height: 10
+                                radius: 5
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: card.inRotation ? parent.width - width - 2 : 2
+                                color: Theme.text
+                                Behavior on x { NumberAnimation { duration: Theme.animFast } }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Idle.setSceneEnabled(card.modelData.id, !card.inRotation)
                             }
                         }
 

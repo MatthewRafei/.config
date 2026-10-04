@@ -26,6 +26,7 @@ there are no symlinks and no install script that copies files.
   TelemetryHud.qml             desktop HUD with graphs (Mod+H)
   Power.qml, PowerMenu.qml     power profiles, battery, charge limit; power menu (Mod+Shift+E)
   NightLight.qml               night light (drives ~/.local/bin/nightlightd)
+  Idle.qml                     idle settings: screensaver / lock / screen-off times, scene rotation
   Vpn.qml                      Tailscale state; bar chip + dropdown (click the VPN icon)
   Caffeine.qml                 keep awake: bar coffee chip blocks screensaver, idle lock and idle suspend
   QuickPanel.qml, VolumeOsd.qml, PerspectivePanel.qml, Hud*.qml, Slider.qml   shared UI bits
@@ -164,9 +165,12 @@ qs ipc call screensaver start    # preview the screensaver (move the mouse to di
 
 ## Idle behaviour
 
-Screensaver after 3 minutes (`Screensaver.qml`, `timeout: 180`), lock after 5 minutes
-(`Lock.qml`, `timeout: 300`). Both respect idle inhibitors (video players). The screen also
-locks before suspend.
+Defaults: screensaver after 3 minutes (a new scene every minute), lock after 5 minutes, screen
+stays on. All of it is set in **Settings > Screensaver** (`Idle.qml`, saved per machine in
+`~/.cache/quickshell/idle.json`): start / lock / screen-off times, how often the scene changes,
+skipping the screensaver on battery, the scene-name label, and which scenes are in the rotation
+(click a card to preview it). Everything respects idle inhibitors (video players) and Caffeine.
+The screen also locks before suspend. `qs ipc call screensaver status` prints the timings in use.
 
 Screensaver scenes are in `ScreensaverScenes.js`. Hand-drawn scenes: Half-Life, your OS (logo
 from fastfetch: Chimera, Gentoo, ...), Naruto, Death Note. Logos can be pasted in as braille art

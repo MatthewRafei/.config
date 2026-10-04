@@ -172,9 +172,11 @@ Scope {
         }
     }
 
+    // lock after Idle.lockMin idle minutes (Settings > Screensaver), 0 = never
     IdleMonitor {
-        timeout: 300      // the screensaver (Screensaver.qml) starts at 180
+        enabled: Idle.lockMin > 0
+        timeout: Math.max(1, Idle.lockMin) * 60
         respectInhibitors: true
-        onIsIdleChanged: if (isIdle && !root.locked) root.lock()
+        onIsIdleChanged: if (enabled && isIdle && !root.locked) root.lock()
     }
 }

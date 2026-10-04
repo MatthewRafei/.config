@@ -19,11 +19,12 @@ Scope {
 
     property bool locked: false           // bound from shell.qml
     property bool forced: false
-    readonly property bool active: idle.isIdle || forced
+    // timings and options come from Idle.qml (Settings > Screensaver)
+    readonly property bool active: (idle.isIdle && Idle.screensaver && (Idle.onBattery || Power.onAC)) || forced
 
     IdleMonitor {
         id: idle
-        timeout: 180
+        timeout: Math.max(1, Idle.screensaverMin) * 60
         respectInhibitors: true
     }
 
@@ -55,7 +56,7 @@ Scope {
     property real tOpacity: 0
     property real tY: 0.78
     property var history: []
-    readonly property real sceneLength: 60
+    readonly property real sceneLength: Idle.sceneSec > 0 ? Idle.sceneSec : 1e9   // 0 = keep one scene
 
     // OS info for the Linux scene
     property string osName: "Linux"
@@ -153,11 +154,16 @@ Scope {
     }
 
     function pickScene(prefer) {
-        const ids = Scenes.list().filter(i => available(i))
-        if (prefer && ids.indexOf(prefer) >= 0) return prefer
+        const all = Scenes.list().filter(i => available(i))
+        if (prefer && all.indexOf(prefer) >= 0) return prefer
+        // only scenes left in the rotation (all of them if every one is off)
+        const on = all.filter(i => Idle.sceneEnabled(i))
+        const ids = on.length ? on : all
         // random, never one of the last few
-        const recent = history.slice(-Math.min(3, ids.length - 1))
-        const pool = ids.filter(i => recent.indexOf(i) < 0)
+        const n = Math.min(3, ids.length - 1)
+        const recent = n > 0 ? history.slice(-n) : []
+        const fresh = ids.filter(i => recent.indexOf(i) < 0)
+        const pool = fresh.length ? fresh : ids
         return pool[Math.floor(Math.random() * pool.length)]
     }
 
@@ -239,6 +245,13 @@ Scope {
         function scene(id: string): void { root.graceUntil = Date.now() + 1500; root.pending = id; root.forced = true; startSoon.restart() }
         function stop(): void { root.forced = false }
         function list(): string { return Scenes.list().join(" ") }
+        // the timings in effect (from Settings > Screensaver / Idle.qml)
+        function status(): string {
+            return "screensaver " + (Idle.screensaver ? "on" : "off") + ", starts after " + idle.timeout + " s idle"
+                + ", scene changes every " + (Idle.sceneSec > 0 ? Idle.sceneSec + " s" : "never")
+                + ", " + Scenes.list().filter(i => Idle.sceneEnabled(i)).length + " scenes in rotation"
+                + (Idle.onBattery ? "" : ", skipped on battery")
+        }
     }
 
     // ---------------- window ----------------
@@ -381,6 +394,7 @@ Scope {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 anchors.margins: 18
+                visible: Idle.showName
                 text: root.scene ? "// " + root.scene.name.toUpperCase() : ""
                 color: "#3a3a44"
                 font.family: Theme.fontFamily
