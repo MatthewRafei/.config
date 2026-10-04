@@ -36,7 +36,8 @@ there are no symlinks and no install script that copies files.
 .config/gammastep/config.ini.example   location template for the night light's sunset mode
 .local/bin/                    pkg + pkg-open (package finder, Mod+Shift+P), cliphist-menu (Mod+V),
                                chromium (wrapper that applies the theme), htop (wrapper: HUD colours),
-                               fortune, papirus-folders
+                               fortune, papirus-folders, songtag (identify + retag music with
+                               SongRec: scan / review / apply / undo)
 .local/share/applications/chromium.desktop   launcher entry pointing at the wrapper
 .local/src/nightlightd/        small C gamma daemon (build it, see below)
 .local/src/battery-charge-limit/   root helper for the battery charge limit (optional install)

@@ -1,0 +1,417 @@
+#!/usr/bin/env python3
+"""songtag: identify songs with SongRec (Shazam) and fix their tags and names.
+
+    songtag scan   [DIR]   identify every song (slow on purpose, resumable)
+    songtag review [DIR]   show what apply would change (offline)
+    songtag apply  [DIR]   write tags + cover, rename to "Artist - Title.ext"
+    songtag undo           put back names and tags changed by apply
+    songtag status [DIR]   counts so far
+
+DIR defaults to ~/Music and is searched recursively.
+
+scan is the only step that talks to Shazam. It waits --delay seconds plus up
+to --jitter more between songs (default 45 + 0..30 s) and backs off further
+when lookups fail, so a full library takes a day or so: run it in the
+background, e.g.
+
+    nohup songtag scan > ~/.cache/songtag/scan.log 2>&1 &
+
+Results are cached in ~/.cache/songtag/results.json; stopping and starting
+again carries on where it left off (a file is looked up again only if it
+changed). Songs Shazam doesn't know are remembered too.
+
+review / apply sort the matches into:
+    new       the file has no title/artist tags: apply fills them in
+    agree     tags already say the same song: apply tidies tags + name
+    conflict  tags say a different song: skipped unless --conflicts
+    nomatch   Shazam didn't recognise it: left alone
+
+apply keeps the audio as is (stream copy), keeps other tags (track, disc,
+composer...), adds the cover if the file has none (mp3 / m4a / flac), and
+logs every change to ~/.cache/songtag/applied.jsonl for `songtag undo`.
+
+Options:
+    --delay N      scan: base seconds between lookups (default 45)
+    --jitter N     scan: up to N random extra seconds (default 30)
+    --limit N      scan / apply: stop after N files
+    --conflicts    apply: also apply matches that disagree with existing tags
+    --no-rename    apply: only write tags
+    --no-cover     apply: don't embed cover art
+    --yes          apply: don't ask for confirmation
+"""
+
+import json
+import os
+import random
+import re
+import subprocess
+import sys
+import tempfile
+import time
+import unicodedata
+import urllib.request
+
+CACHE = os.path.expanduser("~/.cache/songtag")
+RESULTS = os.path.join(CACHE, "results.json")
+APPLIED = os.path.join(CACHE, "applied.jsonl")
+EXTS = {".mp3", ".m4a", ".flac", ".ogg", ".opus", ".wma", ".aac", ".wav"}
+COVER_OK = {".mp3", ".m4a", ".flac"}
+APP = "re.fossplant.songrec"
+
+
+# ------------------------------------------------------------------ helpers
+def die(msg):
+    print("songtag: " + msg, file=sys.stderr)
+    sys.exit(1)
+
+
+def songs(root):
+    for d, dirs, files in os.walk(root):
+        dirs[:] = sorted(x for x in dirs if not x.startswith("."))
+        for f in sorted(files):
+            if os.path.splitext(f)[1].lower() in EXTS and not f.startswith("."):
+                yield os.path.join(d, f)
+
+
+def key(path):
+    st = os.stat(path)
+    return "%d:%d" % (st.st_size, int(st.st_mtime))
+
+
+def load():
+    try:
+        with open(RESULTS) as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def save(res):
+    os.makedirs(CACHE, exist_ok=True)
+    tmp = RESULTS + ".tmp"
+    with open(tmp, "w") as fh:
+        json.dump(res, fh, indent=1, ensure_ascii=False)
+    os.replace(tmp, RESULTS)
+
+
+def tags(path):
+    """existing format tags (lower-case keys) and whether it has a cover"""
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format_tags:stream=codec_type",
+                        "-of", "json", path], capture_output=True, text=True)
+    try:
+        d = json.loads(r.stdout or "{}")
+    except ValueError:
+        d = {}
+    t = {k.lower(): v for k, v in (d.get("format", {}).get("tags") or {}).items()}
+    cover = any(s.get("codec_type") == "video" for s in d.get("streams", []))
+    return t, cover
+
+
+def norm(s):
+    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().lower()
+    s = re.sub(r"\(.*?\)|\[.*?\]|feat\..*|ft\..*", " ", s)
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", s).split())
+
+
+def same(a, b):
+    a, b = norm(a), norm(b)
+    return bool(a and b) and (a == b or a in b or b in a)
+
+
+def info(track):
+    """the fields we use from a Shazam track"""
+    meta = {m.get("title"): m.get("text") for s in track.get("sections", [])
+            for m in (s.get("metadata") or [])}
+    return {
+        "title": track.get("title", ""),
+        "artist": track.get("subtitle", ""),
+        "album": meta.get("Album", ""),
+        "date": meta.get("Released", ""),
+        "label": (meta.get("Label") or "").rstrip("*"),
+        "genre": (track.get("genres") or {}).get("primary", ""),
+        "isrc": track.get("isrc", ""),
+        "cover": (track.get("images") or {}).get("coverarthq", ""),
+    }
+
+
+def classify(path, entry):
+    if not entry or entry.get("status") != "match":
+        return (entry or {}).get("status", "unscanned"), None
+    new = entry["info"]
+    old, _ = tags(path)
+    if not old.get("title") and not old.get("artist"):
+        return "new", new
+    if same(old.get("title"), new["title"]) and (not old.get("artist") or same(old.get("artist"), new["artist"])):
+        return "agree", new
+    return "conflict", new
+
+
+def safe_name(s):
+    s = re.sub(r'[/\\:*?"<>|\x00-\x1f]', "-", s).strip(" .")
+    return s[:150] or "untitled"
+
+
+def opt(args, name, default=None, cast=str):
+    if name in args:
+        i = args.index(name)
+        if i + 1 >= len(args):
+            die(name + " needs a value")
+        v = args[i + 1]
+        del args[i:i + 2]
+        return cast(v)
+    return default
+
+
+def flag(args, name):
+    if name in args:
+        args.remove(name)
+        return True
+    return False
+
+
+# ------------------------------------------------------------------ scan
+def recognise(path, root):
+    r = subprocess.run(["flatpak", "run", "--filesystem=%s:ro" % root, "--command=songrec", APP,
+                        "audio-file-to-recognized-song", path],
+                       capture_output=True, text=True, timeout=180)
+    if r.returncode != 0:
+        return {"status": "error", "error": (r.stderr.strip().splitlines() or ["failed"])[-1][:300]}
+    try:
+        d = json.loads(r.stdout)
+    except ValueError:
+        return {"status": "error", "error": "bad output: " + r.stdout[:200]}
+    if not d.get("track"):
+        return {"status": "nomatch"}
+    return {"status": "match", "info": info(d["track"])}
+
+
+def scan(root, args):
+    delay = opt(args, "--delay", 45, float)
+    jitter = opt(args, "--jitter", 30, float)
+    limit = opt(args, "--limit", 0, int)
+    res = load()
+    todo = [p for p in songs(root) if res.get(p, {}).get("key") != key(p)
+            or res[p].get("status") == "error"]
+    print("%d songs to look up (%d already done). ~%d s apart." % (len(todo), len(list(songs(root))) - len(todo), delay + jitter / 2))
+    backoff, done = 0, 0
+    for i, p in enumerate(todo):
+        if limit and done >= limit:
+            break
+        try:
+            r = recognise(p, root)
+        except subprocess.TimeoutExpired:
+            r = {"status": "error", "error": "timeout"}
+        r["key"], r["time"] = key(p), int(time.time())
+        res[p] = r
+        save(res)
+        done += 1
+        what = (r["info"]["artist"] + " - " + r["info"]["title"]) if r["status"] == "match" else r.get("error", "")
+        print("[%d/%d] %-8s %s  %s" % (i + 1, len(todo), r["status"], os.path.relpath(p, root), what), flush=True)
+        # failures in a row usually mean we're being throttled: back off hard
+        backoff = min(backoff * 2 or 120, 1800) if r["status"] == "error" else 0
+        if i + 1 < len(todo) and not (limit and done >= limit):
+            time.sleep(delay + random.uniform(0, jitter) + backoff)
+    print("scan finished: %d looked up" % done)
+
+
+# ------------------------------------------------------------------ review / status
+def review(root, args):
+    res = load()
+    groups = {}
+    for p in songs(root):
+        e = res.get(p) if res.get(p, {}).get("key") == key(p) else None
+        st, new = classify(p, e)
+        groups.setdefault(st, []).append((p, new))
+    for st in ("new", "agree", "conflict"):
+        rows = groups.get(st, [])
+        if not rows:
+            continue
+        print("\n== %s (%d)" % (st.upper(), len(rows)))
+        for p, new in rows:
+            old, _ = tags(p)
+            print("  %s" % os.path.relpath(p, root))
+            if st == "conflict":
+                print("      tags say: %s - %s" % (old.get("artist", "?"), old.get("title", "?")))
+            print("      shazam:   %s - %s  [%s, %s]" % (new["artist"], new["title"], new["album"], new["date"]))
+    status(root, args, groups)
+
+
+def status(root, args, groups=None):
+    if groups is None:
+        res = load()
+        groups = {}
+        for p in songs(root):
+            e = res.get(p) if res.get(p, {}).get("key") == key(p) else None
+            groups.setdefault(classify(p, e)[0], []).append(p)
+    print("\n" + "  ".join("%s %d" % (k, len(groups.get(k, [])))
+                          for k in ("new", "agree", "conflict", "nomatch", "error", "unscanned")))
+
+
+# ------------------------------------------------------------------ apply / undo
+def write(path, new, rename, cover):
+    old, has_cover = tags(path)
+    ext = os.path.splitext(path)[1].lower()
+    d = os.path.dirname(path)
+    out = path
+    if rename:
+        base = safe_name("%s - %s" % (new["artist"], new["title"]))
+        out = os.path.join(d, base + ext)
+        n = 2
+        while out != path and os.path.exists(out):
+            out = os.path.join(d, "%s (%d)%s" % (base, n, ext))
+            n += 1
+
+    cmd = ["ffmpeg", "-v", "error", "-y", "-i", path]
+    add_cover = cover and not has_cover and ext in COVER_OK and new.get("cover")
+    art = None
+    if add_cover:
+        try:
+            art = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False).name
+            urllib.request.urlretrieve(new["cover"], art)
+            cmd += ["-i", art, "-map", "0", "-map", "1:v"]
+        except OSError:
+            add_cover, art = False, None
+    if not add_cover:
+        cmd += ["-map", "0"]
+    cmd += ["-c", "copy", "-map_metadata", "0"]
+    if ext == ".mp3":
+        cmd += ["-id3v2_version", "3"]
+    fields = {"title": new["title"], "artist": new["artist"], "album_artist": new["artist"],
+              "album": new["album"], "date": new["date"], "genre": new["genre"],
+              "publisher": new["label"]}
+    for k, v in fields.items():
+        if v:
+            cmd += ["-metadata", "%s=%s" % (k, v)]
+    if new.get("isrc") and ext == ".mp3":
+        cmd += ["-metadata", "TSRC=" + new["isrc"]]
+    if add_cover:
+        cmd += ["-disposition:v:0" if not has_cover else "-disposition:v", "attached_pic",
+                "-metadata:s:v", "title=Album cover", "-metadata:s:v", "comment=Cover (front)"]
+    tmp = os.path.join(d, ".songtag-tmp" + ext)
+    r = subprocess.run(cmd + [tmp], capture_output=True, text=True)
+    if art:
+        os.unlink(art)
+    if r.returncode != 0 or not os.path.exists(tmp) or os.path.getsize(tmp) < 1024:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        return None, (r.stderr.strip().splitlines() or ["ffmpeg failed"])[-1]
+    os.replace(tmp, out)
+    if out != path:
+        os.unlink(path)
+    with open(APPLIED, "a") as fh:
+        fh.write(json.dumps({"old": path, "new": out, "tags": old, "cover_added": bool(add_cover),
+                             "time": int(time.time())}, ensure_ascii=False) + "\n")
+    return out, None
+
+
+def apply(root, args):
+    limit = opt(args, "--limit", 0, int)
+    conflicts = flag(args, "--conflicts")
+    rename = not flag(args, "--no-rename")
+    cover = not flag(args, "--no-cover")
+    yes = flag(args, "--yes")
+    res = load()
+    plan = []
+    for p in songs(root):
+        e = res.get(p) if res.get(p, {}).get("key") == key(p) else None
+        st, new = classify(p, e)
+        if st in ("new", "agree") or (st == "conflict" and conflicts):
+            plan.append((p, st, new))
+    if limit:
+        plan = plan[:limit]
+    if not plan:
+        print("nothing to apply (run `songtag scan` first, `songtag review` to see matches)")
+        return
+    print("%d files will get tags%s%s." % (len(plan), ", cover art" if cover else "", ", new names" if rename else ""))
+    if not yes and input("go ahead? [y/N] ").strip().lower() != "y":
+        return
+    os.makedirs(CACHE, exist_ok=True)
+    ok = 0
+    for p, st, new in plan:
+        out, err = write(p, new, rename, cover)
+        if err:
+            print("  FAILED %s: %s" % (os.path.relpath(p, root), err))
+            continue
+        ok += 1
+        # keep the cache pointing at the file as it is now
+        e = res.pop(p)
+        e["key"] = key(out)
+        res[out] = e
+        print("  %-8s %s -> %s" % (st, os.path.relpath(p, root), os.path.basename(out)))
+    save(res)
+    print("%d done. `songtag undo` reverts." % ok)
+
+
+def undo(args):
+    try:
+        with open(APPLIED) as fh:
+            log = [json.loads(l) for l in fh if l.strip()]
+    except OSError:
+        log = []
+    if not log:
+        print("nothing to undo")
+        return
+    yes = flag(args, "--yes")
+    print("%d changes to revert." % len(log))
+    if not yes and input("go ahead? [y/N] ").strip().lower() != "y":
+        return
+    failed = []
+    res = load()
+    for e in reversed(log):
+        cur = e["new"]
+        if not os.path.exists(cur):
+            print("  missing %s" % cur)
+            failed.append(e)
+            continue
+        ext = os.path.splitext(cur)[1].lower()
+        cmd = ["ffmpeg", "-v", "error", "-y", "-i", cur,
+               "-map", "0:a" if e.get("cover_added") else "0", "-c", "copy", "-map_metadata", "-1"]
+        if ext == ".mp3":
+            cmd += ["-id3v2_version", "3"]
+        for k, v in e["tags"].items():
+            if not k.startswith("id3v2_priv") and k not in ("encoder",):
+                cmd += ["-metadata", "%s=%s" % (k, v)]
+        tmp = os.path.join(os.path.dirname(cur), ".songtag-tmp" + ext)
+        r = subprocess.run(cmd + [tmp], capture_output=True, text=True)
+        if r.returncode != 0:
+            print("  FAILED %s" % cur)
+            failed.append(e)
+            continue
+        os.replace(tmp, e["old"])
+        if cur != e["old"]:
+            os.unlink(cur)
+        # keep the lookup: no need to ask Shazam again
+        if cur in res:
+            r = res.pop(cur)
+            r["key"] = key(e["old"])
+            res[e["old"]] = r
+        print("  restored %s" % os.path.basename(e["old"]))
+    save(res)
+    with open(APPLIED, "w") as fh:
+        for e in failed:
+            fh.write(json.dumps(e, ensure_ascii=False) + "\n")
+    print("undo finished (%d failed)." % len(failed))
+
+
+# ------------------------------------------------------------------ main
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help", "help"):
+        print(__doc__.strip())
+        return
+    cmd = args.pop(0)
+    if cmd == "undo":
+        return undo(args)
+    root = os.path.abspath(os.path.expanduser(args[0] if args and not args[0].startswith("-") else "~/Music"))
+    if args and not args[0].startswith("-"):
+        args.pop(0)
+    if not os.path.isdir(root):
+        die("no such folder: " + root)
+    for tool in ("ffmpeg", "ffprobe", "flatpak"):
+        if subprocess.run(["sh", "-c", "command -v " + tool], capture_output=True).returncode:
+            die(tool + " is needed")
+    {"scan": scan, "review": review, "apply": apply, "status": status}.get(cmd, lambda *a: die("unknown command " + cmd))(root, args)
+
+
+if __name__ == "__main__":
+    main()
