@@ -377,7 +377,7 @@ Scope {
                 text: root.scene ? "// " + root.scene.name.toUpperCase() : ""
                 color: "#3a3a44"
                 font.family: Theme.fontFamily
-                font.pixelSize: 10
+                font.pixelSize: 13
                 font.letterSpacing: 3
             }
         }
