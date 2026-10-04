@@ -54,15 +54,15 @@ layout {
 
     focus-ring {
         width 3
-        active-gradient from="#ba86df" to="#e18ed6" angle=45
-        inactive-color "#281f2e"
+        active-gradient from="#f174e3" to="#98f17e" angle=45
+        inactive-color "#2e1f2c"
     }
 
     border {
         off
         width 2
-        active-color "#ba86df"
-        inactive-color "#281f2e"
+        active-color "#f174e3"
+        inactive-color "#2e1f2c"
         urgent-color "#f04c69"
     }
 
@@ -200,8 +200,10 @@ binds {
     XF86AudioNext allow-when-locked=true { spawn-sh "playerctl next"; }
 
     // Brightness
-    XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "brillo -A 2.5 || brightnessctl -q set 3%+"; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "brillo -U 2.5 || brightnessctl -q set 3%-"; }
+    // brightness: exponential steps (even to the eye, finer when dim) that
+    // fade over 90 ms; cooldown so a held key doesn't stack fades
+    XF86MonBrightnessUp   allow-when-locked=true cooldown-ms=100 { spawn-sh "brillo -q -u 90000 -A 3 || brightnessctl -q -e4 -n2 set 3%+"; }
+    XF86MonBrightnessDown allow-when-locked=true cooldown-ms=100 { spawn-sh "brillo -q -u 90000 -U 3 || brightnessctl -q -e4 -n2 set 3%-"; }
 
     Mod+O repeat=false { toggle-overview; }
     Mod+Q repeat=false { close-window; }
