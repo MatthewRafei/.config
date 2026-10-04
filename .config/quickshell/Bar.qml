@@ -921,7 +921,7 @@ PanelWindow {
 
         // cpu and ram; click either = HUD with the full graphs
         Chip {
-            icon: "󰻠"
+            icon: "󰍛"
             value: Math.round(bar.cpu * 100) + "%"
             gauge: bar.cpu
             accent: bar.cpu > 0.9 ? Theme.danger : Theme.text
