@@ -396,14 +396,8 @@ const gifScenes = [
     // still logos: the converter adds a slow bob and a light sweep
     gifScene("emacs", "GNU Emacs", "emacs.png", { convert: ["8", "key=alpha", "still=1", "size=0.75"] }),
     gifScene("vim", "Vim", "vim.png", { convert: ["8", "key=alpha,#000000", "keytol=60", "still=1", "size=0.75"] }),
-    // these two have a checkerboard baked in where the transparency was
-    gifScene("fa-reactor", "Factorio · Nuclear Reactor", "factorio-reactor.gif",
-             { convert: ["8", "key=#3b3b3b,#454545,#404040", "keytol=16"] }),
-    gifScene("fa-building", "Factorio", "factorio-building.gif",
-             { convert: ["8", "key=#3b3b3b,#454545", "keytol=10"] }),
     gifScene("fa-spin", "Factorio · Gear", "factorio-spinning-gear.gif", { convert: ["8", "key=alpha", "size=0.9"] }),
     gifScene("headcrab", "Half-Life · Headcrab", "headcrab.gif", { convert: ["8", "key=auto", "keytol=40"] }),
-    gifScene("bb-doll", "Bloodborne · The Doll", "bloodborne-doll.gif", { convert: ["8", "key=alpha", "pixel=1"] }),
     gifScene("ds-bonfire", "Dark Souls · Bonfire", "bonfire.gif", { convert: ["8", "key=alpha", "pixel=1"] })
 ]
 
