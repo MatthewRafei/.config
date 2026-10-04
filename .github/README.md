@@ -25,8 +25,9 @@ the folder icons. A mostly grey wallpaper gets a monochrome theme.
 ![Four wallpapers, four themes](screenshots/themes.webp)
 
 <p align="center">
-  <img src="screenshots/wallpaper-picker.webp" alt="Wallpaper picker" width="100%">
-  <br><sub>The wallpaper picker (Mod+Shift+W): slanted slices, the current one opens into a card.</sub>
+  <img src="screenshots/wallpaper-picker.gif" alt="Wallpaper picker" width="100%">
+  <br><sub>The wallpaper picker (Mod+Shift+W): slanted slices, the current one opens into a card and
+  previews behind it. Enter applies it and everything recolours.</sub>
 </p>
 
 ## The bar
@@ -67,7 +68,7 @@ Mod+H hides it.
 
 ## Settings
 
-![Settings: system, screensaver, sound, monitors](screenshots/settings.webp)
+<p align="center"><img src="screenshots/settings.gif" alt="Settings: system, sound, monitors, screensaver" width="80%"></p>
 
 The pages are System, Sound (outputs and inputs), Monitors (brightness, night light, scale),
 Screensaver, Network (Wi-Fi, wired and VPNs), Bluetooth and Power. The Power page has profiles
@@ -80,11 +81,11 @@ the rotation.
 
 ## Calendar
 
-![Calendar month view](screenshots/calendar-month.webp)
+![Calendar: month, week and agenda views, and event details](screenshots/calendar.gif)
 
 <p align="center">
-  <img src="screenshots/calendar-week.webp" alt="Week view with event details" width="62%">
-  <img src="screenshots/calendar-dropdown.webp" alt="Clock dropdown" width="36%">
+  <img src="screenshots/calendar-dropdown.gif" alt="Clock dropdown" width="60%">
+  <br><sub>The dropdown from the clock.</sub>
 </p>
 
 - **Views:** month, week and agenda, with event details, and a quick dropdown from the clock.
@@ -94,7 +95,7 @@ the rotation.
 
 ## Screensaver
 
-![Screensaver scenes](screenshots/screensaver.webp)
+![Screensaver scenes](screenshots/screensaver.gif)
 
 After a few idle minutes the screen turns into animated ASCII art:
 - **Hand-drawn scenes:** Half-Life, your distro's logo, Naruto and Death Note.
@@ -106,7 +107,7 @@ transparent ones and checkerboards, scale pixel art without smoothing, and anima
 
 ## Lock screen
 
-![Lock screen](screenshots/lock.webp)
+![Lock screen](screenshots/lock.gif)
 
 The lock screen uses PAM, shows the wallpaper blurred, a clock and a quote, and always locks
 before the laptop suspends.

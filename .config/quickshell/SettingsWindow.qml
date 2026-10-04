@@ -17,11 +17,14 @@ PanelWindow {
     // take the keyboard while open so Esc works without clicking in first
     WlrLayershell.keyboardFocus: root.showing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    // Only actually grab input/paint when open - mirrors the OSD's mask trick
-    // so the window is a no-op on the compositor while closed.
+    // Only grab input while open (clicks pass through during the close animation).
     mask: Region {
         item: root.showing ? backdrop : null
     }
+
+    // Mapped only while open or animating closed, so each open lands on the
+    // focused monitor (like CalendarWindow) instead of the one it started on.
+    visible: showing || card.visible
 
     property bool showing: false
 
