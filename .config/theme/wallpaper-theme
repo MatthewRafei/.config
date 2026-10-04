@@ -415,8 +415,8 @@ CHROMIUM_POLICY_DIR = "/etc/chromium/policies/managed"
 def write_chromium(p):
     """Theme Chromium with the accent colour.
 
-    Preferred: the BrowserThemeColor policy, which a running Chromium is
-    told to reload immediately (--refresh-platform-policy). Needs /etc/chromium/policies/managed to be writable by
+    Preferred: the BrowserThemeColor policy, which a running Chromium
+    reloads by itself. Needs /etc/chromium/policies/managed to be writable by
     this user (one-time: doas install -d -o $USER /etc/chromium/policies/managed).
 
     Fallback: the "Customize Chrome" colour in the profile's Preferences.
@@ -424,16 +424,12 @@ def write_chromium(p):
     closed; ~/.local/bin/chromium re-applies it at every launch.
     """
     if os.access(CHROMIUM_POLICY_DIR, os.W_OK):
+        # a running Chromium watches this folder and picks the change up by
+        # itself within seconds. (It used to be poked with
+        # --refresh-platform-policy, but racing a Chromium that was starting
+        # or closing made it shut down.)
         write(os.path.join(CHROMIUM_POLICY_DIR, "wallpaper-theme.json"),
               json.dumps({"BrowserThemeColor": p["accent"]}) + "\n")
-        # Chromium only polls policies every few seconds; since 142 this
-        # makes a running instance reload them now (and opens no window).
-        if chromium_running():
-            try:
-                subprocess.run(["/usr/bin/chromium-browser", "--refresh-platform-policy"],
-                               capture_output=True, timeout=10)
-            except subprocess.TimeoutExpired:
-                pass
         return
     if not os.path.exists(CHROMIUM_PREFS) or chromium_running():
         return

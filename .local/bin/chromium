@@ -2,7 +2,8 @@
 # Launch Chromium with its theme colour synced to the wallpaper palette.
 # (Chromium only reads the colour at startup and rewrites its prefs on exit,
 # so ~/.config/theme/wallpaper-theme can't change it while it's running.)
-"$HOME/.config/theme/wallpaper-theme" --chromium >/dev/null 2>&1
+# Only on a cold start: with Chromium already up (a new window), leave it be.
+pgrep -x chromium >/dev/null || "$HOME/.config/theme/wallpaper-theme" --chromium >/dev/null 2>&1
 # keep what Chromium prints (crash reasons, GPU errors) instead of losing it:
 # ~/.cache/chromium/chromium.log, previous session in chromium.log.old
 logdir="${XDG_CACHE_HOME:-$HOME/.cache}/chromium"
