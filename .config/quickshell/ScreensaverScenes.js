@@ -59,7 +59,31 @@ const RAMP = " .:-=+*#%@"
 // ================================================================== HALF-LIFE
 const halfLife = {
     id: "halflife", name: "Half-Life",
-    colors: ["#ff8c1a", "#7a3f0a", "#d0d0d0"],
+    colors: ["#ff8c1a", "#7a3f0a", "#d0d0d0", "#ffd9a8"],
+    // the λ logo as braille art (80 x 80 dots). The font has no braille, so it
+    // is decoded into a dot image and redrawn with quarter blocks at any size.
+    logo: [
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣤⣴⣶⣾⣿⣿⣿⣿⣿⣿⣷⣶⣦⣤⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⣀⣴⣾⣿⣿⣿⣿⣿⣿⣿⠿⠿⠿⠿⢿⣿⣿⣿⣿⣿⣿⣷⣦⣀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⡿⠟⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠻⢿⣿⣿⣿⣷⣄⡀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⣠⣾⣿⣿⣿⠟⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠻⣿⣿⣿⣷⣄⠀⠀⠀⠀",
+        "⠀⠀⢀⣼⣿⣿⣿⠟⠁⠀⠀⠀⠀⠀⣶⣶⣶⣶⣶⣶⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣧⡀⠀⠀",
+        "⠀⢀⣾⣿⣿⡿⠃⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢿⣿⣿⣷⡀⠀",
+        "⠀⣾⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣿⣿⣿⣿⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣷⠀",
+        "⢰⣿⣿⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⣿⣿⣿⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣿⣿⡆",
+        "⣾⣿⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣿⣿⣷",
+        "⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⣿⣿⣿⣿⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿",
+        "⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⣿⣿⣿⣿⠛⣿⣿⣿⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿",
+        "⢿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣿⣿⡿⠁⠀⢹⣿⣿⣿⣿⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⡿",
+        "⠸⣿⣿⣿⡄⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣿⣿⡟⠁⠀⠀⠀⢻⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⢀⣿⣿⣿⠇",
+        "⠀⢿⣿⣿⣷⡄⠀⠀⠀⠀⠀⣼⣿⣿⣿⣿⠏⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⣧⣤⣶⣾⡆⠀⠀⢀⣾⣿⣿⡿⠀",
+        "⠀⠈⢿⣿⣿⣿⡄⠀⠀⢀⣾⣿⣿⣿⡿⠃⠀⠀⠀⠀⠀⠀⠀⠘⣿⣿⣿⣿⣿⣿⣿⣷⡀⢠⣾⣿⣿⡿⠁⠀",
+        "⠀⠀⠈⢻⣿⣿⣿⣦⡀⠿⠿⠿⠿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⡿⠿⠿⠛⠋⠉⢀⣴⣿⣿⣿⡟⠁⠀⠀",
+        "⠀⠀⠀⠀⠙⢿⣿⣿⣿⣦⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣴⣿⣿⣿⣿⠋⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣷⣦⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣴⣾⣿⣿⣿⡿⠛⠁⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠉⠻⢿⣿⣿⣿⣿⣿⣿⣷⣶⣶⣶⣶⣾⣿⣿⣿⣿⣿⣿⡿⠟⠉⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠛⠻⢿⢿⣿⣿⣿⣿⣿⣿⡿⠿⠟⠛⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
+    ],
     boot: [
         "> HEV MARK IV PROTECTIVE SYSTEM",
         "> BOOT SEQUENCE INITIATED",
@@ -76,27 +100,62 @@ const halfLife = {
         "> BLACK MESA RESEARCH FACILITY",
         "> SECTOR C  ·  ANOMALOUS MATERIALS"
     ],
-    init(ctx) { newLayers(ctx, 3) },
+    QUAD: " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█",
+    init(ctx) {
+        newLayers(ctx, 4)
+        // braille -> dots: bits 0-2 and 6 are the left column, 3-5 and 7 the right
+        const DOT = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [0, 3], [1, 3]]
+        const sw = this.logo[0].length * 2, sh = this.logo.length * 4
+        const dots = []
+        for (let y = 0; y < sh; y++) dots.push(new Array(sw).fill(false))
+        for (let r = 0; r < this.logo.length; r++)
+            for (let c = 0; c < this.logo[r].length; c++) {
+                const m = this.logo[r].charCodeAt(c) - 0x2800
+                for (let k = 0; k < 8; k++)
+                    if (m & (1 << k)) dots[r * 4 + DOT[k][1]][c * 2 + DOT[k][0]] = true
+            }
+        // size: about 80% of the height, kept round (a cell is asp times taller
+        // than wide), and clear of the boot log on the left
+        const C = ctx.cols, R = ctx.rows, asp = ctx.asp
+        let L = Math.floor(Math.min(R * 0.8, (C * 0.5) / asp))
+        const W = Math.round(L * asp)
+        const x0 = Math.round(C - W - Math.max(4, C * 0.06)), y0 = Math.floor((R - L) / 2)
+        // each cell is 2 x 2 quarter-block dots, sampled from the dot image
+        const cells = []
+        const qw = W * 2, qh = L * 2
+        for (let y = 0; y < L; y++)
+            for (let x = 0; x < W; x++) {
+                let m = 0
+                for (let q = 0; q < 4; q++) {
+                    const dx = x * 2 + (q & 1), dy = y * 2 + (q >> 1)
+                    const sx = Math.floor((dx + 0.5) / qw * sw), sy = Math.floor((dy + 0.5) / qh * sh)
+                    if (dots[sy][sx]) m |= 1 << q
+                }
+                if (m) cells.push({ x: x0 + x, y: y0 + y, ch: this.QUAD[m],
+                                    d: (x / W + y / L) / 2, n: Math.random() })
+            }
+        ctx.hl = { cells: cells, cx: x0 + W / 2, cy: y0 + L / 2, rad: L * 0.36 }
+    },
     frame(ctx, t) {
         clearAll(ctx)
-        const C = ctx.cols, R = ctx.rows, asp = ctx.asp
-        const rad = Math.min(R * 0.36, C / asp * 0.22)
-        const cx = C * 0.68, cy = R * 0.48
+        const C = ctx.cols, R = ctx.rows, asp = ctx.asp, hl = ctx.hl
+        // logo: dissolves in, then a bright band sweeps across it every 5 s
+        const reveal = fade(t, 0.3, 2.2)
+        const band = ((t - 2.5) % 5) / 5 * 1.6 - 0.3
+        for (const c of hl.cells) {
+            if (c.n > reveal) continue
+            const fresh = reveal < 1 && c.n > reveal - 0.08
+            const lit = t > 2.5 && Math.abs(c.d - band) < 0.06
+            ctx.layers[fresh || lit ? 3 : 0].put(c.x, c.y, c.ch)
+        }
+        // faint sparks inside the ring
         const pulse = 0.5 + 0.5 * Math.sin(t * 1.5)
-        for (let y = Math.floor(cy - rad - 1); y <= cy + rad + 1; y++)
-            for (let x = Math.floor(cx - (rad + 1) * asp); x <= cx + (rad + 1) * asp; x++) {
-                const dx = (x - cx) / asp, dy = y - cy, d = Math.sqrt(dx * dx + dy * dy)
-                // ring
-                if (Math.abs(d - rad) < 0.9) { ctx.layers[0].put(x, y, "█"); continue }
-                if (d > rad) continue
-                // λ: long stroke top-left -> bottom-right, short leg from the middle to bottom-left
-                const u = dx / rad, v = dy / rad
-                const longStroke = Math.abs((u + 0.45) - (v + 0.75) * 0.7) < 0.09 && v > -0.75 && v < 0.75
-                const leg = Math.abs((u - 0.0) + (v - 0.05) * 0.75) < 0.09 && v > 0.05 && v < 0.75
-                const foot = v > 0.62 && v < 0.75 && u > 0.35 && u < 0.62
-                if (longStroke || leg || foot) ctx.layers[0].put(x, y, "█")
-                else if (Math.random() < 0.02 + pulse * 0.02) ctx.layers[1].put(x, y, "·")
-            }
+        for (let i = 0; i < 18 + pulse * 18; i++) {
+            const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * hl.rad
+            const x = Math.round(hl.cx + Math.cos(a) * r * asp), y = Math.round(hl.cy + Math.sin(a) * r)
+            if (ctx.layers[0].get(x, y) === " " && ctx.layers[3].get(x, y) === " ")
+                ctx.layers[1].put(x, y, "·")
+        }
         // boot log typing on the left
         const chars = Math.floor(t * 28)
         let used = 0

@@ -223,8 +223,9 @@ Follow the steps above in order. Things that will trip you up:
   `tail`, `tar` and `grep -P` don't work. Prefer `perl -pi -e` or a Python one-off for edits.
 - **niri's PATH lacks `~/.local/bin`.** Keybinds call scripts as `spawn-sh "~/.local/bin/..."`.
   Keep that pattern for new binds.
-- **Quickshell reloads itself** when a `.qml` file in `~/.config/quickshell` changes. Edits to the
-  `.js` file only take effect after a reload: `touch ~/.config/quickshell/shell.qml`. Check
+- **Quickshell reloads itself** when a `.qml` file in `~/.config/quickshell` changes. Edits to a `.pragma library` `.js`
+  file (`ScreensaverScenes.js`, `CalendarLib.js`) are NOT picked up by a reload: the old copy stays
+  in memory. Restart the shell with `qs kill; qs -d` (the bar blinks for a second). Check
   `qs log` after every change. `qs ipc call <target> <function>` drives every component without
   touching the mouse.
 - **Screenshots for checking your work:** `niri msg action screenshot-screen --write-to-disk true`
