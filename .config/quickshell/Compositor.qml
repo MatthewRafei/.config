@@ -1,7 +1,6 @@
 pragma Singleton
 import Quickshell
 import Quickshell.Io
-import Quickshell.Hyprland
 import QtQuick
 
 // The one place that knows which compositor is running (niri or Hyprland).
@@ -77,10 +76,27 @@ Singleton {
         onTriggered: niriEvents.running = true
     }
 
-    // the Hyprland singleton connects on first use, so only touch it there
-    Connections {
-        target: comp.hyprland ? Hyprland : null
-        function onRawEvent(event) { debounce.restart() }
+    // Hyprland's event socket, read directly instead of through the
+    // Quickshell.Hyprland module: some distro builds of Quickshell (Chimera's)
+    // don't include it, and importing it would stop the whole shell loading.
+    Process {
+        id: hyprEvents
+        command: ["python3", "-uc",
+            "import os, socket\n" +
+            "p = os.path.join(os.environ.get('XDG_RUNTIME_DIR', '/tmp'), 'hypr', os.environ['HYPRLAND_INSTANCE_SIGNATURE'], '.socket2.sock')\n" +
+            "s = socket.socket(socket.AF_UNIX); s.connect(p)\n" +
+            "for line in s.makefile(): print(line, end='')\n"]
+        running: comp.hyprland
+        stdout: SplitParser {
+            onRead: debounce.restart()
+        }
+        onRunningChanged: if (!running && comp.hyprland) hyprRetry.start()
+    }
+
+    Timer {
+        id: hyprRetry
+        interval: 2000
+        onTriggered: hyprEvents.running = true
     }
 
     Timer {
