@@ -10,7 +10,7 @@ import QtQuick
 //   qs ipc call lock lock       lock now (bound to Mod+Shift+L in niri)
 //   qs ipc call lock preview    show the UI in a normal window (Esc closes)
 //
-// Locks automatically after 10 minutes idle; apps that inhibit idle (video
+// Locks automatically after 5 minutes idle (screensaver at 3); apps that inhibit idle (video
 // players, games) prevent that. Also locks before suspend (lid close etc.).
 //
 // There is deliberately no IPC to unlock: only the password does that.
@@ -171,7 +171,7 @@ Scope {
     }
 
     IdleMonitor {
-        timeout: 600
+        timeout: 300      // the screensaver (Screensaver.qml) starts at 180
         respectInhibitors: true
         onIsIdleChanged: if (isIdle && !root.locked) root.lock()
     }

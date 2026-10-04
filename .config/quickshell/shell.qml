@@ -14,7 +14,8 @@ ShellRoot {
     TelemetryHud {}
     NotificationPopups {}
     NotificationCenter {}
-    Lock {}
+    Lock { id: lock }
+    Screensaver { locked: lock.locked }
     PowerMenu {}
     QuickPanel {}
     CalendarPanel {}
