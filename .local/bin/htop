@@ -1,0 +1,29 @@
+#!/bin/sh
+# htop in the HUD colours: htop's colour schemes only use the terminal's 16
+# ANSI colours, so remap those to the current wallpaper palette for the
+# session (OSC 4) and put the terminal's own palette back afterwards (OSC 104).
+pal="$HOME/.cache/theme/palette.json"
+if [ -t 1 ] && [ -r "$pal" ]; then
+    python3 - "$pal" <<'PY' 2>/dev/null
+import json, sys
+p = json.load(open(sys.argv[1]))
+g = lambda k, d: p.get(k) or d
+# htop's default scheme: green = headers/bars, cyan = selection + function
+# keys, blue = low-priority bars, yellow = cache, red = kernel, black = text
+# drawn on top of those
+m = {
+    0: g("accentFg", "#111111"), 1: g("danger", "#f04c69"), 2: g("accent", "#ffffff"),
+    3: g("accent2", "#cccccc"), 4: g("textDim", "#999999"), 5: g("accent", "#ffffff"),
+    6: g("textDim", "#999999"), 7: g("text", "#eeeeee"),
+    8: g("textFaint", "#555555"), 9: g("danger", "#f04c69"), 10: g("accent", "#ffffff"),
+    11: g("accent2", "#cccccc"), 12: g("textDim", "#999999"), 13: g("accent", "#ffffff"),
+    14: g("text", "#eeeeee"), 15: g("text", "#ffffff"),
+}
+sys.stdout.write("".join("\033]4;%d;%s\007" % (i, c) for i, c in m.items()))
+PY
+    /usr/bin/htop "$@"
+    status=$?
+    printf '\033]104\007'
+    exit $status
+fi
+exec /usr/bin/htop "$@"
