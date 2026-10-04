@@ -414,9 +414,11 @@ PanelWindow {
     // quote: types out a short fortune left of the clock, ticker-scrolling
     // as it goes if it doesn't fit, then eases back to the start. New quote
     // every 5 minutes; click = next, hover = full quote in a popup.
-    // Now and then (1 in 3 changes, or `qs ipc call bar peek`) a little face
-    // decodes in instead, looks left and right, smiles, dissolves, and the
-    // next quote types in.
+    // Now and then (1 in 3 changes, or `qs ipc call bar peek`) a little skit
+    // decodes in instead: a face peeking left and right, dozing off, flipping
+    // a table, praising the sun, dancing, hacking, shrugging, a cat, a YOU
+    // DIED... then it dissolves and the next quote types in.
+    // `qs ipc call bar skit <name>` plays a given one.
     // Uses `fortune` if installed, else ~/.local/bin/fortune
     // (quotes live in ~/.config/quickshell/quotes/).
     Item {
@@ -461,29 +463,119 @@ PanelWindow {
             return steps
         }
 
-        function peek() {
+        // a skit: frames { t: text, ms: how long, sparkle?, color? }. The
+        // first frame decodes in, the last one dissolves away.
+        function play(core) {
             if (peeking) return
             settle.stop()
-            const center = "( ◕_◕ )"
             let f = []
-            for (let k = 0; k <= center.length; k++) f.push({ t: scrambled(center, k), ms: 45 })
-            f = f.concat([
-                { t: center, ms: 700 },
-                { t: "( -_- )", ms: 110 },
-                { t: center, ms: 350 },
-                { t: "(◕_◕  )", ms: 750 },
-                { t: "(  ◕_◕)", ms: 750 },
-                { t: center, ms: 450 },
-                { t: "( ◕‿◕ )", ms: 500 },
-                { t: "( ^‿^ )", ms: 1100, sparkle: true }
-            ])
-            frames = f.concat(dissolve("( ^‿^ )"))
+            const first = core[0].t
+            for (let k = 0; k <= first.length; k++) f.push({ t: scrambled(first, k), ms: 45 })
+            frames = f.concat(core).concat(dissolve(core[core.length - 1].t))
             frameIdx = 0
             face = frames[0].t
+            faceColor = ""
             sparkle = false
             peeking = true
             faceTimer.interval = frames[0].ms
             faceTimer.restart()
+        }
+
+        property string faceColor: ""   // "" = accent, or "danger" / "dim"
+
+        readonly property var skits: ({
+            // looks left and right, smiles
+            peek: () => [
+                { t: "( ◕_◕ )", ms: 700 },
+                { t: "( -_- )", ms: 110 },
+                { t: "( ◕_◕ )", ms: 350 },
+                { t: "(◕_◕  )", ms: 750 },
+                { t: "(  ◕_◕)", ms: 750 },
+                { t: "( ◕_◕ )", ms: 450 },
+                { t: "( ◕‿◕ )", ms: 500 },
+                { t: "( ^‿^ )", ms: 1100, sparkle: true }
+            ],
+            // dozes off, snores, startles awake, salutes
+            sleepy: () => [
+                { t: "( -_-)", ms: 700 },
+                { t: "( -_-) z", ms: 500 },
+                { t: "( -_-) zZ", ms: 500 },
+                { t: "( -_-) zZz", ms: 600 },
+                { t: "( -_-)  Zz", ms: 500 },
+                { t: "( -_-) zZz", ms: 600 },
+                { t: "( °_°)!", ms: 450 },
+                { t: "( °_°)", ms: 500 },
+                { t: "( ^_^)ゞ", ms: 1100, sparkle: true }
+            ],
+            // flips the table, thinks better of it
+            tableflip: () => [
+                { t: "(°_°)", ms: 600 },
+                { t: "(°□°)", ms: 350 },
+                { t: "(╯°□°)╯ ┬─┬", ms: 350 },
+                { t: "(╯°□°)╯︵ ┻━┻", ms: 1300, color: "danger" },
+                { t: "(°_°)    ┻━┻", ms: 700 },
+                { t: "┬─┬ノ(º_ºノ)", ms: 1300 },
+                { t: "(^_^)  ┬─┬", ms: 900, sparkle: true }
+            ],
+            // Solaire
+            sun: () => [
+                { t: "( ・_・)", ms: 600 },
+                { t: "( ・_・)/", ms: 300 },
+                { t: "\\( ・_・)/", ms: 300 },
+                { t: "\\[T]/", ms: 900, sparkle: true },
+                { t: "\\[T]/ praise the sun!", ms: 1700, sparkle: true }
+            ],
+            // dances to something only it can hear
+            dance: () => {
+                const f = []
+                for (let i = 0; i < 4; i++) {
+                    f.push({ t: "(～￣▽￣)～ ♪", ms: 380 })
+                    f.push({ t: "～(￣▽￣～) ♫", ms: 380 })
+                }
+                return f.concat([{ t: "(￣▽￣)ノ ♪", ms: 1000, sparkle: true }])
+            },
+            // hacks the mainframe
+            hack: () => {
+                const f = [{ t: "(•_•) hacking...", ms: 700 }]
+                for (let i = 0; i <= 8; i++)
+                    f.push({ t: "[" + "■".repeat(i) + "□".repeat(8 - i) + "] " + Math.round(i / 8 * 100) + "%", ms: 160 + Math.random() * 160 })
+                return f.concat([
+                    { t: "[■■■■■■■■] ACCESS GRANTED", ms: 1200, sparkle: true },
+                    { t: "(•_•)", ms: 450 },
+                    { t: "( •_•)>⌐■-■", ms: 600 },
+                    { t: "(⌐■_■)", ms: 1300, sparkle: true }
+                ])
+            },
+            // has no idea either
+            shrug: () => [
+                { t: "(・_・)", ms: 600 },
+                { t: "(・_・)?", ms: 700 },
+                { t: "¯\\_(ツ)_/¯", ms: 1600 }
+            ],
+            // a cat wanders in
+            cat: () => [
+                { t: "(=^･ω･^=)", ms: 900 },
+                { t: "(=^･ω･^=) mrrp", ms: 900 },
+                { t: "(=^-ω-^=)", ms: 600 },
+                { t: "(=^-ω-^=) zZ", ms: 1000 },
+                { t: "(=^･ω･^=)!", ms: 450 },
+                { t: "(=^･ｪ･^=)ﾉ", ms: 1100, sparkle: true }
+            ],
+            // gets bodied by a boss, tries again
+            died: () => [
+                { t: "(ง •_•)ง", ms: 800 },
+                { t: "(ง •_•)ง  ⚔", ms: 600 },
+                { t: "( x_x)", ms: 700, color: "danger" },
+                { t: "Y O U   D I E D", ms: 1700, color: "danger" },
+                { t: "( •_•) ...again.", ms: 1200 }
+            ]
+        })
+
+        // a random skit, or one by name
+        function peek(name) {
+            const names = Object.keys(skits)
+            const n = name && skits[name] ? name : names[Math.floor(Math.random() * names.length)]
+            play(skits[n]())
         }
 
         Timer {
@@ -499,6 +591,7 @@ PanelWindow {
                 const fr = quote.frames[quote.frameIdx]
                 quote.face = fr.t
                 quote.sparkle = fr.sparkle === true
+                quote.faceColor = fr.color || ""
                 interval = fr.ms
                 restart()
             }
@@ -511,7 +604,9 @@ PanelWindow {
             spacing: 4
             Text {
                 text: quote.face
-                color: Theme.accent
+                color: quote.faceColor === "danger" ? Theme.danger
+                     : quote.faceColor === "dim" ? Theme.textDim
+                     : Theme.accent
                 font.family: Theme.fontFamily
                 font.pixelSize: 13
                 font.bold: true
@@ -557,14 +652,16 @@ PanelWindow {
             interval: 5 * 60 * 1000
             repeat: true
             running: true
-            onTriggered: Math.random() < 0.33 ? quote.peek() : quote.next()
+            onTriggered: Math.random() < 0.33 ? quote.peek("") : quote.next()
         }
 
         IpcHandler {
             target: "bar"
             // one target per shell: answer from the first monitor's bar only
             enabled: bar.screen === Quickshell.screens[0]
-            function peek(): void { quote.peek() }
+            function peek(): void { quote.peek("") }
+            // qs ipc call bar skit sleepy | tableflip | sun | dance | hack | shrug | cat | died | peek
+            function skit(name: string): void { quote.peek(name) }
         }
 
         // typewriter
