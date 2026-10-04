@@ -478,8 +478,9 @@ PanelWindow {
 
         // a skit: frames { t: text, ms: how long, sparkle?, color? }. The
         // first frame decodes in, the last one dissolves away.
-        function play(core) {
-            if (peeking) return
+        function play(core, force) {
+            if (peeking && !force) return
+            faceTimer.stop()
             quote.stopTicker()
             let f = []
             const first = core[0].t
@@ -705,6 +706,303 @@ PanelWindow {
                 { t: "( •_•) ...again.", ms: 1200 }
             ]
         })
+
+        // ---------------- event skits ----------------
+        // Things happening on the machine get a reaction in place of the
+        // quote: battery, charger, power profile, sound, network, VPN,
+        // bluetooth, load, music, notifications, night light, calendar,
+        // the clock, coming back to the desk. Each event has a cooldown so a
+        // flapping signal can't spam it, and nothing fires while the shell is
+        // starting up (properties settle then).
+        property bool armed: false
+        property var lastFired: ({})
+
+        function react(key, core, cooldownSec) {
+            if (!armed || !core || core.length === 0) return
+            const now = Date.now()
+            if (now - (lastFired[key] || 0) < (cooldownSec || 60) * 1000) return
+            lastFired[key] = now
+            stopTicker()
+            play(core, true)
+        }
+
+        function short(t, n) { t = String(t || ""); return t.length > n ? t.slice(0, n - 1) + "…" : t }
+
+        Timer {
+            interval: 6000
+            running: true
+            onTriggered: {
+                quote.armed = true
+                const h = new Date().getHours()
+                quote.react("hello", [
+                    { t: "( ^_^)ノ", ms: 600 },
+                    { t: "( ^_^)ノ good " + (h < 5 ? "night" : h < 12 ? "morning" : h < 18 ? "afternoon" : "evening") + "!", ms: 1800, sparkle: true }
+                ], 1)
+            }
+        }
+
+        // battery and charger
+        property bool _lowWarned: false
+        property bool _critWarned: false
+        Connections {
+            target: Power
+            function onOnACChanged() {
+                if (!Power.hasBattery) return
+                if (Power.onAC) quote.react("plugged", [
+                    { t: "(°o°) !", ms: 500 },
+                    { t: "( ˘▽˘)っ⚡", ms: 900, color: "accent2" },
+                    { t: "( ^‿^) thank you for charging me ♥", ms: 2000, sparkle: true }
+                ], 20)
+                else quote.react("unplugged", [
+                    { t: "( ・_・) ...unplugged?", ms: 1000 },
+                    { t: "(ง •_•)ง running on battery: " + Power.battery + "%", ms: 1800 }
+                ], 20)
+            }
+            function onBatteryChanged() {
+                if (!Power.hasBattery) return
+                const b = Power.battery
+                if (Power.onAC || b > Power.lowThreshold + 2) { quote._lowWarned = false; quote._critWarned = false }
+                if (Power.onAC) {
+                    if (b >= 100) quote.react("full", [
+                        { t: "(ﾉ◕ヮ◕)ﾉ", ms: 600, color: "accent2" },
+                        { t: "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ fully charged!", ms: 2000, color: "accent2", sparkle: true }
+                    ], 3600)
+                    return
+                }
+                if (b <= 10 && !quote._critWarned) {
+                    quote._critWarned = true
+                    quote.react("critical", [
+                        { t: "(ﾟДﾟ;)", ms: 500, color: "danger" },
+                        { t: "(ﾟДﾟ;) " + b + "%!!", ms: 900, color: "danger" },
+                        { t: "( x_x) i'm fading...", ms: 1200, color: "danger" },
+                        { t: "(ﾟДﾟ;) CHARGER. NOW.", ms: 1800, color: "danger" }
+                    ], 60)
+                } else if (b <= Power.lowThreshold && !quote._lowWarned) {
+                    quote._lowWarned = true
+                    quote.react("low", [
+                        { t: "(°_°;)", ms: 600 },
+                        { t: "(°_°;) " + b + "%...", ms: 900, color: "danger" },
+                        { t: "(｡>﹏<｡) please...", ms: 1000 },
+                        { t: "(｡>﹏<｡) plug me in?", ms: 1800, color: "danger" }
+                    ], 60)
+                }
+            }
+            function onCurrentChanged() {
+                const c = Power.current
+                if (c === "performance") quote.react("perf", [
+                    { t: "(ง •_•)ง", ms: 500 },
+                    { t: "(ง °□°)ง POWER UP!", ms: 1600, color: "accent2", sparkle: true }
+                ], 10)
+                else if (c === "power-saver") quote.react("saver", [
+                    { t: "( -_-)", ms: 600, color: "dim" },
+                    { t: "( -_-) power saver on.", ms: 1200, color: "dim" },
+                    { t: "( -_-) dimming my thoughts...", ms: 1600, color: "dim" }
+                ], 10)
+                else if (c === "balanced") quote.react("balanced", [
+                    { t: "( ・_・)⚖", ms: 600 },
+                    { t: "( ・_・)⚖ perfectly balanced,", ms: 1300 },
+                    { t: "as all things should be.", ms: 1600 }
+                ], 10)
+            }
+        }
+
+        // sound
+        Connections {
+            target: bar
+            function onMutedChanged() {
+                if (bar.muted) quote.react("mute", [
+                    { t: "( -_-)", ms: 400, color: "dim" },
+                    { t: "( -_-) shh...", ms: 1400, color: "dim" }
+                ], 10)
+                else quote.react("unmute", [
+                    { t: "( ゜o゜) ♪", ms: 500 },
+                    { t: "( ゜o゜) ♪ sound's back!", ms: 1400 }
+                ], 10)
+            }
+        }
+
+        // internet: judged a few seconds after things change, so a quick
+        // reconnect or a switch between networks doesn't count
+        property bool _online: true
+        readonly property bool online: Net.ssid !== "" || Net.ethIface !== ""
+        onOnlineChanged: netSettle.restart()
+        Timer {
+            id: netSettle
+            interval: 5000
+            onTriggered: {
+                if (quote.online === quote._online) return
+                quote._online = quote.online
+                if (quote.online) quote.react("online", [
+                    { t: "( °o°)", ms: 400 },
+                    { t: "( ^_^) back online" + (Net.ssid !== "" ? " · " + quote.short(Net.ssid, 16) : ""), ms: 1800, sparkle: true }
+                ], 30)
+                else quote.react("offline", [
+                    { t: "( ;_;)", ms: 600, color: "danger" },
+                    { t: "(ಥ﹏ಥ) the internet is gone...", ms: 2000, color: "danger" }
+                ], 30)
+            }
+        }
+
+        // tailscale
+        Connections {
+            target: Vpn
+            function onRunningChanged() {
+                if (!Vpn.installed) return
+                if (Vpn.running) quote.react("vpnup", [
+                    { t: "( •_•)", ms: 450 },
+                    { t: "( •_•)>⌐■-■", ms: 500 },
+                    { t: "(⌐■_■) tunneled in.", ms: 1600, sparkle: true }
+                ], 20)
+                else quote.react("vpndown", [
+                    { t: "( ・_・) out of the tunnel.", ms: 1600, color: "dim" }
+                ], 20)
+            }
+        }
+
+        // bluetooth: a device connecting
+        readonly property var btNames: Bluetooth.defaultAdapter
+            ? Bluetooth.defaultAdapter.devices.values.filter(d => d.connected).map(d => d.name || "device") : []
+        property var _btSeen: []
+        onBtNamesChanged: {
+            const fresh = btNames.filter(n => _btSeen.indexOf(n) < 0)
+            _btSeen = btNames.slice()
+            if (fresh.length > 0) react("bt-" + fresh[0], [
+                { t: "( ˘▽˘)", ms: 400 },
+                { t: "( ˘▽˘)ノ hi, " + short(fresh[0], 18), ms: 1600, sparkle: true }
+            ], 120)
+        }
+
+        // load: CPU pegged for ~15 s, memory over 90%
+        property int _hot: 0
+        property bool _memWarned: false
+        Timer {
+            interval: 5000
+            repeat: true
+            running: true
+            onTriggered: {
+                quote._hot = bar.cpu > 0.9 ? quote._hot + 1 : bar.cpu < 0.7 ? 0 : quote._hot
+                if (quote._hot === 3) quote.react("cpu", [
+                    { t: "(°□°;)", ms: 500, color: "danger" },
+                    { t: "(°□°;) CPU at " + Math.round(bar.cpu * 100) + "%", ms: 1000, color: "danger" },
+                    { t: "( >_<) it's getting hot in here", ms: 1800, color: "danger" }
+                ], 600)
+                if (bar.mem > 0.9 && !quote._memWarned) {
+                    quote._memWarned = true
+                    quote.react("mem", [
+                        { t: "( @_@)", ms: 500 },
+                        { t: "( @_@) RAM at " + Math.round(bar.mem * 100) + "%... too many tabs?", ms: 2000, color: "danger" }
+                    ], 600)
+                } else if (bar.mem < 0.8) quote._memWarned = false
+            }
+        }
+
+        // music: a new track starts playing
+        property string _track: ""
+        Connections {
+            target: bar.player
+            function onTrackTitleChanged() { songCheck.restart() }
+            function onIsPlayingChanged() { songCheck.restart() }
+        }
+        Timer {
+            id: songCheck
+            interval: 1500
+            onTriggered: {
+                const p = bar.player
+                if (!p || !p.isPlaying || !p.trackTitle || p.trackTitle === quote._track) return
+                quote._track = p.trackTitle
+                quote.react("song", [
+                    { t: "(～￣▽￣)～", ms: 380 },
+                    { t: "～(￣▽￣～)", ms: 380 },
+                    { t: "(～￣▽￣)～", ms: 380 },
+                    { t: "♪ " + quote.short(p.trackTitle, 34), ms: 2400, sparkle: true }
+                ], 45)
+            }
+        }
+
+        // do not disturb, night light
+        Connections {
+            target: Notifs
+            function onDndChanged() {
+                if (Notifs.dnd) quote.react("dnd", [{ t: "( -_-)ﾉ do not disturb.", ms: 1600, color: "dim" }], 5)
+                else quote.react("undnd", [{ t: "( ・_・) I'm listening.", ms: 1400 }], 5)
+            }
+            function onCountChanged() {
+                const l = Notifs.list
+                const n = l.length ? l[l.length - 1] : null
+                if (n && /screenshot/i.test((n.summary || "") + " " + (n.body || "")))
+                    quote.react("shot", [
+                        { t: "( ^_^)ノ[◉]", ms: 500 },
+                        { t: "( ^_^)ノ[◉] say cheese!", ms: 900 },
+                        { t: "[◉] *click*", ms: 900, sparkle: true }
+                    ], 60)
+            }
+        }
+        Connections {
+            target: NightLight
+            function onActiveChanged() {
+                if (NightLight.active) quote.react("night", [{ t: "( -_-)☾ easy on the eyes", ms: 1600, color: "dim" }], 30)
+                else quote.react("day", [{ t: "( ・_・)☀ lights up", ms: 1400 }], 30)
+            }
+        }
+
+        // the clock and the calendar, checked once a minute
+        property int _minute: -1
+        Connections {
+            target: clock
+            function onDateChanged() {
+                const d = clock.date, m = d.getHours() * 60 + d.getMinutes()
+                if (m === quote._minute) return
+                quote._minute = m
+                const h = d.getHours(), mi = d.getMinutes()
+                if (mi === 0) {
+                    if (h === 0) quote.react("midnight", [
+                        { t: "( ・_・)☾", ms: 600 },
+                        { t: "( ・_・)☾ it's midnight... go to bed", ms: 2000, color: "dim" }
+                    ], 3000)
+                    else if (h === 3) quote.react("3am", [
+                        { t: "(；ﾟДﾟ)", ms: 500 },
+                        { t: "(；ﾟДﾟ) it's 3 AM. go to sleep.", ms: 2000, color: "danger" }
+                    ], 3000)
+                    else if (h === 12) quote.react("noon", [
+                        { t: "( ´▽`)ﾉ", ms: 500 },
+                        { t: "( ´▽`)ﾉ lunch time!", ms: 1600, sparkle: true }
+                    ], 3000)
+                    else if (h === 17 && d.getDay() === 5) quote.react("friday", [
+                        { t: "\\(^o^)/", ms: 600, color: "accent2" },
+                        { t: "\\(^o^)/ it's the weekend!", ms: 2000, color: "accent2", sparkle: true }
+                    ], 3000)
+                }
+                // calendar: five minutes before, and when it starts
+                const n = Calendar.next(1)
+                if (n.length) {
+                    const o = n[0], mins = Math.round((o.start.getTime() - d.getTime()) / 60000)
+                    const title = quote.short(o.ev.title || "event", 28)
+                    if (mins === 5) quote.react("cal5-" + o.start.getTime(), [
+                        { t: "(°o°) !", ms: 500 },
+                        { t: "(°o°) 5 min: " + title, ms: 2400, color: "accent2", sparkle: true }
+                    ], 600)
+                    else if (mins === 0) quote.react("cal0-" + o.start.getTime(), [
+                        { t: "(ง •_•)ง now: " + title, ms: 2400, color: "accent2", sparkle: true }
+                    ], 600)
+                }
+            }
+        }
+
+        // back at the desk after 5+ minutes away (screensaver, lock)
+        IdleMonitor {
+            id: away
+            timeout: 300
+            respectInhibitors: false
+            onIsIdleChanged: if (!isIdle) welcomeLater.restart()
+        }
+        Timer {
+            id: welcomeLater
+            interval: 1500
+            onTriggered: quote.react("welcome", [
+                { t: "( ^_^)ノ", ms: 500 },
+                { t: "( ^_^)ノ welcome back!", ms: 1600, sparkle: true }
+            ], 60)
+        }
 
         // a random skit, or one by name
         function peek(name) {
