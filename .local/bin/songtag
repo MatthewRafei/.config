@@ -34,6 +34,8 @@ Options:
     --delay N      scan: base seconds between lookups (default 45)
     --jitter N     scan: up to N random extra seconds (default 30)
     --limit N      scan / apply: stop after N files
+    --untagged     scan: only songs with no title/artist tags (the ones that
+                   most need it; run a normal scan later for the rest)
     --conflicts    apply: also apply matches that disagree with existing tags
     --no-rename    apply: only write tags
     --no-cover     apply: don't embed cover art
@@ -189,9 +191,12 @@ def scan(root, args):
     delay = opt(args, "--delay", 45, float)
     jitter = opt(args, "--jitter", 30, float)
     limit = opt(args, "--limit", 0, int)
+    untagged = flag(args, "--untagged")
     res = load()
     todo = [p for p in songs(root) if res.get(p, {}).get("key") != key(p)
             or res[p].get("status") == "error"]
+    if untagged:
+        todo = [p for p in todo if not (lambda t: t.get("title") and t.get("artist"))(tags(p)[0])]
     print("%d songs to look up (%d already done). ~%d s apart." % (len(todo), len(list(songs(root))) - len(todo), delay + jitter / 2))
     backoff, done = 0, 0
     for i, p in enumerate(todo):
