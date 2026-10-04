@@ -270,54 +270,97 @@ def sgr(hex_):
     return f"38;2;{r};{g};{b}"
 
 
+def os_id():
+    try:
+        for line in open("/etc/os-release"):
+            if line.startswith("ID="):
+                return line.split("=", 1)[1].strip().strip('"').lower()
+    except OSError:
+        pass
+    return ""
+
+
+def short_cpu():
+    """'11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz' -> 'Intel i5-1135G7'"""
+    try:
+        for line in open("/proc/cpuinfo"):
+            if line.startswith("model name"):
+                n = line.split(":", 1)[1]
+                n = re.sub(r"\((R|TM|tm|r)\)|CPU|Processor|@.*|\d+(th|st|nd|rd) Gen|Core|"
+                           r"\d+-Core|with Radeon.*", " ", n)
+                return " ".join(n.split())
+    except OSError:
+        pass
+    return ""
+
+
 def write_fastfetch(p):
-    """Generate ~/.config/fastfetch/config.jsonc: HUD layout in wallpaper colours."""
+    """Generate ~/.config/fastfetch/config.jsonc: HUD layout in wallpaper colours.
+
+    A tree down the left joins the user@host title, SYSTEM and HARDWARE
+    sections and a row of palette dots. Machine-specific bits (logo, short
+    CPU name) are filled in here, so run this on each machine."""
     A, A2, T, D, F = (sgr(p[k]) for k in ("accent", "accent2", "text", "textDim", "textFaint"))
+    R = sgr(p["danger"])
 
-    def header(name):
+    def key(icon, name):
+        return "{#" + F + "}│{#}  {#" + A + "}" + icon + "{#}  {#" + D + "}" + name + "{#}"
+
+    def mod(type_, icon, name, **extra):
+        return {"type": type_, "key": key(icon, name), **extra}
+
+    def section(name):
         return {"type": "custom",
-                "format": "{#" + A + "}//{#" + F + "} " + name + " " + "─" * (24 - len(name))}
+                "format": "{#" + F + "}├─{#} {#" + A + "}//{#} {#" + F + "}" + name + " " + "─" * (30 - len(name)) + "{#}"}
 
-    def mod(type_, key, **extra):
-        return {"type": type_, "key": key, **extra}
+    bar = {"type": "custom", "format": "{#" + F + "}│{#}"}
+    dots = " ".join("{#" + sgr(c) + "}●{#}" for c in
+                    (p["accent"], p["accent2"], p["text"], p["textDim"], p["danger"], p["ok"],
+                     p["ansi"]["normal"]["blue"], p["ansi"]["normal"]["yellow"]))
+
+    logos = {"chimera": "Chimera2", "gentoo": "Gentoo"}
+    logo = {"type": "builtin", "color": {"1": A, "2": A2, "3": T, "4": D},
+            "padding": {"top": 2, "left": 2, "right": 4}}
+    if os_id() in logos:
+        logo["source"] = logos[os_id()]
+
+    cpu = short_cpu()
+    cpu_fmt = (cpu + " · " if cpu else "{name} · ") + "{cores-logical} threads @ {freq-max}"
 
     cfg = {
         "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
-        "logo": {
-            "type": "builtin",
-            "source": "Chimera",
-            "color": {"1": A, "2": A2, "3": T, "4": D},
-            "padding": {"top": 1, "left": 2, "right": 4},
-        },
+        "logo": logo,
         "display": {
-            "separator": "   ",
+            "separator": "  ",
             "color": {"keys": D, "title": A, "output": T, "separator": F},
-            "key": {"width": 9},
-            "percent": {"type": 3, "color": {"green": A, "yellow": sgr(p["ansi"]["normal"]["yellow"]), "red": sgr(p["danger"])}},
+            "key": {"width": 16},
+            "percent": {"type": 3, "color": {"green": A, "yellow": sgr(p["ansi"]["normal"]["yellow"]), "red": R}},
             "bar": {"char": {"elapsed": "■", "total": "·"}, "width": 10,
                     "border": {"left": "", "right": " "},
                     "color": {"total": F, "border": F}},
         },
         "modules": [
-            {"type": "title", "color": {"user": A, "at": F, "host": T}},
-            "break",
-            header("SYSTEM"),
-            mod("os", "os", format="{pretty-name} {arch}"),
-            mod("kernel", "kernel", format="{release}"),
-            mod("uptime", "uptime"),
-            mod("packages", "packages"),
-            mod("wm", "wm"),
-            mod("shell", "shell"),
-            mod("terminal", "term"),
-            "break",
-            header("HARDWARE"),
-            mod("cpu", "cpu", format="{name} ({cores-logical})"),
-            mod("gpu", "gpu", format="{name}"),
-            mod("memory", "mem"),
-            mod("disk", "disk", folders="/", format="{size-percentage-bar}{size-used} / {size-total}"),
-            mod("battery", "bat"),
-            "break",
-            {"type": "colors", "symbol": "block", "paddingLeft": 0},
+            {"type": "title", "format": "{#" + F + "}╭─{#} {#" + A + "}{user-name}{#}{#" + F + "}@{#}{#" + T + "}{host-name}{#}"},
+            bar,
+            section("SYSTEM"),
+            mod("os", "󰣇", "os", format="{pretty-name}"),
+            mod("kernel", "\U000f033d", "kernel", format="{release}"),
+            mod("uptime", "󰅐", "uptime", format="{days}d {hours}h {minutes}m"),
+            mod("packages", "󰏖", "pkgs"),
+            mod("wm", "\U000f056e", "wm", format="{pretty-name}"),
+            mod("terminal", "\U000f018d", "term", format="{pretty-name}"),
+            mod("shell", "\U000f07b7", "shell", format="{pretty-name} {version}"),
+            bar,
+            section("HARDWARE"),
+            mod("cpu", "󰍛", "cpu", format=cpu_fmt),
+            mod("gpu", "󰢮", "gpu", format="{name}"),
+            mod("memory", "\uefc5", "mem", format="{percentage-bar}{used} / {total}"),
+            mod("disk", "󰋊", "disk", folders="/", format="{size-percentage-bar}{size-used} / {size-total}"),
+            mod("battery", "󰁹", "bat", format="{capacity-bar}{capacity} · {status}"),
+            mod("display", "󰍹", "display", format="{width}×{height} @ {refresh-rate} Hz"),
+            mod("localip", "󰩟", "ip", format="{ipv4}", showPrefixLen=False),
+            bar,
+            {"type": "custom", "format": "{#" + F + "}╰─{#}  " + dots},
         ],
     }
     path = os.path.join(CFG, "fastfetch", "config.jsonc")
