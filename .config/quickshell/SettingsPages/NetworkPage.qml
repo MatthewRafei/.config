@@ -10,6 +10,14 @@ Item {
     property bool scanning: false
     property string pendingSsid: ""
 
+    // wired vs wireless view comes from Net.qml (wired when a cable is in
+    // use, or when Wi-Fi can't be managed here)
+    readonly property bool wired: Net.mode === "wired"
+    property var ifaces: []     // wired interfaces, see pWired
+    property string gateway: ""
+    property string gatewayDev: ""
+    property var dns: []
+
     // ------------------------------------------------------------------
     // Global content margins
     // ------------------------------------------------------------------
@@ -244,9 +252,143 @@ Item {
         pConnect.running = true
     }
 
-    Component.onCompleted: {
+    // ------------------------------------------------------------------
+    // Wired details (no NetworkManager needed: /sys, ip, resolv.conf)
+    // ------------------------------------------------------------------
+
+    Process {
+        id: pWired
+
+        command: [
+            "sh",
+            "-c",
+            "for d in /sys/class/net/*; do " +
+            "  [ -e $d/device ] && [ ! -d $d/wireless ] || continue; " +
+            "  echo if ${d##*/} $(cat $d/operstate) $(cat $d/speed 2>/dev/null || echo -1) $(cat $d/address); " +
+            "done; " +
+            // iproute2 JSON when available, otherwise ask NetworkManager
+            "if ip -j addr >/dev/null 2>&1; then " +
+            "  echo addr $(ip -j addr); " +
+            "  echo route $(ip -j route show default 2>/dev/null); " +
+            "  awk '/^nameserver/ { print \"dns\", $2 }' /etc/resolv.conf 2>/dev/null; " +
+            "else " +
+            "  for d in /sys/class/net/*; do " +
+            "    [ -e $d/device ] && [ ! -d $d/wireless ] || continue; " +
+            "    nmcli -t -f IP4.ADDRESS,IP6.ADDRESS,IP4.GATEWAY,IP4.DNS dev show ${d##*/} 2>/dev/null | sed \"s/^/nm ${d##*/} /\"; " +
+            "  done; " +
+            "fi"
+        ]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var ifs = [], addrs = [], routes = [], dns = [], nmInfo = {}
+                var lines = text.split("\n")
+
+                for (var i = 0; i < lines.length; ++i) {
+                    var t = lines[i].trim()
+                    var sp = t.indexOf(" ")
+                    var key = sp < 0 ? t : t.slice(0, sp)
+                    var rest = sp < 0 ? "" : t.slice(sp + 1)
+
+                    if (key === "if") {
+                        var f = rest.split(/\s+/)
+                        ifs.push({
+                            name: f[0],
+                            up: f[1] === "up",
+                            speed: +f[2],
+                            mac: f[3] || "",
+                            ipv4: "",
+                            ipv6: ""
+                        })
+                    } else if (key === "addr" && rest) {
+                        try { addrs = JSON.parse(rest) } catch (e) {}
+                    } else if (key === "route" && rest) {
+                        try { routes = JSON.parse(rest) } catch (e) {}
+                    } else if (key === "dns" && rest) {
+                        dns.push(rest)
+                    } else if (key === "nm" && rest) {
+                        // "<iface> IP4.ADDRESS[1]:10.0.0.2/24" (NetworkManager fallback)
+                        var nsp = rest.indexOf(" ")
+                        var nif = rest.slice(0, nsp)
+                        var kv = rest.slice(nsp + 1)
+                        var colon = kv.indexOf(":")
+                        var field = kv.slice(0, colon).replace(/\[.*\]$/, "")
+                        var val = kv.slice(colon + 1)
+                        if (!val || val === "--")
+                            continue
+                        nmInfo[nif] = nmInfo[nif] || {}
+                        if (field === "IP4.ADDRESS" && !nmInfo[nif].ipv4) nmInfo[nif].ipv4 = val
+                        // prefer a global IPv6 address over the link-local one
+                        if (field === "IP6.ADDRESS" && (!nmInfo[nif].ipv6 || nmInfo[nif].ipv6.startsWith("fe80")))
+                            nmInfo[nif].ipv6 = val
+                        if (field === "IP4.GATEWAY") nmInfo[nif].gateway = val
+                        if (field === "IP4.DNS") (nmInfo[nif].dns = nmInfo[nif].dns || []).push(val)
+                    }
+                }
+
+                for (var n in nmInfo) {
+                    var w = ifs.find(x => x.name === n)
+                    if (w) {
+                        w.ipv4 = nmInfo[n].ipv4 || ""
+                        w.ipv6 = nmInfo[n].ipv6 || ""
+                    }
+                    // NetworkManager only reports a gateway on the default route's device
+                    if (nmInfo[n].gateway && w && w.up && routes.length === 0) {
+                        routes = [{ gateway: nmInfo[n].gateway, dev: n }]
+                        dns = nmInfo[n].dns || []
+                    }
+                }
+
+                for (var j = 0; j < ifs.length; ++j) {
+                    var a = addrs.find(x => x.ifname === ifs[j].name)
+                    if (!a || !a.addr_info)
+                        continue
+
+                    var v4 = a.addr_info.find(x => x.family === "inet")
+                    // prefer a global IPv6 address over the link-local one
+                    var v6 = a.addr_info.find(x => x.family === "inet6" && x.scope === "global")
+                          || a.addr_info.find(x => x.family === "inet6")
+
+                    if (v4) ifs[j].ipv4 = v4.local + "/" + v4.prefixlen
+                    if (v6) ifs[j].ipv6 = v6.local + "/" + v6.prefixlen
+                }
+
+                // connected interfaces first
+                ifs.sort((x, y) => (y.up ? 1 : 0) - (x.up ? 1 : 0))
+
+                page.ifaces = ifs
+                page.gateway = routes.length > 0 ? (routes[0].gateway || "") : ""
+                page.gatewayDev = routes.length > 0 ? (routes[0].dev || "") : ""
+                page.dns = dns
+            }
+        }
+    }
+
+    Timer {
+        interval: 3000
+        repeat: true
+        running: page.wired
+        triggeredOnStart: true
+        onTriggered: if (!pWired.running) pWired.running = true
+    }
+
+    function speedText(mbps) {
+        if (!(mbps > 0))
+            return "unknown"
+        return mbps >= 1000 ? (mbps / 1000) + " Gb/s" : mbps + " Mb/s"
+    }
+
+    function refreshWireless() {
         pRadioGet.running = true
         pList.running = true
+    }
+
+    onWiredChanged: if (!wired) refreshWireless()
+
+    Component.onCompleted: {
+        Net.refresh()
+        if (!page.wired)
+            refreshWireless()
     }
 
     // ------------------------------------------------------------------
@@ -288,6 +430,17 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
 
+            Text {
+                id: modeLabel
+                text: page.wired ? "WIRED" : "WI-FI"
+                color: Theme.textDim
+                font.family: Theme.fontFamily
+                font.pixelSize: 11
+                font.letterSpacing: 2
+
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
             Item {
                 width: Math.max(
                     0,
@@ -296,12 +449,15 @@ Item {
                     - 100
                     - 44
                     - 16
+                    - modeLabel.width
+                    - 16
                 )
 
                 height: 1
             }
 
             Text {
+                visible: !page.wired
                 text: page.scanning ? "SCANNING..." : "󰑐"
 
                 color: page.scanning
@@ -324,6 +480,7 @@ Item {
             }
 
             Rectangle {
+                visible: !page.wired
                 width: 44
                 height: 22
                 radius: 11
@@ -404,11 +561,193 @@ Item {
                     spacing: 6
 
                     // ------------------------------------------------------
+                    // Wired
+                    // ------------------------------------------------------
+
+                    Text {
+                        visible: page.wired && page.ifaces.length === 0
+
+                        width: parent.width
+
+                        text: "No wired network adapter found"
+
+                        color: Theme.textDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 12
+
+                        horizontalAlignment:
+                            Text.AlignHCenter
+                    }
+
+                    Repeater {
+                        model: page.wired ? page.ifaces : []
+
+                        delegate: Rectangle {
+                            id: ifCard
+
+                            required property var modelData
+
+                            readonly property bool isDefault:
+                                modelData.name === page.gatewayDev
+
+                            readonly property var rows: modelData.up ? [
+                                { k: "IPV4", v: modelData.ipv4 || "none" },
+                                { k: "IPV6", v: modelData.ipv6 || "none" },
+                                { k: "GATEWAY", v: isDefault && page.gateway ? page.gateway : "none" },
+                                { k: "DNS", v: isDefault && page.dns.length ? page.dns.join(", ") : "none" },
+                                { k: "SPEED", v: page.speedText(modelData.speed) },
+                                { k: "MAC", v: modelData.mac }
+                            ] : [
+                                { k: "MAC", v: modelData.mac }
+                            ]
+
+                            width: list.width
+                            height: ifCol.height + 24
+                            radius: Theme.radius
+
+                            color: modelData.up
+                                   ? Theme.alpha(Theme.accent, 0.10)
+                                   : "#00000000"
+
+                            border.width: 1
+                            border.color: modelData.up
+                                          ? Theme.accent
+                                          : Theme.border
+
+                            Column {
+                                id: ifCol
+
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 12
+                                anchors.leftMargin: 14
+                                anchors.rightMargin: 14
+
+                                spacing: 8
+
+                                // name + state
+                                Item {
+                                    width: parent.width
+                                    height: 20
+
+                                    Row {
+                                        anchors.verticalCenter:
+                                            parent.verticalCenter
+
+                                        spacing: 9
+
+                                        Text {
+                                            text: "󰈀"
+
+                                            color: ifCard.modelData.up
+                                                   ? Theme.accent
+                                                   : Theme.textDim
+
+                                            font.family: Theme.iconFont
+                                            font.pixelSize: 14
+                                        }
+
+                                        Text {
+                                            text: ifCard.modelData.name
+
+                                            color: Theme.text
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 12
+                                            font.bold: true
+                                        }
+                                    }
+
+                                    Text {
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter:
+                                            parent.verticalCenter
+
+                                        text: ifCard.modelData.up
+                                              ? "CONNECTED"
+                                              : "CABLE UNPLUGGED"
+
+                                        color: ifCard.modelData.up
+                                               ? Theme.ok
+                                               : Theme.textFaint
+
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 10
+                                        font.letterSpacing: 1
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: parent.width
+                                    height: 1
+                                    color: Theme.border
+                                }
+
+                                // details
+                                Repeater {
+                                    model: ifCard.rows
+
+                                    delegate: Row {
+                                        required property var modelData
+
+                                        width: ifCol.width
+                                        spacing: 12
+
+                                        Text {
+                                            width: 80
+
+                                            text: modelData.k
+
+                                            color: Theme.textFaint
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 10
+                                            font.letterSpacing: 1
+                                        }
+
+                                        Text {
+                                            width: parent.width - 92
+
+                                            text: modelData.v
+
+                                            color: Theme.text
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 11
+
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Wi-Fi hardware that can't be used without NetworkManager
+                    Text {
+                        visible: page.wired &&
+                                 Net.wifiIface !== "" &&
+                                 !Net.nmRunning
+
+                        width: parent.width
+                        topPadding: 6
+
+                        text: "Wi-Fi adapter " + Net.wifiIface +
+                              " found. Start NetworkManager to manage Wi-Fi here."
+
+                        color: Theme.textFaint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+
+                        horizontalAlignment:
+                            Text.AlignHCenter
+                    }
+
+                    // ------------------------------------------------------
                     // Wi-Fi disabled
                     // ------------------------------------------------------
 
                     Text {
-                        visible: !page.wifiEnabled
+                        visible: !page.wired && !page.wifiEnabled
 
                         width: parent.width
 
@@ -427,7 +766,8 @@ Item {
                     // ------------------------------------------------------
 
                     Text {
-                        visible: page.wifiEnabled &&
+                        visible: !page.wired &&
+                                 page.wifiEnabled &&
                                  page.scanning &&
                                  page.networks.length === 0
 
@@ -448,7 +788,8 @@ Item {
                     // ------------------------------------------------------
 
                     Text {
-                        visible: page.wifiEnabled &&
+                        visible: !page.wired &&
+                                 page.wifiEnabled &&
                                  !page.scanning &&
                                  page.networks.length === 0
 
@@ -469,7 +810,7 @@ Item {
                     // ------------------------------------------------------
 
                     Repeater {
-                        model: page.networks
+                        model: page.wired ? [] : page.networks
 
                         delegate: Column {
                             required property var modelData

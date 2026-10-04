@@ -230,7 +230,7 @@ window.nautilus-window .nautilus-grid-view gridview > child:selected label {
 }
 
 window.nautilus-window .nautilus-grid-view .dim-label {
-  color: var(--hud-faint);
+  color: var(--hud-dim);
   font-size: 8.5pt;
 }
 
@@ -275,7 +275,7 @@ window.nautilus-window .nautilus-list-view columnview > listview > row:selected 
 
 window.nautilus-window .nautilus-list-view .dim-label,
 window.nautilus-window .nautilus-list-view .caption {
-  color: var(--hud-faint);
+  color: var(--hud-dim);
 }
 
 /* ---------------------------------------------------- status / overlays -- */

@@ -699,6 +699,21 @@ def write_icons(p):
               file=sys.stderr)
 
 
+def write_gsettings(p):
+    """GTK4/libadwaita apps on Wayland take the icon theme and dark mode from
+    GSettings, not settings.ini, so mirror settings.ini there. Without this
+    Nautilus shows Adwaita's blue folders instead of the recoloured Papirus."""
+    if not have("gsettings"):
+        return
+    iface = "org.gnome.desktop.interface"
+    # gtk-theme covers GTK3 and plain GTK4 apps; libadwaita ones use color-scheme
+    wanted = {"color-scheme": "prefer-dark", "gtk-theme": "Adwaita-dark"}
+    if os.path.isdir(os.path.join(HOME, ".local/share/icons/Papirus-Dark")):
+        wanted["icon-theme"] = "Papirus-Dark"
+    for key, value in wanted.items():
+        subprocess.run(["gsettings", "set", iface, key, value], capture_output=True)
+
+
 # ---------------------------------------------------------------- main
 
 def current_wallpaper():
@@ -726,7 +741,7 @@ def main():
         return
 
     for writer in (write_quickshell, write_alacritty, write_niri, write_hyprland,
-                   write_fuzzel, write_gtk, write_icons,
+                   write_fuzzel, write_gtk, write_icons, write_gsettings,
                    write_starship, write_chromium, write_fastfetch,
                    write_mpv):
         try:

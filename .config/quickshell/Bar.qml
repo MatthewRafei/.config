@@ -42,8 +42,8 @@ PanelWindow {
     property real mem: 0
     property int bat: -1
     property string batStatus: ""
-    property string ssid: ""
-    property int signal: 0
+    readonly property string ssid: Net.ssid       // Net.qml
+    readonly property int signal: Net.signal
     property real _lastBusy: -1
     property real _lastIdle: -1
 
@@ -91,28 +91,7 @@ PanelWindow {
         onTriggered: if (!statProc.running) statProc.running = true
     }
 
-    Process {
-        id: wifiProc
-        command: ["sh", "-c", "nmcli -t -f ACTIVE,SSID,SIGNAL dev wifi 2>/dev/null | grep '^yes' | head -1"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                // terse format: yes:<ssid>:<signal>; ssid itself may contain escaped colons
-                var t = text.trim()
-                if (!t) { bar.ssid = ""; bar.signal = 0; return }
-                var last = t.lastIndexOf(":")
-                bar.signal = +t.slice(last + 1)
-                bar.ssid = t.slice(4, last).replace(/\\:/g, ":")
-            }
-        }
-    }
-
-    Timer {
-        interval: 5000
-        repeat: true
-        running: true
-        triggeredOnStart: true
-        onTriggered: if (!wifiProc.running) wifiProc.running = true
-    }
+    readonly property string ethIface: Net.ethIface
 
     // -------------------------
     // Audio / media
@@ -833,12 +812,17 @@ PanelWindow {
             }
         }
 
-        // wifi: click = quick dropdown (QuickPanel.qml), right-click = settings
+        // network: wifi when connected, else ethernet when wired, else disconnected
+        // click = quick dropdown (QuickPanel.qml), right-click = settings
         Chip {
-            icon: bar.ssid === "" ? "󰤮" : bar.signal < 25 ? "󰤟" : bar.signal < 50 ? "󰤢" : bar.signal < 75 ? "󰤥" : "󰤨"
-            value: bar.ssid === "" ? "" : bar.ssid.length > 12 ? bar.ssid.slice(0, 11) + "…" : bar.ssid
-            gauge: bar.ssid !== "" ? bar.signal / 100 : -1
-            accent: bar.ssid !== "" ? Theme.text : Theme.danger
+            readonly property bool wifi: bar.ssid !== ""
+            readonly property bool wired: !wifi && bar.ethIface !== ""
+
+            icon: wifi ? (bar.signal < 25 ? "󰤟" : bar.signal < 50 ? "󰤢" : bar.signal < 75 ? "󰤥" : "󰤨")
+                : wired ? "󰈀" : "󰤮"
+            value: wifi ? (bar.ssid.length > 12 ? bar.ssid.slice(0, 11) + "…" : bar.ssid) : ""
+            gauge: wifi ? bar.signal / 100 : -1
+            accent: wifi || wired ? Theme.text : Theme.danger
             onClicked: mouse => Quickshell.execDetached(mouse.button === Qt.RightButton
                 ? ["qs", "ipc", "call", "settings", "toggle"]
                 : ["qs", "ipc", "call", "quick", "net"])

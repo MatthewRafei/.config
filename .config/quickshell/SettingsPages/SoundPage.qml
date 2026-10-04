@@ -40,13 +40,34 @@ Item {
                  n.audio
         )
 
+    // Input side: default source and capture devices. media.class keeps out
+    // internal nodes (e.g. a multichannel interface's raw source that its
+    // split mic/line sources are made from) and monitor/virtual oddities.
+    property var source: Pipewire.defaultAudioSource
+
+    property real inVolume: (source && source.audio)
+        ? source.audio.volume
+        : 0
+
+    property bool inMuted: (source && source.audio)
+        ? source.audio.muted
+        : false
+
+    property var inputSources:
+        Pipewire.nodes.values.filter(
+            n => !n.isSink &&
+                 !n.isStream &&
+                 n.audio &&
+                 (n.properties["media.class"] || "") === "Audio/Source"
+        )
+
     // Active application audio streams
     property var appStreams:
         Pipewire.nodes.values.filter(
             n => n.isStream && n.isSink
         )
 
-    Column {
+    Flickable {
         anchors {
             left: parent.left
             right: parent.right
@@ -58,6 +79,15 @@ Item {
             topMargin: page.marginTop
             bottomMargin: page.marginBottom
         }
+
+        clip: true
+        contentWidth: width
+        contentHeight: content.height
+        boundsBehavior: Flickable.StopAtBounds
+
+    Column {
+        id: content
+        width: parent.width
 
         spacing: page.contentSpacing
 
@@ -367,6 +397,269 @@ Item {
         }
 
         // =========================
+        // INPUT
+        // =========================
+
+        Text {
+            text: "INPUT"
+
+            color: Theme.accent
+
+            font.family: Theme.fontFamily
+            font.pixelSize: 11
+            font.letterSpacing: 2
+        }
+
+        // input volume (default source)
+        Row {
+            visible: page.source !== null
+            width: parent.width
+            spacing: 2
+
+            Rectangle {
+                width: 28
+                height: 28
+
+                radius: Theme.radius
+
+                anchors.verticalCenter:
+                    parent.verticalCenter
+
+                color: page.inMuted
+                    ? Theme.alpha(
+                          Theme.danger,
+                          0.15
+                      )
+                    : Theme.alpha(
+                          Theme.accent,
+                          0.10
+                      )
+
+                border.width: 1
+
+                border.color: page.inMuted
+                    ? Theme.danger
+                    : Theme.border
+
+                Text {
+                    anchors.centerIn: parent
+
+                    text: page.inMuted
+                        ? "\uf131"
+                        : "\uf130"
+
+                    color: page.inMuted
+                        ? Theme.danger
+                        : Theme.accent
+
+                    font.family:
+                        Theme.iconFont
+
+                    font.pixelSize: 12
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+
+                    cursorShape:
+                        Qt.PointingHandCursor
+
+                    onClicked: {
+                        if (page.source &&
+                            page.source.audio) {
+
+                            page.source.audio.muted =
+                                !page.source.audio.muted
+                        }
+                    }
+                }
+            }
+
+            Text {
+                width: 82
+
+                anchors.verticalCenter:
+                    parent.verticalCenter
+
+                text: " MIC"
+
+                color: page.inMuted
+                    ? Theme.textDim
+                    : Theme.text
+
+                font.family:
+                    Theme.fontFamily
+
+                font.pixelSize: 11
+
+                elide:
+                    Text.ElideRight
+            }
+
+            Slider {
+                width: parent.width -
+                       28 -
+                       82 -
+                       12
+
+                height: 72
+
+                anchors.verticalCenter:
+                    parent.verticalCenter
+
+                label: ""
+                icon: ""
+
+                value: page.inMuted
+                    ? 0
+                    : page.inVolume
+
+                onCommitted: (v) => {
+                    if (page.source &&
+                        page.source.audio) {
+
+                        page.source.audio.muted = false
+                        page.source.audio.volume = v
+                    }
+                }
+            }
+        }
+
+        // input selector
+        Column {
+            width: parent.width
+            spacing: page.sectionSpacing
+
+            Repeater {
+                model: page.inputSources
+
+                delegate: Rectangle {
+                    required property var modelData
+
+                    width: parent.width
+                    height: 40
+
+                    radius: Theme.radius
+
+                    property var input:
+                        modelData
+
+                    property bool active:
+                        page.source &&
+                        input &&
+                        page.source.id === input.id
+
+                    color: active
+                        ? Theme.alpha(
+                              Theme.accent,
+                              0.10
+                          )
+                        : "transparent"
+
+                    border.width: 1
+
+                    border.color: active
+                        ? Theme.accent
+                        : Theme.border
+
+                    Row {
+                        anchors.fill: parent
+
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+
+                        spacing: 8
+
+                        Text {
+                            width: 20
+
+                            anchors.verticalCenter:
+                                parent.verticalCenter
+
+                            text: active
+                                ? "\uf192"
+                                : "\uf10c"
+
+                            color: active
+                                ? Theme.accent
+                                : Theme.textFaint
+
+                            font.family:
+                                Theme.iconFont
+
+                            font.pixelSize: 11
+                        }
+
+                        Text {
+                            width: parent.width - 28
+
+                            anchors.verticalCenter:
+                                parent.verticalCenter
+
+                            text: (
+                                input.description ||
+                                input.nickname ||
+                                input.name ||
+                                "Unknown input"
+                            ).toUpperCase()
+
+                            color: active
+                                ? Theme.accent
+                                : Theme.text
+
+                            font.family:
+                                Theme.fontFamily
+
+                            font.pixelSize: 10
+
+                            elide:
+                                Text.ElideRight
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+
+                        cursorShape:
+                            Qt.PointingHandCursor
+
+                        onClicked: {
+                            if (input) {
+                                Pipewire.preferredDefaultAudioSource =
+                                    input
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text {
+                visible:
+                    page.inputSources.length === 0
+
+                text:
+                    "NO AUDIO INPUTS"
+
+                color: Theme.textFaint
+
+                font.family:
+                    Theme.fontFamily
+
+                font.pixelSize: 10
+
+                font.letterSpacing: 1.5
+
+                leftPadding: 4
+            }
+        }
+
+        Rectangle {
+            width: parent.width
+            height: 1
+            color: Theme.border
+        }
+
+        // =========================
         // PER-APP AUDIO
         // =========================
 
@@ -587,5 +880,6 @@ Item {
                 leftPadding: 4
             }
         }
+    }
     }
 }

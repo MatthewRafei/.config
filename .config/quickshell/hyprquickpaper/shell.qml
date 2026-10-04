@@ -46,7 +46,8 @@ PanelWindow {
 
         JsonAdapter {
             id: configs
-            property string wallpaper_path
+            // default matches config.json, so the folder is never empty
+            property string wallpaper_path: "~/Pictures/Wallpapers/"
             property string cache_path
             property string border_color
         }
@@ -75,13 +76,24 @@ PanelWindow {
 
     FolderListModel {
         id: folderModel
-        folder: configs.wallpaper_path ? "file://" + main.expand(configs.wallpaper_path) : ""
+        folder: main.wallFolder
         showDirs: false
         nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]
         sortField: FolderListModel.Name
         caseSensitive: false
         onCountChanged: main.syncToCurrent()
         onStatusChanged: main.syncToCurrent()
+    }
+
+    // files keep arriving and get re-sorted after Ready; follow every change
+    Connections {
+        target: folderModel
+        function onRowsInserted() { Qt.callLater(main.syncToCurrent) }
+        function onRowsRemoved() { Qt.callLater(main.syncToCurrent) }
+        function onRowsMoved() { Qt.callLater(main.syncToCurrent) }
+        function onLayoutChanged() { Qt.callLater(main.syncToCurrent) }
+        function onModelReset() { Qt.callLater(main.syncToCurrent) }
+        function onDataChanged() { Qt.callLater(main.syncToCurrent) }
     }
 
     // ---- Currently displayed wallpaper ----
@@ -130,21 +142,36 @@ PanelWindow {
         }
     }
 
-    property bool synced: false
+    // FolderListModel reports Ready before the folder has fully loaded and
+    // keeps inserting files, which shifts indices. So re-sync on every model
+    // change until the user moves the selection themselves.
+    property bool userMoved: false
+    property int targetIndex: -1
+
+    readonly property string wallFolder: configs.wallpaper_path ? "file://" + main.expand(configs.wallpaper_path) : ""
 
     function syncToCurrent() {
-        if (synced || !queried || folderModel.count === 0 || folderModel.status !== FolderListModel.Ready)
+        if (userMoved || !queried || folderModel.count === 0 || folderModel.status !== FolderListModel.Ready)
             return
-        var idx = 0
+        // an empty folder means "the working directory" to FolderListModel;
+        // only sync once it is really listing the wallpapers
+        if (!wallFolder || String(folderModel.folder) !== wallFolder)
+            return
+        var idx = -1
         for (var i = 0; i < folderModel.count; i++) {
             if (folderModel.get(i, "filePath") === currentPath) {
                 idx = i
                 break
             }
         }
-        list.positionViewAtIndex(idx, ListView.Center)
+        if (idx < 0)
+            return
+        targetIndex = idx
+        if (idx === list.currentIndex)
+            return
+        // current first, so the card is already expanded when centring on it
         list.currentIndex = idx
-        synced = true
+        list.positionViewAtIndex(idx, ListView.Center)
     }
 
     // ---- Actions ----
@@ -152,6 +179,7 @@ PanelWindow {
 
     function step(delta) {
         if (folderModel.count === 0) return
+        userMoved = true
         list.currentIndex = Math.max(0, Math.min(folderModel.count - 1, list.currentIndex + delta))
     }
 
@@ -299,7 +327,20 @@ PanelWindow {
             highlightMoveDuration: 380
             highlightMoveVelocity: -1
 
+            // StrictlyEnforceRange makes the view pick currentIndex from
+            // whatever is centred, and the cards are still animating width
+            // right after the initial jump, so it can drift a few cards off.
+            // Hold the synced card until the user moves.
+            onCurrentIndexChanged: {
+                if (!main.userMoved && main.targetIndex >= 0 && currentIndex !== main.targetIndex)
+                    Qt.callLater(() => {
+                        if (!main.userMoved && list.currentIndex !== main.targetIndex)
+                            list.currentIndex = main.targetIndex
+                    })
+            }
+
             Keys.onPressed: event => {
+                main.userMoved = true
                 switch (event.key) {
                 case Qt.Key_Left: case Qt.Key_H: main.step(-1); break
                 case Qt.Key_Right: case Qt.Key_L: main.step(1); break
@@ -432,7 +473,7 @@ PanelWindow {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         if (card.isCurrent) main.apply()
-                        else list.currentIndex = card.index
+                        else { main.userMoved = true; list.currentIndex = card.index }
                     }
                     onWheel: wheel => main.step(wheel.angleDelta.y > 0 || wheel.angleDelta.x > 0 ? -1 : 1)
                 }

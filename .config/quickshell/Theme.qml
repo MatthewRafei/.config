@@ -11,9 +11,14 @@ Singleton {
     id: theme
 
     FileView {
+        id: palFile
         path: Quickshell.env("HOME") + "/.cache/theme/palette.json"
         watchChanges: true
         onFileChanged: reload()
+        // a missing file can't be watched, so keep retrying until it exists
+        // (first login before wallpaper-theme has run)
+        onLoadFailed: palRetry.start()
+        onLoaded: palRetry.stop()
 
         JsonAdapter {
             id: pal
@@ -54,6 +59,13 @@ Singleton {
 
     // path of the wallpaper the palette was made from (lock screen backdrop)
     readonly property string wallpaper: pal.wallpaper
+
+    Timer {
+        id: palRetry
+        interval: 3000
+        repeat: true
+        onTriggered: palFile.reload()
+    }
 
     // -------------------------
     // Type

@@ -30,3 +30,20 @@ export PATH="$HOME/.local/bin:$PATH"
 # dotfiles: bare git repo in ~/.dotfiles tracking configs in place
 #   dots status | dots add <file> | dots commit -m "..." | dots log
 alias dots='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
+
+# Hyprland resizes a new terminal ~50ms after it opens. Starship's first
+# prompt would be drawn at the old width and its right-aligned clock would
+# wrap ("PM" on its own line), so wait for that resize first. `wait` returns
+# as soon as the trapped SIGWINCH arrives; 150ms at most otherwise. niri sizes
+# windows before their first frame, so it doesn't need (or pay for) this.
+if [[ $- == *i* && -n $ALACRITTY_WINDOW_ID && -n $HYPRLAND_INSTANCE_SIGNATURE && -z $_TERM_SETTLED ]]; then
+    export _TERM_SETTLED=1
+    set +m                                  # no "[1]+ Terminated" job notice
+    trap : WINCH
+    sleep 0.15 & _settle=$!
+    wait $_settle 2>/dev/null
+    kill $_settle 2>/dev/null; wait $_settle 2>/dev/null
+    trap - WINCH
+    set -m
+    unset _settle
+fi

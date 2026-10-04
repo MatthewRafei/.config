@@ -160,7 +160,6 @@ environment {
     XCURSOR_SIZE "24"
     PROTON_ENABLE_WAYLAND "1"
     ADW_DISABLE_PORTAL "1"
-    GTK_THEME "Adwaita:dark"
     QS_ICON_THEME "Papirus-Dark"
 }
 

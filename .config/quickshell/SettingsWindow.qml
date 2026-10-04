@@ -84,7 +84,7 @@ PanelWindow {
         { name: "System",     icon: "󰒓", page: "SystemPage" },
         { name: "Sound",      icon: "\uf028", page: "SoundPage" },
         { name: "Monitors",   icon: "\uf108", page: "MonitorsPage" },
-        { name: "Network",    icon: "\uf1eb", page: "NetworkPage" },
+        { name: "Network",    icon: Net.mode === "wired" ? "󰈀" : "\uf1eb", page: "NetworkPage" },
         { name: "Bluetooth",  icon: "󰂯", page: "BluetoothPage" }
     ].concat(Power.available || Power.hasBattery ? [{ name: "Power", icon: "󰂄", page: "PowerPage" }] : [])
 
