@@ -517,9 +517,47 @@ PanelWindow {
             }
 
             // ---- sparkline ----
+            // legend in its own strip above the graph, so a high line can't
+            // run over the labels
             Item {
                 width: parent.width
-                height: 74
+                height: 12
+
+                Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 10
+                    Text {
+                        text: "━ CPU"
+                        color: Theme.accent
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 9
+                        font.letterSpacing: 1
+                    }
+                    Text {
+                        text: "━ MEM"
+                        color: Theme.textFaint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 9
+                        font.letterSpacing: 1
+                    }
+                }
+
+                Text {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "60s"
+                    color: Theme.textFaint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 9
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: 64
 
                 Canvas {
                     id: spark
@@ -596,37 +634,6 @@ PanelWindow {
                         ctx.arc(w - 2, hy, 2.5, 0, Math.PI * 2)
                         ctx.fill()
                     }
-                }
-
-                Row {
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.margins: 4
-                    spacing: 10
-                    Text {
-                        text: "━ CPU"
-                        color: Theme.accent
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 9
-                        font.letterSpacing: 1
-                    }
-                    Text {
-                        text: "━ MEM"
-                        color: Theme.textFaint
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 9
-                        font.letterSpacing: 1
-                    }
-                }
-
-                Text {
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    anchors.margins: 4
-                    text: "60s"
-                    color: Theme.textFaint
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 9
                 }
             }
 
