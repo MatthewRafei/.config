@@ -418,7 +418,8 @@ PanelWindow {
     // Now and then (1 in 3 changes, or `qs ipc call bar peek`) a little skit
     // decodes in instead: a face peeking left and right, dozing off, flipping
     // a table, praising the sun, dancing, hacking, shrugging, a cat, a YOU
-    // DIED, Pac-Man... then it dissolves and the next quote types in.
+    // DIED, Pac-Man, a bonfire, a Naruto run, a domain expansion, a
+    // Factorio belt... then it dissolves and the next quote types in.
     // `qs ipc call bar skit <name>` plays a given one.
     // Uses `fortune` if installed, else ~/.local/bin/fortune
     // (quotes live in ~/.config/quickshell/quotes/).
@@ -604,6 +605,97 @@ PanelWindow {
                 f.push({ t: line(c), ms: 900, color: "accent2", sparkle: true })
                 return f.concat([{ t: "Pᗣᗧ•••MᗣN", ms: 1600, sparkle: true }])
             },
+            // Dark Souls: rests at the bonfire
+            bonfire: () => {
+                const f = []
+                for (let i = 6; i >= 1; i--) f.push({ t: "( ・_・)" + " ".repeat(i) + "†", ms: 260 })
+                return f.concat([
+                    { t: "( ・_・)†", ms: 500 },
+                    { t: "( -_-)†", ms: 500 },
+                    { t: "( -_-)†,", ms: 260 },
+                    { t: "( -_-)†,'", ms: 260 },
+                    { t: "( -_-)†,'`", ms: 400, color: "accent2" },
+                    { t: "B O N F I R E   L I T", ms: 1800, color: "accent2", sparkle: true }
+                ])
+            },
+            // runs across the bar, arms back
+            narutorun: () => {
+                const f = []
+                for (let i = 0; i <= 16; i++)
+                    f.push({ t: " ".repeat(i) + (i % 2 === 0 ? "ε=ε=┌( `ー´)┘" : "ε=ε=└( `ー´)┐"), ms: 110 })
+                return f.concat([{ t: " ".repeat(16) + "( `ー´)ゞ believe it!", ms: 1500, sparkle: true }])
+            },
+            // Gojo
+            domain: () => [
+                { t: "( ¬‿¬)", ms: 700 },
+                { t: "( ¬‿¬)ノ", ms: 400 },
+                { t: "( ¬‿¬)ノ 領域展開", ms: 900 },
+                { t: "( ¬‿¬)ノ domain expansion...", ms: 1100 },
+                { t: "∞", ms: 180, color: "accent2" },
+                { t: "∞ ∞ ∞", ms: 180, color: "accent2" },
+                { t: "∞ I N F I N I T E   V O I D ∞", ms: 1800, color: "accent2", sparkle: true }
+            ],
+            // Factorio: a belt carries gears along
+            factory: () => {
+                const W = 22, f = []
+                for (let k = 0; k < 26; k++) {
+                    let t = ""
+                    for (let i = 0; i < W; i++)
+                        t += (i + k) % 5 === 0 ? "⚙" : (i - k % 2) % 2 === 0 ? "›" : " "
+                    f.push({ t: "[" + t + "]", ms: 120 })
+                }
+                return f.concat([{ t: "the factory must grow ⚙", ms: 1600, sparkle: true }])
+            },
+            // types the forbidden command, thinks better of it
+            sudo: () => {
+                const cmd = "$ sudo rm -rf /", f = []
+                for (let i = 2; i <= cmd.length; i++) f.push({ t: cmd.slice(0, i) + "▌", ms: 90 })
+                return f.concat([
+                    { t: cmd + "▌", ms: 700 },
+                    { t: "(°ロ°) !!", ms: 600, color: "danger" },
+                    { t: cmd + "^C", ms: 700 },
+                    { t: "(˘︹˘ ) phew", ms: 1300 }
+                ])
+            },
+            // coffee break
+            coffee: () => [
+                { t: "( ・_・)_旦", ms: 800 },
+                { t: "( ・_・)_旦 ~", ms: 350 },
+                { t: "( ・_・)_旦 ~~", ms: 350 },
+                { t: "( ˘▽˘)っ旦", ms: 900 },
+                { t: "( ˘ω˘)  ahh", ms: 1100 },
+                { t: "( ・ω・)_旦 ~", ms: 900, sparkle: true }
+            ],
+            // casts, waits, lands one
+            fishing: () => {
+                const f = [
+                    { t: "( ・_・)ノ", ms: 500 },
+                    { t: "( ・_・)ノ⌒", ms: 250 },
+                    { t: "( ・_・)ノ⌒ ゜", ms: 250 }
+                ]
+                for (let i = 0; i < 4; i++) {
+                    f.push({ t: "( ・_・)ノ⌒ ~~゜~~", ms: 400 })
+                    f.push({ t: "( ・_・)ノ⌒ ~゜~~~", ms: 400 })
+                }
+                return f.concat([
+                    { t: "( °_°)ノ⌒ ~~!~~", ms: 500 },
+                    { t: "( >_<)ノ⌒ ><(((°>", ms: 500 },
+                    { t: "( ^_^)ノ ><(((°>", ms: 1300, sparkle: true }
+                ])
+            },
+            // a snail takes its time
+            snail: () => {
+                const f = []
+                for (let i = 0; i <= 12; i++)
+                    f.push({ t: ".".repeat(i) + "_@_y", ms: 330 })
+                return f.concat([{ t: "............_@_y  made it", ms: 1400, sparkle: true }])
+            },
+            // Cowboy Bebop
+            cowboy: () => [
+                { t: "see you", ms: 700, color: "dim" },
+                { t: "see you space", ms: 700, color: "dim" },
+                { t: "see you space cowboy...", ms: 2200, color: "dim" }
+            ],
             // gets bodied by a boss, tries again
             died: () => [
                 { t: "(ง •_•)ง", ms: 800 },
@@ -711,8 +803,9 @@ PanelWindow {
             // one target per shell: answer from the first monitor's bar only
             enabled: bar.screen === Quickshell.screens[0]
             function peek(): void { quote.peek("") }
-            // qs ipc call bar skit sleepy | tableflip | sun | dance | hack | shrug | cat | died | pacman | peek
+            // qs ipc call bar skit <name>   (names: qs ipc call bar list)
             function skit(name: string): void { quote.peek(name) }
+            function list(): string { return Object.keys(quote.skits).join(" ") }
         }
 
         // typewriter
