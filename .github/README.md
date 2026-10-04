@@ -113,27 +113,16 @@ before the laptop suspends.
 
 ## And the rest
 
-<p align="center">
-  <img src="screenshots/notifications.webp" alt="Notification center" width="40%">
-  <img src="screenshots/powermenu.webp" alt="Power menu" width="58%">
-</p>
-<p align="center"><img src="screenshots/osd.webp" alt="Volume OSD" width="45%"></p>
+<p align="center"><img src="screenshots/powermenu.gif" alt="Power menu" width="80%"></p>
 
+- **Power menu** (Mod+Shift+E): pick with the arrows, the mouse or a letter; log out, reboot
+  and shut down ask twice.
 - **Notifications:** popups plus a notification center (Mod+N), and do not disturb.
-- **Power menu:** Mod+Shift+E.
 - **Volume pop-up:** appears when the volume changes.
-
-![fastfetch and htop](screenshots/terminal.webp)
-
-- **fastfetch:** a HUD tree layout with the right logo for each distro.
-- **htop:** a header with live graphs, in the theme's colours.
-
-![Package finder](screenshots/package-finder.webp)
-
 - **Package finder** (Mod+Shift+P): fuzzy search over apk and Flathub, installed tabs,
   sub-packages and offline caches.
-
-Also included:
+- **fastfetch:** a HUD tree layout with the right logo for each distro.
+- **htop:** a header with live graphs, in the theme's colours.
 - **Tailscale:** a bar chip and dropdown, plus a VPN section in Settings.
 - **Caffeine:** keeps the machine awake.
 - **Night light:** a tiny C gamma daemon with sunset scheduling.
