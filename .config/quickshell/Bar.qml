@@ -412,7 +412,8 @@ PanelWindow {
     }
 
     // quote: types out a short fortune left of the clock, ticker-scrolling
-    // as it goes if it doesn't fit, then eases back to the start. New quote
+    // as it goes if it doesn't fit, then eases back to the start and from
+    // there scrolls on repeat like a news ticker (pauses under the mouse). New quote
     // every 5 minutes; click = next, hover = full quote in a popup.
     // Now and then (1 in 3 changes, or `qs ipc call bar peek`) a little skit
     // decodes in instead: a face peeking left and right, dozing off, flipping
@@ -428,6 +429,14 @@ PanelWindow {
         property string author: ""
         property int typed: 0
         property real restX: 0
+        property bool ticker: false      // long quote, after the glide back: scrolling on repeat
+        property real tickX: 0
+
+        function stopTicker() {
+            settle.stop()
+            tickerLoop.stop()
+            ticker = false
+        }
         readonly property bool typing: typed < body.length
         readonly property real room: clockItem.x - (left.x + left.width) - 36
 
@@ -470,7 +479,7 @@ PanelWindow {
         // first frame decodes in, the last one dissolves away.
         function play(core) {
             if (peeking) return
-            settle.stop()
+            quote.stopTicker()
             let f = []
             const first = core[0].t
             for (let k = 0; k <= first.length; k++) f.push({ t: scrambled(first, k), ms: 45 })
@@ -680,7 +689,7 @@ PanelWindow {
                     var m = lines.length > 1 ? lines[lines.length - 1].match(/^\s*--\s*(.+)$/) : null
                     if (m)
                         lines.pop()
-                    settle.stop()
+                    quote.stopTicker()
                     quote.author = m ? m[1].trim() : ""
                     quote.body = lines.join(" ").replace(/\s+/g, " ").trim()
                     quote.typed = 0
@@ -734,11 +743,77 @@ PanelWindow {
                 duration: Math.max(800, -quote.restX * 18)
                 easing.type: Easing.InOutSine
             }
+            PauseAnimation { duration: 2500 }
+            ScriptAction {
+                script: {
+                    quote.tickX = 0
+                    quote.ticker = true
+                    tickerLoop.restart()
+                }
+            }
+        }
+
+        // then like a news ticker: scroll left at a reading pace with a second
+        // copy following, so it repeats without a gap. Pauses under the mouse.
+        NumberAnimation {
+            id: tickerLoop
+            target: quote
+            property: "tickX"
+            from: 0
+            to: -tickerRow.width / 2
+            duration: tickerRow.width / 2 / 45 * 1000
+            loops: Animation.Infinite
+            paused: running && quoteMouse.containsMouse
+        }
+
+        Row {
+            id: tickerRow
+            visible: quote.ticker && !quote.peeking
+            anchors.verticalCenter: parent.verticalCenter
+            x: quote.tickX
+
+            Repeater {
+                model: 2
+                Row {
+                    spacing: 6
+                    Text {
+                        text: "“"
+                        color: Theme.accent
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 14
+                        font.bold: true
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        text: quote.body
+                        color: Theme.textDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        font.italic: true
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        visible: quote.author !== ""
+                        text: "— " + quote.author
+                        color: Theme.textFaint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        text: "    ✦    "
+                        color: Theme.accent
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 9
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+            }
         }
 
         Row {
             id: quoteRow
-            visible: !quote.peeking
+            visible: !quote.peeking && !quote.ticker
             anchors.verticalCenter: parent.verticalCenter
             x: quote.typing ? Math.min(0, quote.room - implicitWidth) : quote.restX
             spacing: 6
