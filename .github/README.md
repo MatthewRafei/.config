@@ -20,7 +20,7 @@ there are no symlinks and no install script that copies files.
   Bar.qml                      top bar (workspaces, quote/face, clock, media, stats, tray, power)
   Notifs.qml + Notification*.qml   notification daemon + popups + center (Mod+N)
   SettingsWindow.qml + SettingsPages/  settings (Mod+S): system, sound, monitors, wifi, bluetooth, power
-  Calendar*.qml, CalendarLib.js, EventForm.qml   calendar dropdown + big calendar window (Mod+C); events in ~/.calendar/*.ics (Syncthing-friendly)
+  Calendar*.qml, CalendarLib.js, EventForm.qml, TimeField.qml   calendar dropdown + big calendar window (Mod+C); events in ~/.calendar/*.ics (Syncthing-friendly)
   Lock.qml, LockSurface.qml, pam/   lock screen (Mod+Shift+L, after 5 min idle, before suspend)
   Screensaver.qml, ScreensaverScenes.js, screensaver/   ASCII screensaver after 3 min idle
   TelemetryHud.qml             desktop HUD with graphs (Mod+H)

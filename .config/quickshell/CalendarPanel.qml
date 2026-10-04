@@ -60,8 +60,10 @@ PanelWindow {
     Rectangle {
         id: panel
 
-        width: 700
-        height: 380
+        width: 760
+        // grows to fit the add / edit form
+        height: root.mode === "edit" ? Math.max(380, form.implicitHeight + 32) : 380
+        Behavior on height { NumberAnimation { duration: Theme.animMed; easing.type: Easing.OutCubic } }
         x: (parent.width - width) / 2
         y: 10
         radius: Theme.radius
