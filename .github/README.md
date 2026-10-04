@@ -1,147 +1,147 @@
-# dotfiles
+<h1 align="center">HUD</h1>
 
-A "HUD" style Wayland desktop for **Chimera Linux**: the [niri](https://github.com/YaLTeR/niri)
-scrolling compositor (or [Hyprland](https://hyprland.org), see [Hyprland](#hyprland)) plus a
-[Quickshell](https://quickshell.org) shell (bar, notifications,
-settings, calendar, lock screen, screensaver, telemetry HUD). The colours of everything follow
-the current wallpaper.
+<p align="center">
+  A heads-up-display desktop for <b>Chimera Linux</b>:
+  <a href="https://github.com/YaLTeR/niri">niri</a> +
+  <a href="https://quickshell.org">Quickshell</a>, recoloured from whatever wallpaper you pick.
+  <br>
+  <a href="INSTALL.md"><b>Install</b></a> ·
+  <a href="#keybinds">Keybinds</a> ·
+  <a href="#under-the-hood">Under the hood</a>
+</p>
 
-The repo is a **bare git repo** whose work tree is `$HOME`. Files live where they are used;
-there are no symlinks and no install script that copies files.
+![The desktop: wallpaper, bar and telemetry HUD](screenshots/hero.webp)
 
-```
-.bashrc                        prompt (starship), PATH, the `dots` alias
-.config/niri/config.kdl        compositor: startup programs, keybinds, layout, colours
-.config/hypr/hyprland.lua      the same for Hyprland (Lua config); loads machine.lua + colors.lua
-.config/quickshell/            the shell (started by niri as `qs`)
-  shell.qml                    entry point: lists every component below
-  Compositor.qml               niri/Hyprland detection: workspaces, focused window, actions
-  Theme.qml                    colours/fonts; colours come live from ~/.cache/theme/palette.json
-  Bar.qml                      top bar (workspaces, quote/face, clock, media, stats, tray, power)
-  Notifs.qml + Notification*.qml   notification daemon + popups + center (Mod+N)
-  SettingsWindow.qml + SettingsPages/  settings (Mod+S): system, sound, monitors, screensaver (preview scenes), network + VPN, bluetooth, power
-  Calendar*.qml, CalendarLib.js, EventForm.qml, TimeField.qml   calendar dropdown + big calendar window (Mod+C); events in ~/.calendar/*.ics (Syncthing-friendly)
-  Lock.qml, LockSurface.qml, pam/   lock screen (Mod+Shift+L, after 5 min idle, before suspend)
-  Screensaver.qml, ScreensaverScenes.js, screensaver/   ASCII screensaver after 3 min idle
-  TelemetryHud.qml             desktop HUD with graphs (Mod+H)
-  Power.qml, PowerMenu.qml     power profiles, battery, charge limit; power menu (Mod+Shift+E)
-  NightLight.qml               night light (drives ~/.local/bin/nightlightd)
-  Idle.qml                     idle settings: screensaver / lock / screen-off times, scene rotation
-  Vpn.qml                      Tailscale state; bar chip + dropdown (click the VPN icon)
-  Caffeine.qml                 keep awake: bar coffee chip blocks screensaver, idle lock and idle suspend
-  QuickPanel.qml, VolumeOsd.qml, PerspectivePanel.qml, Hud*.qml, Slider.qml   shared UI bits
-  hyprquickpaper/              wallpaper picker, a separate qs config (Mod+Shift+W)
-  quotes/quotes                quotes shown in the bar and on the lock screen
-.config/theme/wallpaper-theme  derives a palette from the wallpaper and recolours everything
-.config/{alacritty,fuzzel,gtk-3.0,gtk-4.0,mpv,starship.toml}   app configs (colour keys rewritten by wallpaper-theme)
-.config/gammastep/config.ini.example   location template for the night light's sunset mode
-.local/bin/                    pkg + pkg-open (package finder, Mod+Shift+P), cliphist-menu (Mod+V),
-                               chromium (wrapper that applies the theme), htop (wrapper: HUD colours),
-                               fortune, papirus-folders, songtag (identify + retag music with
-                               SongRec: scan / review / apply / undo)
-.local/share/applications/chromium.desktop   launcher entry pointing at the wrapper
-.local/src/nightlightd/        small C gamma daemon (build it, see below)
-.local/src/battery-charge-limit/   root helper for the battery charge limit (optional install)
-```
+Everything on screen is one Quickshell config: the bar, the telemetry HUD, notifications,
+settings, the calendar, the lock screen and an ASCII-art screensaver. It works under niri or
+Hyprland, and there's no waybar, mako, swaylock or swayidle.
 
-## Install on a new machine
+## Everything follows the wallpaper
 
-These steps assume Chimera Linux with a normal user who can use `doas`. On another distro the
-package names differ; see [Other distros](#other-distros).
+Pick a wallpaper and a script pulls a palette out of it. The palette recolours the shell, niri's
+focus ring, the terminal, the launcher, GTK apps, Chromium, mpv, fastfetch, htop, the prompt and
+the folder icons. A mostly grey wallpaper gets a monochrome theme.
 
-### 1. Packages
+![Four wallpapers, four themes](screenshots/themes.webp)
 
-```sh
-doas apk add niri quickshell alacritty fuzzel nautilus chromium \
-    cliphist wl-clipboard xwayland-satellite blueman bluez networkmanager \
-    pipewire wireplumber pavucontrol playerctl brightnessctl power-profiles-daemon \
-    starship fzf fastfetch imagemagick python jq git flatpak mpv awww \
-    fonts-nerd-jetbrains-mono papirus-icon-theme \
-    clang gmake pkgconf wayland-devel wayland-progs
-```
+<p align="center">
+  <img src="screenshots/wallpaper-picker.webp" alt="Wallpaper picker" width="100%">
+  <br><sub>The wallpaper picker (Mod+Shift+W): slanted slices, the current one opens into a card.</sub>
+</p>
 
-Optional: `tailscale` (VPN chip in the bar; once: `doas tailscale set --operator=$USER` so the
-bar can connect/disconnect and pick exit nodes); `orca` (screen reader, Super+Alt+S); `brillo` (brightness keys use it when present and
-fall back to `brightnessctl`); a polkit agent (niri starts `polkit-gnome-authentication-agent-1`
-if it exists).
+## The bar
 
-Enable the services (Chimera uses dinit):
+![The bar](screenshots/bar.webp)
 
-```sh
-doas dinitctl enable networkmanager
-doas dinitctl enable bluetoothd
-doas dinitctl enable power-profiles-daemon
-```
+- **Left:** workspaces with a sliding indicator and the focused window's title.
+- **Middle:** the clock, with the calendar one click away.
+- **Right:** chips for volume, Wi-Fi, Bluetooth, Tailscale, caffeine, CPU, RAM, battery, power
+  profile, notifications and the tray. Click a chip for a dropdown; right-click it for a
+  shortcut.
+- **The quote slot:** quotes from games, anime and hacker culture type themselves out next to the
+  clock. Long ones scroll past like a news ticker.
 
-### 2. Check out the dotfiles
+### Skits
 
-```sh
-git clone --bare git@github.com:MatthewRafei/dotfiles.git "$HOME/.dotfiles"   # or the https URL
-alias dots='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
-dots config status.showUntrackedFiles no
+Every few quote changes, a little skit plays instead. There are 19 of them.
 
-# move aside anything the checkout would overwrite, then check out
-mkdir -p ~/.dotfiles-backup
-dots checkout 2>&1 | grep -E '^\s+\.' | awk '{print $1}' | while read -r f; do
-    mkdir -p "$HOME/.dotfiles-backup/$(dirname "$f")"; mv "$HOME/$f" "$HOME/.dotfiles-backup/$f"
-done
-dots checkout
-```
+<p align="center"><img src="screenshots/skits.webp" alt="Bar skits" width="70%"></p>
 
-### 3. Machine-specific fixes
+The bar also **reacts to the machine**:
+- **Battery and power:** it begs for a charge at low battery, thanks you for plugging in, and
+  says "POWER UP!" on the performance profile.
+- **Connections:** it mourns lost internet, and puts on shades (⌐■_■) when Tailscale connects.
+- **Everything else:** it waves at new Bluetooth devices, dances when a song starts, says
+  cheese for screenshots, warns about calendar events, says welcome back, and tells you to go to
+  bed at 3 AM.
 
-A few files have to contain absolute paths. Point them at this user's home:
+## Telemetry HUD
 
-```sh
-sed -i "s|/home/malac0da|$HOME|g" ~/.local/share/applications/chromium.desktop ~/.config/gtk-3.0/bookmarks
-```
+The panel on the right of the desktop sits behind your windows on every workspace:
+- a big clock with the date and week number
+- uptime
+- a 60-second CPU and memory graph
+- gauges for CPU, memory, temperature and battery
 
-(On Chimera `sed -i` is BSD sed: use `sed -i '' "s|...|...|g" file`, or
-`perl -pi -e "s|/home/malac0da|$HOME|g" file` on either system.)
+Mod+H hides it.
 
-Night light "sunset" mode needs a location. This file is not tracked so coordinates stay private:
+## Settings
 
-```sh
-cp ~/.config/gammastep/config.ini.example ~/.config/gammastep/config.ini
-# then set lat= and lon= in config.ini
-```
+![Settings: system, screensaver, sound, monitors](screenshots/settings.webp)
 
-### 4. Build and install the helpers
+The pages are System, Sound (outputs and inputs), Monitors (brightness, night light, scale),
+Screensaver, Network (Wi-Fi, wired and VPNs), Bluetooth and Power. The Power page has profiles
+that switch automatically on battery, battery health, and a charge limit.
 
-```sh
-# night light daemon -> ~/.local/bin/nightlightd
-make -C ~/.local/src/nightlightd install        # gmake; on Chimera `make` is gmake if installed as above
+The **Screensaver** page sets when the screensaver starts, how often the scene changes, when the
+screen locks and when it turns off. It can also skip the screensaver on battery, and it has a
+card for each scene: click one to preview it, or use the switch on the card to take it out of
+the rotation.
 
-# Papirus must live in ~/.local/share/icons so papirus-folders can recolour it without root
-mkdir -p ~/.local/share/icons
-cp -r /usr/share/icons/Papirus /usr/share/icons/Papirus-Dark ~/.local/share/icons/
+## Calendar
 
-# optional, laptops only: battery charge limit (Settings > Power). Installs a root helper and a
-# doas/sudo rule that allows only that helper.
-doas sh ~/.local/src/battery-charge-limit/install.sh
-```
+![Calendar month view](screenshots/calendar-month.webp)
 
-### 5. Wallpaper and first theme
+<p align="center">
+  <img src="screenshots/calendar-week.webp" alt="Week view with event details" width="62%">
+  <img src="screenshots/calendar-dropdown.webp" alt="Clock dropdown" width="36%">
+</p>
 
-Put wallpapers in `~/Pictures/Wallpapers/`, then start niri. This machine logs in with greetd +
-tuigreet (`doas apk add greetd tuigreet`, then in `/etc/greetd/config.toml` set
-`command = "tuigreet --cmd niri"` under `[default_session]`, and `doas dinitctl enable greetd`);
-running `niri` from a TTY also works. Press **Mod+Shift+W** and apply a wallpaper. That runs
-`~/.config/theme/wallpaper-theme`, which writes `~/.cache/theme/palette.json`,
-`~/.config/alacritty/colors.toml`, the fastfetch and mpv themes, and the colour keys in niri,
-fuzzel, gtk and starship. Until it has run once, alacritty warns about the missing `colors.toml`.
+- **Views:** month, week and agenda, with event details, and a quick dropdown from the clock.
+- **Events:** repeating events, multi-day events, reminders, and clickable links.
+- **Storage:** events are plain `.ics` files in `~/.calendar`, so Syncthing keeps them in step
+  between machines, and conflicts are handled.
 
-To theme from the command line: `~/.config/theme/wallpaper-theme /path/to/image`
-(`--print` shows the palette without writing anything).
+## Screensaver
 
-### 6. Check it works
+![Screensaver scenes](screenshots/screensaver.webp)
 
-```sh
-niri validate                    # compositor config parses
-qs log | tail -20                # shell log: should end with "Configuration Loaded"; no errors
-qs ipc show                      # every IPC target the shell exposes
-qs ipc call screensaver start    # preview the screensaver (move the mouse to dismiss)
-```
+After a few idle minutes the screen turns into animated ASCII art:
+- **Hand-drawn scenes:** Half-Life, your distro's logo, Naruto and Death Note.
+- **Scenes made from GIFs and logos:** Nintendo 64, Hack The Box, Emacs, Vim, Factorio, the Dark
+  Souls bonfire and a Half-Life headcrab.
+
+`gif2ascii.py` turns any GIF into coloured block characters. It can remove backgrounds, including
+transparent ones and checkerboards, scale pixel art without smoothing, and animate still logos.
+
+## Lock screen
+
+![Lock screen](screenshots/lock.webp)
+
+The lock screen uses PAM, shows the wallpaper blurred, a clock and a quote, and always locks
+before the laptop suspends.
+
+## And the rest
+
+<p align="center">
+  <img src="screenshots/notifications.webp" alt="Notification center" width="40%">
+  <img src="screenshots/powermenu.webp" alt="Power menu" width="58%">
+</p>
+<p align="center"><img src="screenshots/osd.webp" alt="Volume OSD" width="45%"></p>
+
+- **Notifications:** popups plus a notification center (Mod+N), and do not disturb.
+- **Power menu:** Mod+Shift+E.
+- **Volume pop-up:** appears when the volume changes.
+
+![fastfetch and htop](screenshots/terminal.webp)
+
+- **fastfetch:** a HUD tree layout with the right logo for each distro.
+- **htop:** a header with live graphs, in the theme's colours.
+
+![Package finder](screenshots/package-finder.webp)
+
+- **Package finder** (Mod+Shift+P): fuzzy search over apk and Flathub, installed tabs,
+  sub-packages and offline caches.
+
+Also included:
+- **Tailscale:** a bar chip and dropdown, plus a VPN section in Settings.
+- **Caffeine:** keeps the machine awake.
+- **Night light:** a tiny C gamma daemon with sunset scheduling.
+- **Clipboard history** on Mod+V.
+- **Brightness keys** with exponential steps that fade.
+- **Battery charge limit.**
+- **`songtag`:** identifies your music library with Shazam, through SongRec, and fixes the tags
+  and cover art.
 
 ## Keybinds
 
@@ -163,99 +163,23 @@ qs ipc call screensaver start    # preview the screensaver (move the mouse to di
 | Mod+P / Mod+Ctrl+P / Mod+Alt+P | Screenshot region / screen / window |
 | Mod+Shift+/ | All niri keybinds |
 
-## Idle behaviour
+## Under the hood
 
-Defaults: screensaver after 3 minutes (a new scene every minute), lock after 5 minutes, screen
-stays on. All of it is set in **Settings > Screensaver** (`Idle.qml`, saved per machine in
-`~/.cache/quickshell/idle.json`): start / lock / screen-off times, how often the scene changes,
-skipping the screensaver on battery, the scene-name label, and which scenes are in the rotation
-(click a card to preview it). Everything respects idle inhibitors (video players) and Caffeine.
-The screen also locks before suspend. `qs ipc call screensaver status` prints the timings in use.
+| | |
+|---|---|
+| OS | Chimera Linux (Gentoo works too) |
+| Compositor | niri, or Hyprland |
+| Shell | Quickshell (QML), one config in `~/.config/quickshell` |
+| Wallpaper | awww + `~/.config/theme/wallpaper-theme` |
+| Terminal / launcher | alacritty, fuzzel |
+| Font | JetBrainsMono Nerd Font |
+| Dotfiles | a bare git repo whose work tree is `$HOME` |
 
-Screensaver scenes are in `ScreensaverScenes.js`. Hand-drawn scenes: Half-Life, your OS (logo
-from fastfetch: Chimera, Gentoo, ...), Naruto, Death Note. Logos can be pasted in as braille art
-(see `brailleDots()`); they are redrawn with quarter blocks. GIF scenes come from
-`screensaver/gifs/` and are converted to coloured block characters by `screensaver/gif2ascii.py`.
-The converted frames are cached in `~/.cache/screensaver/` per screen size. To add one, drop a GIF
-in `screensaver/gifs/` and add a `gifScene(...)` line in `ScreensaverScenes.js`.
-GIFs with a flat light background (like the Nintendo 64 boot screen) need converter options in
-the scene: `{ convert: ["8", "crop=WxH+X+Y", "key=auto", "keytol=70"] }` crops, removes the
-background, and draws the rest as solid colour blocks. Other options: `key=alpha` (transparent
-GIFs/PNGs, can be combined with colours: `key=alpha,#000000`), several key colours for a baked-in
-checkerboard, `size=0.75`, `pixel=1` for pixel art, and `still=1`, which turns a still logo into an
-animation (slow bob + light sweep). All options are documented at the top of
-`screensaver/gif2ascii.py`.
+It's driven by IPC: `qs ipc show` lists every command, for example `qs ipc call bar skit pacman`
+or `qs ipc call screensaver scene n64`.
 
-## Hyprland
+**[→ How to install it](INSTALL.md)**. The install guide also has notes for an AI agent doing the
+setup.
 
-The shell detects the compositor at runtime (`Compositor.qml`, from `HYPRLAND_INSTANCE_SIGNATURE`
-/ `NIRI_SOCKET`), so the same files work under both. `~/.config/hypr/hyprland.lua` is the shared
-config: the shell, startup programs and the keybinds in the table below. Two untracked files sit
-next to it:
-
-- `machine.lua`: this machine's monitors, workspace pins, extra programs and binds. It is loaded
-  last; to change a bind the shared file sets, `hl.unbind` it first.
-- `colors.lua`: border colours, written by `wallpaper-theme`.
-
-Extra packages: `hyprland`, `hyprshot` (screenshots go to `~/Pictures/Screenshots`), and
-`hyprpolkitagent` or polkit-gnome. Not needed: `xwayland-satellite`. Notes:
-
-- With a Lua config, `hyprctl dispatch` takes Lua: `hyprctl dispatch 'hl.dsp.focus({ workspace = "m+1" })'`.
-  Check a config with `Hyprland --verify-config -c ~/.config/hypr/hyprland.lua`.
-- The Monitors page changes outputs with `hyprctl eval 'hl.monitor({...})'` (until reload).
-- The package finder (Mod+Shift+P) is apk-only, so it isn't bound under Hyprland yet.
-- `~/.local/bin/chromium` falls back to `google-chrome-stable` (Chrome isn't themed).
-- Don't run waybar, mako, swww or gammastep alongside: the shell replaces them.
-
-## Other distros
-
-Nothing is Chimera-only except package names, `doas`, and dinit. Notes:
-
-- Use your package manager's names for the list above. `awww` is the wallpaper daemon
-  (the successor to swww); `wayland-progs` provides `wayland-scanner`.
-- Lock screen auth uses `~/.config/quickshell/pam/password.conf` (`pam_unix`), so no system PAM
-  file is needed.
-- The OS scene in the screensaver and the package finder detect the system at runtime; the
-  package finder only supports apk and flatpak.
-- Desktops without a backlight: the brightness slider hides itself; nothing to install.
-- Gentoo: niri, quickshell, cliphist and xwayland-satellite are in GURU. The font is
-  `media-fonts/nerdfonts` with `USE=jetbrainsmono` (the default build is symbols only, and every
-  config then falls back to a proportional font); without root, unpack `JetBrainsMono.tar.xz` from
-  the Nerd Fonts releases into `~/.local/share/fonts` and run `fc-cache -f`. Lock before suspend
-  needs elogind (`elogind-inhibit`), the OpenRC default.
-
-## For Claude Code (or another agent) setting this up
-
-Follow the steps above in order. Things that will trip you up:
-
-- **The repo is bare.** Always use `git --git-dir=$HOME/.dotfiles --work-tree=$HOME ...`
-  (alias `dots`). Never `git init` in `$HOME`, and never run `git add -A` or `git add .`: the
-  work tree is the whole home directory. Add files by path.
-- **Back up before overwriting.** Step 2 moves conflicting files to `~/.dotfiles-backup/`. Don't
-  delete the user's existing configs.
-- **Root steps need the user.** `apk add`, `dinitctl enable` and the charge-limit install need
-  `doas`. Ask the user to run them (for example with `! doas ...` in Claude Code) rather than
-  storing or guessing a password.
-- **Chimera userland is BSD.** `sed -i` needs `''`; there is no `tac`, and GNU-only flags of
-  `tail`, `tar` and `grep -P` don't work. Prefer `perl -pi -e` or a Python one-off for edits.
-- **niri's PATH lacks `~/.local/bin`.** Keybinds call scripts as `spawn-sh "~/.local/bin/..."`.
-  Keep that pattern for new binds.
-- **Quickshell reloads itself** when a `.qml` file in `~/.config/quickshell` changes. Edits to a `.pragma library` `.js`
-  file (`ScreensaverScenes.js`, `CalendarLib.js`) are NOT picked up by a reload: the old copy stays
-  in memory. Restart the shell with `qs kill; qs -d` (the bar blinks for a second). Check
-  `qs log` after every change. `qs ipc call <target> <function>` drives every component without
-  touching the mouse.
-- **Screenshots for checking your work:** `niri msg action screenshot-screen --write-to-disk true`
-  writes to `~/Pictures/Screenshots/`. Each one adds a notification; clear them with
-  `qs ipc call notifs clear`.
-- **Hardware differences are handled at runtime.** Without a battery, the bar and Settings hide
-  the battery and charge-limit UI. Without power-profiles-daemon, the profile buttons hide.
-  Don't hard-code hardware paths.
-- **Keep private data out of the repo.** No location in `gammastep/config.ini`, no calendar files
-  (`~/.calendar`), no tokens. The repo is public.
-- If a QML component fails to load, the whole shell can come up without a bar. Read `qs log`,
-  fix the error, and the shell reloads on save.
-- On a live reload (save while the shell runs) a component that fails to load can be dropped
-  silently: the old version keeps running and `qs log` still says "Configuration Loaded". After
-  changing a file with an `IpcHandler`, check `qs ipc show` lists what you expect. Properties
-  from newer Quickshell docs (e.g. `FileView.printErrors`) may not exist in the packaged version.
+<sub>Screenshots are from a 1920×1200 laptop. Wallpapers aren't included. The calendar events
+and notifications shown are made up.</sub>
