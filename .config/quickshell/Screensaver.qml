@@ -28,6 +28,11 @@ Scope {
     }
 
     property string pending: ""
+
+    // a preview (started from Settings or by IPC) ignores input for a moment,
+    // so the click / hand on the mouse that started it doesn't end it at once
+    property real graceUntil: 0
+    function inGrace() { return Date.now() < graceUntil }
     onActiveChanged: {
         if (active) { scene = null; startSoon.restart() }
         else forced = false
@@ -230,8 +235,8 @@ Scope {
 
     IpcHandler {
         target: "screensaver"
-        function start(): void { root.pending = ""; root.forced = true; startSoon.restart() }
-        function scene(id: string): void { root.pending = id; root.forced = true; startSoon.restart() }
+        function start(): void { root.graceUntil = Date.now() + 1500; root.pending = ""; root.forced = true; startSoon.restart() }
+        function scene(id: string): void { root.graceUntil = Date.now() + 1500; root.pending = id; root.forced = true; startSoon.restart() }
         function stop(): void { root.forced = false }
         function list(): string { return Scenes.list().join(" ") }
     }
@@ -257,20 +262,21 @@ Scope {
             Behavior on opacity { NumberAnimation { duration: 700; easing.type: Easing.InOutQuad } }
 
             focus: root.active
-            Keys.onPressed: event => { root.forced = false; event.accepted = true }
+            Keys.onPressed: event => { if (!root.inGrace()) root.forced = false; event.accepted = true }
 
             MouseArea {
                 anchors.fill: parent
                 hoverEnabled: true
                 property point last: Qt.point(-1, -1)
                 onPositionChanged: mouse => {
-                    // first event after appearing just records where the pointer is
-                    if (last.x >= 0 && (Math.abs(mouse.x - last.x) > 3 || Math.abs(mouse.y - last.y) > 3))
+                    // first event after appearing (or during a preview's grace
+                    // period) just records where the pointer is
+                    if (last.x >= 0 && !root.inGrace() && (Math.abs(mouse.x - last.x) > 3 || Math.abs(mouse.y - last.y) > 3))
                         root.forced = false
                     last = Qt.point(mouse.x, mouse.y)
                 }
-                onPressed: root.forced = false
-                onWheel: root.forced = false
+                onPressed: if (!root.inGrace()) root.forced = false
+                onWheel: if (!root.inGrace()) root.forced = false
             }
 
             FontMetrics {
