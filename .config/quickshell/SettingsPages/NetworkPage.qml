@@ -703,17 +703,20 @@ Item {
 
         Item {
             width: parent.width
+            // what's left under the header and the divider (and the column's
+            // two 12 px gaps), so the end of the list isn't cut off
             height: parent.height
                     - header.height
-                    - 12
                     - 1
+                    - 2 * 12
 
             Flickable {
                 anchors.fill: parent
                 clip: true
 
                 contentWidth: width
-                contentHeight: list.height
+                // a little room after the last card
+                contentHeight: list.height + 12
 
                 Column {
                     id: list
