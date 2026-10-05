@@ -258,6 +258,8 @@ Scope {
             }
 
             function loadScene(id) {
+                // too small to draw yet: try again once the window has its size
+                if (grid.cols < 20 || grid.rows < 10) { prefer = id; startSoon.restart(); return }
                 currentId = id
                 const s = Scenes.get(id)
                 if (s.gif) {
@@ -378,7 +380,9 @@ Scope {
                     anchors.centerIn: parent
 
                     // resized while showing: restart the same scene at the new size
-                    onColsChanged: if (root.active && win.scene) win.loadScene(win.scene.id)
+                    // (not while the window is still being sized: a 0-wide grid would
+                    // write a broken cache file)
+                    onColsChanged: if (root.active && win.scene && grid.cols >= 20 && grid.rows >= 10) win.loadScene(win.scene.id)
 
                     Item {
                         id: sceneLayer

@@ -348,13 +348,14 @@ function gifScene(id, name, file, opts) {
         id: id, name: name, gif: file, convert: opts.convert || [], colors: [],
         init(ctx) {
             const d = ctx.gif
-            this.colors = d.palette
-            this.cache = []
-            this.fi = 0
-            this.acc = 0
+            this.colors = d.palette          // read straight away by the engine
+            // playback state lives in ctx: every monitor has its own ctx, the
+            // scene object is shared
+            ctx.gs = { cache: [], fi: 0, acc: 0 }
         },
         layersFor(ctx, f) {
-            if (this.cache[f]) return this.cache[f]
+            const gs = ctx.gs
+            if (gs.cache[f]) return gs.cache[f]
             const d = ctx.gif, fr = d.frames[f], w = d.w, pad = " ".repeat(d.x)
             const out = []
             for (let k = 0; k < d.palette.length; k++) {
@@ -368,17 +369,18 @@ function gifScene(id, name, file, opts) {
                 }
                 out.push(lines.join("\n"))
             }
-            this.cache[f] = out
+            gs.cache[f] = out
             return out
         },
         frame(ctx, t, dt) {
             const d = ctx.gif
-            this.acc += dt * 1000
-            while (this.acc >= Math.max(40, d.delays[this.fi] || 80)) {
-                this.acc -= Math.max(40, d.delays[this.fi] || 80)
-                this.fi = (this.fi + 1) % d.frames.length
+            const gs = ctx.gs
+            gs.acc += dt * 1000
+            while (gs.acc >= Math.max(40, d.delays[gs.fi] || 80)) {
+                gs.acc -= Math.max(40, d.delays[gs.fi] || 80)
+                gs.fi = (gs.fi + 1) % d.frames.length
             }
-            ctx.raw = this.layersFor(ctx, this.fi)
+            ctx.raw = this.layersFor(ctx, gs.fi)
             if (opts.title) {
                 ctx.titleY = opts.titleY || 0.86
                 title(ctx, t, opts.title, opts.sub || "", opts.color || "#e8e8e8", opts.at || 6, 54)

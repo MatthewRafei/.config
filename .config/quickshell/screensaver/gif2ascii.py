@@ -58,6 +58,8 @@ def main(gif, cols, rows, asp, out, *extra):
         else:
             ncolors = int(e)
     cols, rows, asp = int(cols), int(rows), float(asp)
+    if cols < 20 or rows < 10:
+        sys.exit("gif2ascii: grid %dx%d is too small (window not sized yet?)" % (cols, rows))
     crop = opt.get("crop")
     key = opt.get("key")
     keytol = float(opt.get("keytol", 40))
