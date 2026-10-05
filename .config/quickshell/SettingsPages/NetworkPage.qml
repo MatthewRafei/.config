@@ -7,6 +7,9 @@ Item {
 
     property bool wifiEnabled: true
     property var networks: []
+    // the connected network first, then the rest (headed separately in the list)
+    readonly property var networksOrdered: networks.filter(n => n.connected)
+                                            .concat(networks.filter(n => !n.connected))
     property bool scanning: false
     property string pendingSsid: ""
 
@@ -910,7 +913,8 @@ Item {
                     Item { width: 1; height: 14 }
 
                     Text {
-                        text: page.wired ? "// WIRED" : "// WI-FI"
+                        visible: page.wired
+                        text: "// WIRED"
                         color: Theme.textDim
                         font.family: Theme.fontFamily
                         font.pixelSize: 11
@@ -1167,13 +1171,34 @@ Item {
                     // ------------------------------------------------------
 
                     Repeater {
-                        model: page.wired ? [] : page.networks
+                        model: page.wired ? [] : page.networksOrdered
 
                         delegate: Column {
                             required property var modelData
+                            required property int index
 
                             width: list.width
                             spacing: 6
+
+                            // headings: the connected network, then the others
+                            Text {
+                                visible: modelData.connected && index === 0
+                                text: "// CONNECTED"
+                                color: Theme.textDim
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 11
+                                font.letterSpacing: 3
+                            }
+                            Text {
+                                visible: !modelData.connected
+                                         && (index === 0 || page.networksOrdered[index - 1].connected)
+                                topPadding: index > 0 ? 12 : 0
+                                text: "// AVAILABLE NETWORKS"
+                                color: Theme.textDim
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 11
+                                font.letterSpacing: 3
+                            }
 
                             // --------------------------------------------------
                             // Network card
