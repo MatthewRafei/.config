@@ -99,7 +99,7 @@ the rotation.
 
 ![Screensaver scenes](screenshots/screensaver.gif)
 
-After a few idle minutes the screen turns into animated ASCII art:
+After a few idle minutes every monitor turns into animated ASCII art, each with its own scene:
 - **Hand-drawn scenes:** Half-Life, your distro's logo, Naruto and Death Note.
 - **Scenes made from GIFs and logos:** Nintendo 64, Hack The Box, Emacs, Vim, Factorio, the Dark
   Souls bonfire and a Half-Life headcrab.

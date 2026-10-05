@@ -1420,7 +1420,7 @@ PanelWindow {
         spacing: 2
 
 
-        // volume: scroll = ±5%, click = mute, right = pavucontrol
+        // volume: scroll = ±5%, click = mute, right = sound dropdown (QuickPanel.qml)
         Chip {
             icon: bar.muted ? "󰝟" : bar.volume < 0.34 ? "󰕿" : bar.volume < 0.67 ? "󰖀" : "󰕾"
             value: bar.muted ? "" : Math.round(bar.volume * 100) + "%"
@@ -1428,7 +1428,7 @@ PanelWindow {
             accent: bar.muted ? Theme.danger : Theme.text
             onClicked: mouse => {
                 if (mouse.button === Qt.RightButton)
-                    Quickshell.execDetached(["pavucontrol"])
+                    Quickshell.execDetached(["qs", "ipc", "call", "quick", "audio"])
                 else if (bar.sink && bar.sink.audio)
                     bar.sink.audio.muted = !bar.sink.audio.muted
             }

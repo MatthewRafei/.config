@@ -2,9 +2,10 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Bluetooth
+import Quickshell.Services.Pipewire
 import QtQuick
 
-// Quick toggles dropped down from the bar's NET / BT chips.
+// Quick toggles dropped down from the bar's NET / BT / volume chips.
 //
 //   wi-fi      radio on/off, rescan, networks sorted by signal; click to
 //              connect (known networks reconnect, new secured ones ask for
@@ -14,11 +15,15 @@ import QtQuick
 //   vpn        tailscale up/down, this machine's address (click = copy),
 //              exit node choice, devices on the tailnet (click = copy ip)
 //
-//   qs ipc call quick net | bt | vpn | close
+//   sound      output volume and device, input volume and device, and a
+//              volume for every app playing (or recording) audio; click an
+//              icon to mute, scroll a slider for ±5%
+//
+//   qs ipc call quick net | bt | vpn | audio | close
 PanelWindow {
     id: root
 
-    property string mode: ""          // "", "net", "bt" or "vpn"
+    property string mode: ""          // "", "net", "bt", "vpn" or "audio"
     readonly property bool open: mode !== ""
 
     function toggle(m) {
@@ -34,6 +39,7 @@ PanelWindow {
         function net(): void { root.toggle("net") }
         function bt(): void { root.toggle("bt") }
         function vpn(): void { root.toggle("vpn") }
+        function audio(): void { root.toggle("audio") }
         function close(): void { root.mode = "" }
     }
 
@@ -48,6 +54,28 @@ PanelWindow {
     MouseArea {
         anchors.fill: parent
         onClicked: root.mode = ""
+    }
+
+    // ================================================================ sound
+    readonly property var sink: Pipewire.defaultAudioSink
+    readonly property var source: Pipewire.defaultAudioSource
+    readonly property var audioNodes: Pipewire.nodes.values.filter(n => n.audio)
+    function mediaClass(n) { return n.properties["media.class"] || "" }
+    readonly property var outputs: audioNodes.filter(n => mediaClass(n) === "Audio/Sink")
+    readonly property var inputs: audioNodes.filter(n => mediaClass(n) === "Audio/Source")
+    // apps playing, then apps recording (not PipeWire's own internal streams)
+    readonly property var streams: audioNodes.filter(n => mediaClass(n) === "Stream/Output/Audio")
+        .concat(audioNodes.filter(n => mediaClass(n) === "Stream/Input/Audio"))
+
+    // .audio is only live on tracked nodes
+    PwObjectTracker { objects: root.mode === "audio" ? root.audioNodes : [] }
+
+    function nodeName(n) {
+        return n ? (n.description || n.nickname || n.name || "unknown") : "none"
+    }
+    function appName(n) {
+        const p = n.properties
+        return p["application.name"] || p["application.process.binary"] || n.description || n.name || "app"
     }
 
     // ================================================================ wi-fi
@@ -244,6 +272,130 @@ PanelWindow {
         }
     }
 
+    // small caps label between sections
+    component Label2: Text {
+        color: Theme.textFaint
+        font.family: Theme.fontFamily
+        font.pixelSize: 9
+        font.letterSpacing: 2
+        topPadding: 6
+    }
+
+    // a node's volume: mute button, name, slider (drag or scroll), percent
+    component VolRow: Item {
+        id: vr
+        property var node: null
+        property string icon: "󰕾"
+        property string mutedIcon: "󰝟"
+        property string label
+        property string sub
+        readonly property bool ok: node !== null && node.audio !== null
+        readonly property bool muted: ok && node.audio.muted
+        readonly property real vol: ok ? node.audio.volume : 0
+
+        function setVol(v) {
+            if (!ok) return
+            node.audio.muted = false
+            node.audio.volume = Math.max(0, Math.min(1, v))
+        }
+
+        width: parent ? parent.width : 0
+        height: 40
+
+        Rectangle {
+            id: muteBtn
+            width: 26; height: 26
+            anchors.verticalCenter: parent.verticalCenter
+            radius: Theme.radius
+            color: vr.muted ? Theme.alpha(Theme.danger, 0.15)
+                 : muteMouse.containsMouse ? Theme.bgCard : "transparent"
+            border.color: vr.muted ? Theme.danger : muteMouse.containsMouse ? Theme.accent : Theme.border
+            Text {
+                anchors.centerIn: parent
+                text: vr.muted ? vr.mutedIcon : vr.icon
+                color: vr.muted ? Theme.danger : Theme.accent
+                font.family: Theme.iconFont
+                font.pixelSize: 13
+            }
+            MouseArea {
+                id: muteMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: if (vr.ok) vr.node.audio.muted = !vr.node.audio.muted
+            }
+        }
+
+        Column {
+            anchors.left: muteBtn.right
+            anchors.leftMargin: 10
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+
+            Item {
+                width: parent.width
+                height: nameText.implicitHeight
+                Text {
+                    id: nameText
+                    width: parent.width - pct.width - 8
+                    elide: Text.ElideRight
+                    text: vr.label + (vr.sub ? "  ·  " + vr.sub : "")
+                    color: vr.muted ? Theme.textDim : Theme.text
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 10
+                }
+                Text {
+                    id: pct
+                    anchors.right: parent.right
+                    text: vr.muted ? "MUTED" : Math.round(vr.vol * 100) + "%"
+                    color: vr.muted ? Theme.danger : Theme.textFaint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 9
+                    font.letterSpacing: 1
+                }
+            }
+
+            // track
+            Item {
+                width: parent.width
+                height: 10
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width
+                    height: 4
+                    radius: 2
+                    color: Theme.trackBg
+                    Rectangle {
+                        width: parent.width * Math.min(1, vr.vol)
+                        height: parent.height
+                        radius: 2
+                        color: vr.muted ? Theme.textFaint : Theme.accent
+                    }
+                }
+                Rectangle {
+                    visible: trackMouse.containsMouse || trackMouse.pressed
+                    x: (parent.width - width) * Math.min(1, vr.vol)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 10; height: 10
+                    radius: 5
+                    color: Theme.accent
+                }
+                MouseArea {
+                    id: trackMouse
+                    anchors.fill: parent
+                    anchors.topMargin: -6
+                    anchors.bottomMargin: -6
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onPressed: mouse => vr.setVol(mouse.x / width)
+                    onPositionChanged: mouse => { if (pressed) vr.setVol(mouse.x / width) }
+                    onWheel: wheel => vr.setVol(vr.vol + (wheel.angleDelta.y > 0 ? 0.05 : -0.05))
+                }
+            }
+        }
+    }
+
     // one row in either list
     component Row2: Rectangle {
         id: row
@@ -309,7 +461,8 @@ PanelWindow {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                width: 190
+                // as wide as the tag on the right allows
+                width: row.width - 12 - 18 - 10 - 12 - (tagText.text ? tagText.implicitWidth + 10 : 0)
                 elide: Text.ElideRight
                 text: row.label
                 color: row.active ? Theme.accent : Theme.text
@@ -320,6 +473,7 @@ PanelWindow {
         }
 
         Text {
+            id: tagText
             anchors.right: parent.right
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
@@ -635,6 +789,93 @@ PanelWindow {
                 }
             }
 
+            // ------------------------------------------------ sound
+            Column {
+                visible: root.mode === "audio"
+                width: parent.width
+                spacing: 4
+
+                Head {
+                    title: "// SOUND"
+                    on: root.sink !== null && root.sink.audio !== null && !root.sink.audio.muted
+                    onToggled: if (root.sink && root.sink.audio) root.sink.audio.muted = !root.sink.audio.muted
+                }
+
+                Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+                Label2 { text: "OUTPUT" }
+                VolRow {
+                    node: root.sink
+                    label: root.nodeName(root.sink)
+                }
+                Repeater {
+                    model: root.outputs.length > 1 ? root.outputs : []
+                    Row2 {
+                        required property var modelData
+                        height: 30
+                        icon: /head|line/i.test(root.nodeName(modelData)) ? "󰋋"
+                            : /hdmi|displayport/i.test(root.nodeName(modelData)) ? "󰍹" : "󰓃"
+                        label: root.nodeName(modelData)
+                        active: root.sink !== null && modelData.id === root.sink.id
+                        onClicked: Pipewire.preferredDefaultAudioSink = modelData
+                    }
+                }
+
+                Label2 { text: "INPUT" }
+                VolRow {
+                    node: root.source
+                    icon: "󰍬"
+                    mutedIcon: "󰍭"
+                    label: root.nodeName(root.source)
+                }
+                Repeater {
+                    model: root.inputs.length > 1 ? root.inputs : []
+                    Row2 {
+                        required property var modelData
+                        height: 30
+                        icon: /webcam|camera/i.test(root.nodeName(modelData)) ? "󰄀" : "󰍬"
+                        label: root.nodeName(modelData)
+                        active: root.source !== null && modelData.id === root.source.id
+                        onClicked: Pipewire.preferredDefaultAudioSource = modelData
+                    }
+                }
+
+                Label2 { text: "APPS" }
+                Text {
+                    visible: root.streams.length === 0
+                    text: "nothing playing"
+                    color: Theme.textFaint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 10
+                    topPadding: 2
+                }
+                Flickable {
+                    width: parent.width
+                    height: Math.min(appList.implicitHeight, 260)
+                    contentHeight: appList.implicitHeight
+                    clip: true
+                    visible: root.streams.length > 0
+
+                    Column {
+                        id: appList
+                        width: parent.width
+                        spacing: 2
+                        Repeater {
+                            model: root.streams
+                            VolRow {
+                                required property var modelData
+                                readonly property bool rec: root.mediaClass(modelData) === "Stream/Input/Audio"
+                                node: modelData
+                                icon: rec ? "󰍬" : "󰎆"
+                                mutedIcon: rec ? "󰍭" : "󰝟"
+                                label: root.appName(modelData)
+                                sub: modelData.properties["media.name"] || ""
+                            }
+                        }
+                    }
+                }
+            }
+
             // ------------------------------------------------ footer
             Rectangle { width: parent.width; height: 1; color: Theme.border }
 
@@ -651,8 +892,10 @@ PanelWindow {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
+                        const sound = root.mode === "audio"
                         root.mode = ""
-                        Quickshell.execDetached(["qs", "ipc", "call", "settings", "open"])
+                        Quickshell.execDetached(sound ? ["qs", "ipc", "call", "settings", "page", "Sound"]
+                                                      : ["qs", "ipc", "call", "settings", "open"])
                     }
                 }
             }

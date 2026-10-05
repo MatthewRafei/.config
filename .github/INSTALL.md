@@ -59,7 +59,7 @@ package names differ; see [Other distros](#other-distros).
 ```sh
 doas apk add niri quickshell alacritty fuzzel nautilus chromium \
     cliphist wl-clipboard xwayland-satellite blueman bluez networkmanager \
-    pipewire wireplumber pavucontrol playerctl brightnessctl power-profiles-daemon \
+    pipewire wireplumber playerctl brightnessctl power-profiles-daemon \
     starship fzf fastfetch imagemagick python jq git flatpak mpv awww \
     fonts-nerd-jetbrains-mono papirus-icon-theme \
     clang gmake pkgconf wayland-devel wayland-progs

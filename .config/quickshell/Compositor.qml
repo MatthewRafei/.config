@@ -22,6 +22,7 @@ Singleton {
     property var workspaces: []
     property string windowTitle: ""
     property string windowApp: ""
+    property string focusedOutput: ""   // name of the focused monitor, e.g. "DP-1"
 
     // -------------------------
     // actions
@@ -123,6 +124,8 @@ Singleton {
             var ws = JSON.parse(parts[0])
             ws.sort(function (a, b) { return a.idx - b.idx })
             comp.workspaces = ws
+            var f = ws.find(function (w) { return w.is_focused })
+            if (f) comp.focusedOutput = f.output || ""
         } catch (e) {}
         try {
             var win = JSON.parse(parts[1] || "null")
@@ -140,8 +143,10 @@ Singleton {
             var ws = JSON.parse(parts[0])
             var mons = JSON.parse(parts[1])
             var shown = {}
-            for (var i = 0; i < mons.length; i++)
+            for (var i = 0; i < mons.length; i++) {
                 shown[mons[i].activeWorkspace.id] = true
+                if (mons[i].focused) comp.focusedOutput = mons[i].name
+            }
             comp.workspaces = ws
                 .filter(function (w) { return w.id > 0 })   // skip special workspaces
                 .sort(function (a, b) { return a.id - b.id })
