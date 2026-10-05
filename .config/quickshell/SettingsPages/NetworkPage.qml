@@ -357,6 +357,27 @@ Item {
         pSaved.running = true
     }
 
+    // forget a saved network: first click arms it for 3 s, second click deletes
+    property string confirmForget: ""
+    Timer { id: forgetTimeout; interval: 3000; onTriggered: page.confirmForget = "" }
+
+    Process {
+        id: pForget
+        onExited: { pKnown.running = true; pList.running = true }
+    }
+
+    function forget(ssid) {
+        if (page.confirmForget !== ssid) {
+            page.confirmForget = ssid
+            forgetTimeout.restart()
+            return
+        }
+        page.confirmForget = ""
+        if (page.pendingSsid === ssid) page.pendingSsid = ""
+        pForget.command = ["nmcli", "connection", "delete", "id", ssid]
+        pForget.running = true
+    }
+
     function connectOpen(ssid) {
         pConnect.command = [
             "nmcli",
@@ -1341,10 +1362,32 @@ Item {
                                 }
 
                                 // ----------------------------------------------
+                                // Forget (saved networks)
+                                // ----------------------------------------------
+
+                                Text {
+                                    visible: page.isKnown(modelData.ssid)
+                                    anchors.right: connText.left
+                                    anchors.rightMargin: 18
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: page.confirmForget === modelData.ssid ? "FORGET? CLICK AGAIN" : "FORGET"
+                                    color: page.confirmForget === modelData.ssid ? Theme.danger : Theme.textFaint
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 10
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        anchors.margins: -4
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: page.forget(modelData.ssid)
+                                    }
+                                }
+
+                                // ----------------------------------------------
                                 // Connect / disconnect
                                 // ----------------------------------------------
 
                                 Text {
+                                    id: connText
                                     anchors.right: parent.right
                                     anchors.rightMargin: 14
 
@@ -1477,6 +1520,59 @@ Item {
                                             )
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+
+                    // ------------------------------------------------------
+                    // Saved networks that aren't in range (forget only)
+                    // ------------------------------------------------------
+
+                    Text {
+                        visible: !page.wired && savedAway.count > 0
+                        topPadding: 12
+                        text: "// SAVED, NOT IN RANGE"
+                        color: Theme.textDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        font.letterSpacing: 3
+                    }
+
+                    Repeater {
+                        id: savedAway
+                        model: page.wired ? [] : page.known.filter(k => !page.networks.some(n => n.ssid === k))
+
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: list.width
+                            height: 40
+                            radius: Theme.radius
+                            color: "transparent"
+                            border.color: Theme.border
+
+                            Text {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 14
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: modelData
+                                color: Theme.textDim
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 12
+                            }
+                            Text {
+                                anchors.right: parent.right
+                                anchors.rightMargin: 14
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: page.confirmForget === modelData ? "FORGET? CLICK AGAIN" : "FORGET"
+                                color: page.confirmForget === modelData ? Theme.danger : Theme.textFaint
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 10
+                                MouseArea {
+                                    anchors.fill: parent
+                                    anchors.margins: -4
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: page.forget(modelData)
                                 }
                             }
                         }
