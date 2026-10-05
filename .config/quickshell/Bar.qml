@@ -1420,14 +1420,14 @@ PanelWindow {
         spacing: 2
 
 
-        // volume: scroll = ±5%, click = mute, right = sound dropdown (QuickPanel.qml)
+        // volume: scroll = ±5%, click = sound dropdown (QuickPanel.qml), right = mute
         Chip {
             icon: bar.muted ? "󰝟" : bar.volume < 0.34 ? "󰕿" : bar.volume < 0.67 ? "󰖀" : "󰕾"
             value: bar.muted ? "" : Math.round(bar.volume * 100) + "%"
             gauge: bar.muted ? 0 : Math.min(1, bar.volume)
             accent: bar.muted ? Theme.danger : Theme.text
             onClicked: mouse => {
-                if (mouse.button === Qt.RightButton)
+                if (mouse.button !== Qt.RightButton)
                     Quickshell.execDetached(["qs", "ipc", "call", "quick", "audio"])
                 else if (bar.sink && bar.sink.audio)
                     bar.sink.audio.muted = !bar.sink.audio.muted
