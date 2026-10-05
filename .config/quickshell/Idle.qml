@@ -58,7 +58,8 @@ Singleton {
         onIsIdleChanged: {
             if (!enabled) return
             if (Compositor.hyprland)
-                Quickshell.execDetached(["hyprctl", "dispatch", "dpms", isIdle ? "off" : "on"])
+                // a table: a plain string argument is ignored and dpms just toggles
+                Compositor.hyprDispatch('hl.dsp.dpms({ action = "' + (isIdle ? "off" : "on") + '" })')
             else if (isIdle)
                 // niri turns the outputs back on by itself at the next input
                 Quickshell.execDetached(["niri", "msg", "action", "power-off-monitors"])
