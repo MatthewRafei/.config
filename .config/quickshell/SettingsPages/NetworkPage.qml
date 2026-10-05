@@ -261,6 +261,17 @@ Item {
                     if (isNaN(signal))
                         signal = 0
 
+                    // one entry per name: a network with several access
+                    // points / bands is listed once (strongest signal)
+                    var prev = null
+                    for (var k = 0; k < out.length; ++k)
+                        if (out[k].ssid === ssid) { prev = out[k]; break }
+                    if (prev) {
+                        prev.signal = Math.max(prev.signal, signal)
+                        prev.connected = prev.connected || inUse === "*"
+                        continue
+                    }
+
                     out.push({
                         ssid: ssid,
                         signal: signal,
@@ -269,7 +280,9 @@ Item {
                     })
                 }
 
+                out.sort((a, b) => b.signal - a.signal)
                 page.networks = out
+                pKnown.running = true
             }
         }
 
@@ -300,6 +313,48 @@ Item {
                 pList.running = true
             }
         }
+    }
+
+    // Wi-Fi profiles NetworkManager already has (connect without asking)
+    property var known: []
+    property string failedSsid: ""     // saved profile that didn't work: ask for the password
+
+    Process {
+        id: pKnown
+        command: ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var k = []
+                var lines = text.trim().split("\n")
+                for (var i = 0; i < lines.length; ++i) {
+                    var m = lines[i].match(/^(.*):802-11-wireless$/)
+                    if (m) k.push(m[1].replace(/\\:/g, ":"))
+                }
+                page.known = k
+            }
+        }
+    }
+
+    function isKnown(ssid) { return page.known.indexOf(ssid) >= 0 }
+
+    // a saved network: bring its profile up; if that fails, show the password row
+    Process {
+        id: pSaved
+        property string ssid: ""
+        onExited: code => {
+            if (code !== 0) {
+                page.failedSsid = ssid
+                page.pendingSsid = ssid
+            }
+            pList.running = true
+        }
+    }
+
+    function connectSaved(ssid) {
+        page.failedSsid = ""
+        pSaved.ssid = ssid
+        pSaved.command = ["nmcli", "connection", "up", "id", ssid]
+        pSaved.running = true
     }
 
     function connectOpen(ssid) {
@@ -1317,6 +1372,13 @@ Item {
                                                 modelData.connected
                                             ) {
                                                 page.disconnect(
+                                                    modelData.ssid
+                                                )
+                                            } else if (
+                                                page.isKnown(modelData.ssid)
+                                                && page.failedSsid !== modelData.ssid
+                                            ) {
+                                                page.connectSaved(
                                                     modelData.ssid
                                                 )
                                             } else if (
