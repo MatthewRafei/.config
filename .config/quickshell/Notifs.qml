@@ -28,6 +28,9 @@ Singleton {
 
     ListModel { id: popupModel }
 
+    // every incoming notification (PhonePush forwards these while away)
+    signal received(var n)
+
     NotificationServer {
         id: server
 
@@ -44,6 +47,7 @@ Singleton {
             n.closed.connect(() => root.dropPopup(n))
             if (!root.dnd || n.urgency === NotificationUrgency.Critical)
                 popupModel.insert(0, { notif: n })
+            root.received(n)
         }
     }
 

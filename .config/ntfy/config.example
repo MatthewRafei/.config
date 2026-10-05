@@ -1,0 +1,5 @@
+# Copy to ~/.config/ntfy/config (untracked) and fill in.
+# Read by ~/.local/bin/ntfy-send.
+NTFY_URL=http://ntfy.example.lan:30184
+NTFY_TOPIC=desktop
+# NTFY_TOKEN=tk_...   # only if the server has auth turned on

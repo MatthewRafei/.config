@@ -23,6 +23,7 @@ ShellRoot {
     NotificationCenter {}
     Lock { id: lock }
     Screensaver { locked: lock.locked }
+    PhonePush { locked: lock.locked }
     PowerMenu {}
     QuickPanel {}
     CalendarPanel {}

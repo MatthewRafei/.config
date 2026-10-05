@@ -34,16 +34,19 @@ What lives where:
   Idle.qml                     idle settings: screensaver / lock / screen-off times, scene rotation
   Vpn.qml                      Tailscale state; bar chip + dropdown (click the VPN icon)
   Caffeine.qml                 keep awake: bar coffee chip blocks screensaver, idle lock and idle suspend
+  PhonePush.qml                phone pushes via ntfy while locked/idle: notifications, battery, charger, Tailscale
   QuickPanel.qml, VolumeOsd.qml, PerspectivePanel.qml, Hud*.qml, Slider.qml   shared UI bits
   hyprquickpaper/              wallpaper picker, a separate qs config (Mod+Shift+W)
   quotes/quotes                quotes shown in the bar and on the lock screen
 .config/theme/wallpaper-theme  derives a palette from the wallpaper and recolours everything
 .config/{alacritty,fuzzel,gtk-3.0,gtk-4.0,mpv,starship.toml}   app configs (colour keys rewritten by wallpaper-theme)
 .config/gammastep/config.ini.example   location template for the night light's sunset mode
+.config/ntfy/config.example    ntfy server + topic template for ntfy-send (phone pushes)
 .local/bin/                    pkg + pkg-open (package finder, Mod+Shift+P), cliphist-menu (Mod+V),
                                chromium (wrapper that applies the theme), htop (wrapper: HUD colours),
                                fortune, papirus-folders, songtag (identify + retag music with
-                               SongRec: scan / review / apply / undo)
+                               SongRec: scan / review / apply / undo), ntfy-send (push to the
+                               phone), claude-ntfy (Claude Code hook: push when done / needs you)
 .local/share/applications/chromium.desktop   launcher entry pointing at the wrapper
 .local/src/nightlightd/        small C gamma daemon (build it, see below)
 .local/src/battery-charge-limit/   root helper for the battery charge limit (optional install)
@@ -110,6 +113,17 @@ Night light "sunset" mode needs a location. This file is not tracked so coordina
 cp ~/.config/gammastep/config.ini.example ~/.config/gammastep/config.ini
 # then set lat= and lon= in config.ini
 ```
+
+Phone pushes (optional) need an [ntfy](https://ntfy.sh) server and the ntfy app subscribed to a
+topic. Also untracked, since it holds LAN addresses:
+
+```sh
+cp ~/.config/ntfy/config.example ~/.config/ntfy/config
+# then set NTFY_URL and NTFY_TOPIC; test with: qs ipc call phone test
+```
+
+For Claude Code, add `~/.local/bin/claude-ntfy` as a `Notification` and a `Stop` hook in
+`~/.claude/settings.json` (async). It only pushes while `qs ipc call phone away` says true.
 
 ### 4. Build and install the helpers
 
@@ -238,8 +252,8 @@ Follow the steps above in order. Things that will trip you up:
 - **Hardware differences are handled at runtime.** Without a battery, the bar and Settings hide
   the battery and charge-limit UI. Without power-profiles-daemon, the profile buttons hide.
   Don't hard-code hardware paths.
-- **Keep private data out of the repo.** No location in `gammastep/config.ini`, no calendar files
-  (`~/.calendar`), no tokens. The repo is public.
+- **Keep private data out of the repo.** No location in `gammastep/config.ini`, no ntfy server
+  in `ntfy/config`, no calendar files (`~/.calendar`), no tokens. The repo is public.
 - `qs kill` can crash the old instance on its way out, and Quickshell's crash handler then starts
   it again: two bars, two notification daemons, and a crash-report window. After restarting the
   shell, check `qs list --all` and `qs kill -i <id>` the extra one.

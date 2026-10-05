@@ -1,0 +1,44 @@
+#!/bin/sh
+# Push a notification to the phone through ntfy.
+#
+#   ntfy-send [-t title] [-p priority] [-g tags] [-c click-url] [message]
+#
+# The message comes from the arguments, or stdin when there are none.
+# priority: 1 min, 2 low, 3 default, 4 high, 5 urgent
+# tags: comma separated; emoji short codes show as icons (warning, battery, robot)
+# Server and topic live in ~/.config/ntfy/config (see config.example).
+# Needs curl and jq. Silently does nothing when that file is missing, so callers needn't check.
+
+conf="${XDG_CONFIG_HOME:-$HOME/.config}/ntfy/config"
+[ -r "$conf" ] || exit 0
+. "$conf"
+[ -n "$NTFY_URL" ] && [ -n "$NTFY_TOPIC" ] || exit 0
+
+title= prio= tags= click=
+while getopts t:p:g:c: o; do
+    case $o in
+        t) title=$OPTARG ;;
+        p) prio=$OPTARG ;;
+        g) tags=$OPTARG ;;
+        c) click=$OPTARG ;;
+        *) echo "usage: ntfy-send [-t title] [-p priority] [-g tags] [-c url] [message]" >&2; exit 2 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [ $# -gt 0 ]; then msg="$*"; else msg=$(cat); fi
+[ -n "$msg" ] || msg="$title"
+[ -n "$msg" ] || exit 0
+
+# JSON rather than headers so non-ASCII titles survive
+body=$(jq -n --arg topic "$NTFY_TOPIC" --arg message "$msg" --arg title "$title" \
+    --arg prio "$prio" --arg tags "$tags" --arg click "$click" '
+    { topic: $topic, message: $message }
+    + (if $title != "" then { title: $title } else {} end)
+    + (if $prio != "" then { priority: ($prio | tonumber) } else {} end)
+    + (if $tags != "" then { tags: ($tags | split(",")) } else {} end)
+    + (if $click != "" then { click: $click } else {} end)') || exit 1
+
+set --
+[ -n "$NTFY_TOKEN" ] && set -- -H "Authorization: Bearer $NTFY_TOKEN"
+exec curl -fsS -m 10 -o /dev/null "$@" --data-binary "$body" "${NTFY_URL%/}/"

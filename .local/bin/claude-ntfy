@@ -1,0 +1,26 @@
+#!/bin/sh
+# Claude Code hook (Notification and Stop, see ~/.claude/settings.json):
+# pushes to the phone through ntfy-send, but only while away from the desk
+# (screen locked or idle, as Quickshell's PhonePush sees it).
+# Reads the hook's JSON on stdin. CLAUDE_NTFY_ALWAYS=1 skips the away check.
+
+input=$(cat)
+
+if [ "$CLAUDE_NTFY_ALWAYS" != 1 ]; then
+    [ "$(qs ipc call phone away 2>/dev/null)" = true ] || exit 0
+fi
+
+event=$(printf '%s' "$input" | jq -r '.hook_event_name // empty')
+dir=$(printf '%s' "$input" | jq -r '.cwd // empty')
+project=${dir##*/}
+[ -n "$project" ] || project=claude
+
+case $event in
+    Notification)
+        msg=$(printf '%s' "$input" | jq -r '.message // "Claude needs your input"')
+        exec "$HOME/.local/bin/ntfy-send" -t "Claude needs you ($project)" -p 4 -g robot,question "$msg" ;;
+    Stop)
+        msg=$(printf '%s' "$input" | jq -r '.last_assistant_message // empty' | head -c 300)
+        [ -n "$msg" ] || msg="Finished in $dir"
+        exec "$HOME/.local/bin/ntfy-send" -t "Claude finished ($project)" -p 3 -g robot,white_check_mark "$msg" ;;
+esac

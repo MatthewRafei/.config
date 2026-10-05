@@ -128,6 +128,9 @@ before the laptop suspends.
 - **htop:** a header with live graphs, in the theme's colours.
 - **Tailscale:** a bar chip and dropdown, plus a VPN section in Settings.
 - **Caffeine:** keeps the machine awake.
+- **Phone pushes** through [ntfy](https://ntfy.sh): while the screen is locked or you've been
+  idle for 2 minutes, notifications, low battery, the charger and Tailscale dropping go to your
+  phone. A Claude Code hook does the same when Claude finishes or needs you.
 - **Night light:** a tiny C gamma daemon with sunset scheduling.
 - **Clipboard history** on Mod+V.
 - **Brightness keys** with exponential steps that fade.
