@@ -165,6 +165,9 @@ Scope {
             // font: "blackletter" | "serif" | "italic", color, opacity, center }]
             property var texts: []
             property string textsKey: ""
+            // a picture on the grid (ctx.image): { src (relative to this file), x, y, w, h
+            // (cells), reveal (0..1, wiped in left to right) }
+            property var image: null
             property bool loading: false
             property string tTitle: ""
             property string tSub: ""
@@ -324,6 +327,7 @@ Scope {
                 tY = ctx.titleY || 0.78
                 const tk = ctx.texts ? JSON.stringify(ctx.texts) : ""
                 if (tk !== textsKey) { textsKey = tk; texts = ctx.texts || [] }
+                image = ctx.image || null
                 if (sceneTime > sceneLength) loadScene(pickScene(""))
             }
 
@@ -419,6 +423,23 @@ Scope {
                                 textFormat: Text.PlainText
                                 wrapMode: Text.NoWrap
                                 renderType: Text.NativeRendering
+                            }
+                        }
+
+                        Item {
+                            visible: win.image !== null
+                            x: win.image ? win.image.x * grid.cw : 0
+                            y: win.image ? win.image.y * grid.ch : 0
+                            width: win.image ? win.image.w * grid.cw * win.image.reveal : 0
+                            height: win.image ? win.image.h * grid.ch : 0
+                            clip: true
+                            Image {
+                                width: win.image ? win.image.w * grid.cw : 0
+                                height: parent.height
+                                source: win.image ? Qt.resolvedUrl(win.image.src) : ""
+                                fillMode: Image.PreserveAspectFit
+                                smooth: true
+                                mipmap: true
                             }
                         }
 

@@ -307,16 +307,9 @@ const naruto = {
 const deathNote = {
     id: "deathnote", name: "Death Note",
     colors: ["#3a3a3a", "#e6e6e6"],
-    // the logo as braille art (96 x 28 dots), redrawn with quarter blocks
-    logo: [
-        "⠀⠀⠀⠀⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⣿⠿⢿⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⣏⠀⠀⠀⢻⡆⢰⣦⣤⡄⢠⣶⠀⠶⢿⡿⠲⣿⠀⢰⡇⠀⠀⠀⢰⣄⠀⠀⠀⠀⠀⠀⠀⢶⣤⣿⢤⣤⠀⠀⠀⠀⠀⠀",
-        "⠀⠀⠀⠀⢿⠀⠀⠀⢸⣿⢰⡇⠀⠀⢸⠀⢧⠀⠀⣿⠀⠀⣿⣤⣿⠀⠀⠀⠀⡟⣿⡀⢸⠀⡴⠒⡆⠀⠀⣾⠀⠀⣿⠛⠛⠀⠀⠀",
-        "⠀⠀⠀⠀⢸⠀⠀⠀⣸⡟⢸⠏⠉⠁⣿⠛⢻⠀⢘⡇⠀⢸⡇⠀⣿⠀⠀⠀⠀⣿⠀⢻⣾⠀⡇⠀⢸⠀⠀⣯⠀⠀⣿⠶⠶⠀⠀⠀",
-        "⠀⠀⠀⠀⢸⠀⣤⣶⠋⠀⠛⠛⠒⠀⣿⠀⠸⠀⠀⢿⠀⠀⡿⠀⣿⠀⠀⠀⢠⠇⠀⠀⠙⠀⠙⠛⠁⠀⠀⠉⠀⠸⠷⠦⠄⠀⠀⠀",
-        "⠀⠀⠀⠀⢿⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
-    ],
+    // the logo itself (screensaver/deathnote-logo.png, traced from the show's
+    // logo); block art never got its brush strokes right
+    logo: { src: "screensaver/deathnote-logo.png", aspect: 1668 / 500 },
     // the rules as written in the notebook
     pages: [
         { numeral: "I", heading: true, rules: [
@@ -339,20 +332,8 @@ const deathNote = {
         const pw = Math.min(C - 6, Math.round(R * asp * 0.78)), ph = R - 4
         const px = Math.floor((C - pw) / 2), py = 2
         // logo across the top of the page
-        const img = brailleDots(this.logo)
-        const W = Math.round(pw * 0.62), L = Math.max(4, Math.round(W * img.h / img.w / asp))
+        const W = Math.round(pw * 0.78), L = Math.round(W / this.logo.aspect / asp)
         const lx = px + Math.floor((pw - W) / 2), ly = py + 2
-        const cells = []
-        for (let y = 0; y < L; y++)
-            for (let x = 0; x < W; x++) {
-                let m = 0
-                for (let q = 0; q < 4; q++) {
-                    const sx = Math.floor((x * 2 + (q & 1) + 0.5) / (W * 2) * img.w)
-                    const sy = Math.floor((y * 2 + (q >> 1) + 0.5) / (L * 2) * img.h)
-                    if (img.dots[sy][sx]) m |= 1 << q
-                }
-                if (m) cells.push({ x: lx + x, y: ly + y, ch: QUAD[m], n: Math.random() })
-            }
         // wrap every rule to the page width (average serif letter ≈ 0.45 em)
         const size = 1.15, tx = px + Math.round(pw * 0.1), tw = pw - 2 * Math.round(pw * 0.1)
         const per = Math.max(20, Math.floor(tw / (0.45 * size * asp)))
@@ -370,7 +351,7 @@ const deathNote = {
             numeral: p.numeral, heading: !!p.heading,
             rules: p.rules.map(r => wrap(r))
         }))
-        ctx.dn = { pw: pw, ph: ph, px: px, py: py, cells: cells, logoBottom: ly + L,
+        ctx.dn = { pw: pw, ph: ph, px: px, py: py, logo: { x: lx, y: ly, w: W, h: L }, logoBottom: ly + L,
                    tx: tx, size: size, pages: pages }
     },
     frame(ctx, t) {
@@ -381,9 +362,9 @@ const deathNote = {
         g.text(d.px, d.py, "┌" + "─".repeat(d.pw - 2) + "┐")
         g.text(d.px, y1, "└" + "─".repeat(d.pw - 2) + "┘")
         for (let y = d.py + 1; y < y1; y++) { g.put(d.px, y, "│"); g.put(x1, y, "│") }
-        // logo fades in over the first two seconds, then stays
-        const reveal = fade(t, 0.2, 2)
-        for (const c of d.cells) if (c.n <= reveal) ctx.layers[1].put(c.x, c.y, c.ch)
+        // logo is written in left to right over the first two seconds, then stays
+        const l = d.logo
+        ctx.image = { src: this.logo.src, x: l.x, y: l.y, w: l.w, h: l.h, reveal: fade(t, 0.2, 2) }
 
         // pages: written at 24 letters a second, held, faded, next page
         const texts = []
