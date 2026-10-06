@@ -1126,6 +1126,16 @@ PanelWindow {
             // qs ipc call bar skit <name>   (names: qs ipc call bar list)
             function skit(name: string): void { quote.peek(name) }
             function list(): string { return Object.keys(quote.skits).join(" ") }
+            // tray icons, and opening one's menu without the mouse
+            function tray(): string { return tray.items.map((t, i) => i + ": " + (t.title || t.id)).join("\n") }
+            function trayMenu(i: int): void {
+                const it = tray.items[i]
+                const ti = trayRepeater.itemAt(i)
+                if (trayMenu.visible) { trayMenu.close(); return }
+                if (!it || !it.hasMenu || !ti) return
+                const p = ti.mapToItem(null, 0, ti.height + 6)
+                trayMenu.open(it, bar, p.x, p.y)
+            }
         }
 
         // typewriter
@@ -1617,6 +1627,8 @@ PanelWindow {
 
         Divider { visible: tray.items.length > 0 }
 
+        TrayMenu { id: trayMenu }
+
         // tray (apps listed in `hidden` keep running, just without an icon;
         // blueman stays for its pairing prompts, the BT chip replaces its icon)
         Row {
@@ -1630,6 +1642,7 @@ PanelWindow {
             rightPadding: 6
 
             Repeater {
+                id: trayRepeater
                 model: tray.items
 
                 Item {
@@ -1664,7 +1677,8 @@ PanelWindow {
                             } else if (mouse.button === Qt.RightButton || it.onlyMenu) {
                                 if (it.hasMenu) {
                                     var p = trayItem.mapToItem(null, 0, trayItem.height + 6)
-                                    it.display(bar, p.x, p.y)
+                                    // our own menu (TrayMenu.qml) instead of Qt's stock one
+                                    trayMenu.open(it, bar, p.x, p.y)
                                 }
                             } else {
                                 it.activate()
