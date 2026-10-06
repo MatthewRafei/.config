@@ -27,7 +27,7 @@ What lives where:
   SettingsWindow.qml + SettingsPages/  settings (Mod+S): system, sound, monitors, screensaver (preview scenes), network + VPN, bluetooth, power
   Calendar*.qml, CalendarLib.js, EventForm.qml, TimeField.qml   calendar dropdown + big calendar window (Mod+C); events in ~/.calendar/*.ics (Syncthing-friendly)
   Lock.qml, LockSurface.qml, pam/   lock screen (Mod+Shift+L, after 5 min idle, before suspend); password or fingerprint
-  Fingerprint.qml, FingerprintGlyph.qml, fingerprint/fpctl.py   Settings > Fingerprint: enroll/test/delete via fprintd (D-Bus helper)
+  Fingerprint.qml, FingerprintIcon.qml, fingerprint/fpctl.py   Settings > Fingerprint: enroll/test/delete via fprintd (D-Bus helper)
   Auth.qml                     polkit agent: HUD password prompt (needed to enroll fingerprints)
   Screensaver.qml, ScreensaverScenes.js, screensaver/   ASCII screensaver after 3 min idle
   TelemetryHud.qml             desktop HUD with graphs (Mod+H)

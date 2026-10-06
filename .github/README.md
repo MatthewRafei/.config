@@ -76,10 +76,10 @@ The pages are System, Sound (outputs and inputs), Monitors (brightness, night li
 Screensaver, Network (Wi-Fi, wired and VPNs), Bluetooth, Power and Fingerprint. The Power page
 has profiles that switch automatically on battery, battery health, and a charge limit.
 
-The **Fingerprint** page shows both hands: pick a finger and enroll it, and a grey fingerprint fills
-in with colour, ridge by ridge, as the reader takes each scan. Missed scans flash red, and the print
-turns green when it's done. You can also test or delete prints there. Enrolled fingers unlock the
-lock screen. Run `qs ipc call fingerprint demo` to watch the animation without the reader.
+The **Fingerprint** page lists the ten fingers: pick one and enroll it, and the fingerprint icon
+fills in with colour as the reader takes each scan (a missed scan turns the circle red for a
+moment; it goes green when done). You can also test or delete prints there. Enrolled fingers
+unlock the lock screen. `qs ipc call fingerprint demo` plays an enroll without the reader.
 
 The **Screensaver** page sets when the screensaver starts, how often the scene changes, when the
 screen locks and when it turns off. It can also skip the screensaver on battery, and it has a
