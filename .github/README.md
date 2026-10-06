@@ -46,7 +46,9 @@ the folder icons. A mostly grey wallpaper gets a monochrome theme.
 
 ### Skits
 
-Every few quote changes, a little skit plays instead. There are 20 of them.
+Every few quote changes, a little skit plays instead. There are 41 of them: from Pac-Man and a
+Dark Souls bonfire to a Chainsaw Man cord-pull, Gentoo compiling, a Metal Gear box, FUS RO DAH,
+the Matrix rain and a TempleOS oracle. `qs ipc call bar list` names them all.
 
 <p align="center"><img src="screenshots/skits.gif" alt="Bar skits: table flip, Pac-Man, Naruto run, bonfire, fishing" width="100%"></p>
 

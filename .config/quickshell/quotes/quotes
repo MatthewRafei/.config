@@ -320,3 +320,69 @@ Nature does not hurry, yet everything is accomplished.
 %
 When I let go of what I am, I become what I might be.
 	-- Lao Tzu
+%
+A language that doesn't affect the way you think about programming is not worth knowing.
+	-- Alan Perlis
+%
+Syntactic sugar causes cancer of the semicolon.
+	-- Alan Perlis
+%
+Simplicity does not precede complexity, but follows it.
+	-- Alan Perlis
+%
+Any sufficiently complicated C or Fortran program contains an ad hoc, informally-specified, bug-ridden, slow implementation of half of Common Lisp.
+	-- Greenspun's tenth rule
+%
+Computer science is no more about computers than astronomy is about telescopes.
+	-- Edsger W. Dijkstra
+%
+I call it my billion-dollar mistake. It was the invention of the null reference in 1965.
+	-- Tony Hoare
+%
+One of my most productive days was throwing away 1,000 lines of code.
+	-- Ken Thompson
+%
+Data dominates. If you've chosen the right data structures and organized things well, the algorithms will almost always be self-evident.
+	-- Rob Pike
+%
+Write programs that do one thing and do it well.
+	-- Doug McIlroy
+%
+An idiot admires complexity, a genius admires simplicity.
+	-- Terry A. Davis
+%
+Software is getting slower more rapidly than hardware is becoming faster.
+	-- Niklaus Wirth
+%
+There are 2 hard problems in computer science: cache invalidation, naming things, and off-by-1 errors.
+	-- Leon Bambrick
+%
+The three chief virtues of a programmer are: Laziness, Impatience and Hubris.
+	-- Larry Wall
+%
+There are only two kinds of languages: the ones people complain about and the ones nobody uses.
+	-- Bjarne Stroustrup
+%
+Focused, hard work is the real key to success.
+	-- John Carmack
+%
+Writing a compiler is the best way to find out you don't understand your own language.
+	-- Every language designer, eventually
+%
+It compiled on the first try. Something is very wrong.
+	-- Ancient programmer wisdom
+%
+error: expected ';' before '}' token
+	-- gcc, every day
+%
+Segmentation fault (core dumped)
+	-- Your C code, with love
+%
+Have you tried compiling it with -O0?
+	-- The debugger's prayer
+%
+emerge --ask @world. See you tomorrow.
+	-- Gentoo users, probably
+%
+I use Chimera btw.
+	-- You

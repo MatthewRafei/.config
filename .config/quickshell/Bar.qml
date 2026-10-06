@@ -698,6 +698,217 @@ PanelWindow {
                     f.push({ t: ".".repeat(i) + "_@_y", ms: 330 })
                 return f.concat([{ t: "............_@_y  made it", ms: 1400, sparkle: true }])
             },
+            // Chainsaw Man: pulls the cord
+            chainsaw: () => [
+                { t: "( ・_・)", ms: 600 },
+                { t: "( ・_・)ノ⌐", ms: 450 },
+                { t: "( °_°)ノ⌐ *pull*", ms: 500 },
+                { t: "( °_°)ノ⌐ *pull* *pull*", ms: 600 },
+                { t: "(ʘ皿ʘ) VRRRRR", ms: 260, color: "danger" },
+                { t: "(ʘ皿ʘ) VRRRRRRRR", ms: 260, color: "danger" },
+                { t: "(ʘ皿ʘ) VRRRRRRRRRRRR", ms: 900, color: "danger" },
+                { t: "( ・ω・) ...woof", ms: 1300 }
+            ],
+            // Berserk: the Dragon Slayer
+            berserk: () => {
+                const f = [{ t: "( ಠ_ಠ)", ms: 700 }]
+                for (let i = 1; i <= 12; i++) f.push({ t: "( ಠ_ಠ)╾" + "━".repeat(i) + "⊳", ms: 70 })
+                return f.concat([
+                    { t: "( ಠ_ಠ)╾━━━━━━━━━━━━⊳", ms: 800 },
+                    { t: "that thing was too big to be called a sword.", ms: 2000, color: "dim" }
+                ])
+            },
+            // Death Note: writes a name, Ryuk laughs
+            deathnote: () => {
+                const name = "L Lawliet", f = [{ t: "( ¬‿¬)✎", ms: 600 }]
+                for (let i = 1; i <= name.length; i++) f.push({ t: "( ¬‿¬)✎ " + name.slice(0, i), ms: 120 })
+                return f.concat([
+                    { t: "( ¬‿¬)✎ " + name, ms: 800 },
+                    { t: "40 seconds...", ms: 1100, color: "danger" },
+                    { t: "(ﾟ∀ﾟ) hyuk hyuk... humans are so interesting", ms: 1900, color: "dim" }
+                ])
+            },
+            // Half-Life: headcrab vs. crowbar
+            headcrab: () => {
+                const f = []
+                for (let i = 10; i >= 1; i--) f.push({ t: "( •_•)" + " ".repeat(i) + "ж", ms: 120 })
+                return f.concat([
+                    { t: "( °_°)ж", ms: 400, color: "danger" },
+                    { t: "( >_<)ノ⌐ *crowbar*", ms: 500 },
+                    { t: "( •_•)ノ⌐    ж.", ms: 700 },
+                    { t: "( •_•) λ", ms: 1300, color: "accent2", sparkle: true }
+                ])
+            },
+            // Gurren Lagann: the drill that pierces the heavens
+            drill: () => {
+                const f = [{ t: "( `ー´)ﾉ", ms: 600 }]
+                for (let i = 1; i <= 10; i++) f.push({ t: "( `ー´)ﾉ" + "=".repeat(i) + "≫", ms: 90, color: i > 6 ? "accent2" : "" })
+                return f.concat([
+                    { t: "( `ー´)ﾉ==========≫ GIGA DRILL", ms: 900, color: "accent2" },
+                    { t: "who the hell do you think I am?!", ms: 1800, color: "accent2", sparkle: true }
+                ])
+            },
+            // vim: can't leave
+            vimtrap: () => [
+                { t: "( ・_・) :q", ms: 700 },
+                { t: "E37: No write since last change", ms: 900, color: "danger" },
+                { t: "( °_°) :q!", ms: 600 },
+                { t: "( °_°) ^C ^C ^C", ms: 700 },
+                { t: "( ;_;) ESC ESC ESC :wq", ms: 800 },
+                { t: "( ;_;) i live here now", ms: 1500, color: "dim" }
+            ],
+            // Gentoo: a quick update
+            gentoo: () => {
+                const f = [{ t: "$ emerge -avuDN @world", ms: 900 }]
+                for (const p of ["gcc", "llvm", "rust", "chromium", "qtwebengine"])
+                    f.push({ t: ">>> compiling " + p + "...", ms: 500 })
+                return f.concat([
+                    { t: "( -_-) zZ  [3h 42m left]", ms: 1100, color: "dim" },
+                    { t: "( °_°) USE flags changed. starting over.", ms: 1300, color: "danger" },
+                    { t: "(ﾉಥ益ಥ)ﾉ", ms: 1200, color: "danger" }
+                ])
+            },
+            // Water Breathing
+            breathing: () => [
+                { t: "( -_-) hhhh...", ms: 900, color: "dim" },
+                { t: "( -_-) total concentration...", ms: 1000 },
+                { t: "( `ー´)⚔ ~", ms: 220 },
+                { t: "( `ー´)⚔ ~~≈", ms: 220 },
+                { t: "( `ー´)⚔ ~~≈≈~~≈≈", ms: 220 },
+                { t: "water breathing, first form!", ms: 1800, color: "accent2", sparkle: true }
+            ],
+            // Undertale: a skeleton's warning, and determination
+            determination: () => [
+                { t: "( ・_・)", ms: 500 },
+                { t: "( ・_・) ♥", ms: 700, color: "danger" },
+                { t: "* you feel like you're going to have a bad time.", ms: 1800, color: "dim" },
+                { t: "( `_´) ♥", ms: 500, color: "danger" },
+                { t: "* you are filled with DETERMINATION.", ms: 1800, color: "accent2", sparkle: true }
+            ],
+            // Metal Gear: spotted, hides in a box
+            alert: () => [
+                { t: "( ・_・)", ms: 600 },
+                { t: "( °_°) !", ms: 600, color: "danger" },
+                { t: "[ ! ] ALERT", ms: 700, color: "danger" },
+                { t: "( ;_;)□", ms: 400 },
+                { t: "    □", ms: 900 },
+                { t: "    □ ...", ms: 1000 },
+                { t: "    □ kept you waiting, huh?", ms: 1600, sparkle: true }
+            ],
+            // Skyrim
+            fusrodah: () => [
+                { t: "( `ー´) FUS", ms: 500 },
+                { t: "( `ー´) FUS RO", ms: 500 },
+                { t: "( `ロ´) FUS RO DAH!!", ms: 300, color: "accent2" },
+                { t: "( `ロ´)    ≡≡≡≡≡    ┻━┻", ms: 300, color: "accent2" },
+                { t: "( `ロ´)              ≡≡≡≡  ┻━┻", ms: 300, color: "accent2" },
+                { t: "( ^_^) hey, you. you're finally awake.", ms: 1700 }
+            ],
+            // Zelda: opens a chest
+            chest: () => [
+                { t: "( ・_・) ▣", ms: 700 },
+                { t: "( ・_・)ノ▣", ms: 600 },
+                { t: "( °o°)ノ□ ✧", ms: 500, color: "accent2" },
+                { t: "\\(°o°)/ ▲ ♪ da-na-na-naaa", ms: 1400, color: "accent2", sparkle: true },
+                { t: "you got a heart container!", ms: 1500, sparkle: true }
+            ],
+            // Steins;Gate: phone call to the Organization
+            steinsgate: () => [
+                { t: "( ¬‿¬)ノ☎", ms: 700 },
+                { t: "( ¬‿¬)ノ☎ it's me.", ms: 900 },
+                { t: "( ¬‿¬)ノ☎ the Organization is on the move.", ms: 1500 },
+                { t: "world line: 1.048596", ms: 1200, color: "accent2" },
+                { t: "( ¬‿¬) El Psy Kongroo.", ms: 1500, sparkle: true }
+            ],
+            // Matrix rain, then the message
+            matrix: () => {
+                const chars = "ｱｲｳｴｵｶｷｸｹｺ01ﾊﾋﾌﾍﾎ", f = []
+                for (let k = 0; k < 10; k++) {
+                    let t = ""
+                    for (let i = 0; i < 22; i++) t += Math.random() < 0.3 ? " " : chars[Math.floor(Math.random() * chars.length)]
+                    f.push({ t: t, ms: 110, color: "accent2" })
+                }
+                return f.concat([
+                    { t: "wake up, Neo...", ms: 1400, color: "accent2" },
+                    { t: "follow the white rabbit.", ms: 1500, color: "accent2" },
+                    { t: "knock, knock. (°_°)", ms: 1400 }
+                ])
+            },
+            // Noctis: building your own compiler
+            compiler: () => [
+                { t: "$ noctis build", ms: 800 },
+                { t: "error: expected ';' at 1:1", ms: 1000, color: "danger" },
+                { t: "(ಠ_ಠ) ...the language doesn't have semicolons", ms: 1500 },
+                { t: "( ・_・)⌨ fixing the parser...", ms: 1000 },
+                { t: "$ noctis build", ms: 600 },
+                { t: "( ^_^)b 0 errors. it compiles itself now", ms: 1600, sparkle: true }
+            ],
+            // N64: blows on the cartridge
+            cartridge: () => [
+                { t: "( ・_・)[▤]", ms: 600 },
+                { t: "[N64] ▓▒░▒▓ ...", ms: 800, color: "danger" },
+                { t: "( ・3・)~[▤] fwoo", ms: 600 },
+                { t: "( ・3・)~~[▤] FWOOO", ms: 600 },
+                { t: "( ^_^)[▤] *click*", ms: 500 },
+                { t: "it's-a me! ♪", ms: 1400, sparkle: true }
+            ],
+            // Hack The Box: owns a box
+            pwn: () => [
+                { t: "$ nmap -sV 10.10.11.42", ms: 900 },
+                { t: "22/tcp ssh · 80/tcp http", ms: 900 },
+                { t: "( ・_・)⌨ gobuster...", ms: 800 },
+                { t: "( °_°) /admin.bak ?!", ms: 900 },
+                { t: "user.txt ✓", ms: 800, color: "accent2" },
+                { t: "root.txt ✓", ms: 800, color: "accent2" },
+                { t: "(⌐■_■) pwned.", ms: 1300, sparkle: true }
+            ],
+            // Welcome to the Game: someone at the door
+            knock: () => [
+                { t: "( ・_・)⌨ ...", ms: 1000 },
+                { t: "( ・_・)⌨ ... *knock*", ms: 700, color: "dim" },
+                { t: "( °_°) ... *knock knock*", ms: 800, color: "danger" },
+                { t: "(  ;°_°) lights off. mic off.", ms: 1300, color: "danger" },
+                { t: "( ;-_-) ...", ms: 1400, color: "dim" },
+                { t: "( ・_・)⌨ back to work.", ms: 1200 }
+            ],
+            // deadmau5
+            mau5: () => {
+                const f = [{ t: "( ・_・) ♪", ms: 600 }]
+                for (let i = 0; i < 6; i++) {
+                    f.push({ t: "[◕ ◕]  ♫ ▁▃▅▇", ms: 260, color: "accent2" })
+                    f.push({ t: "[◕ ◕]  ♪ ▇▅▃▁", ms: 260 })
+                }
+                return f.concat([{ t: "[◕ ◕] *strobe*", ms: 1300, color: "accent2", sparkle: true }])
+            },
+            // ricing: one more tweak
+            rice: () => [
+                { t: "( ・_・)⌨ one more tweak...", ms: 1100 },
+                { t: "( ・_・)⌨ ...padding 4px → 5px", ms: 1000 },
+                { t: "( -_-)⌨ 2 AM", ms: 800, color: "dim" },
+                { t: "( -_-)⌨ 4 AM", ms: 800, color: "dim" },
+                { t: "( ˘▽˘) perfect.", ms: 900 },
+                { t: "( ・_・) ...actually, 4px was better.", ms: 1600 }
+            ],
+            // Pop Team Epic
+            popteamepic: () => [
+                { t: "(´・ω・`)", ms: 700 },
+                { t: "(´・ω・`) ?", ms: 600 },
+                { t: "(╬ Ò﹏Ó)", ms: 500, color: "danger" },
+                { t: "(╬ Ò皿Ó)ノ ┻━┻", ms: 800, color: "danger" },
+                { t: "(´・ω・`) ...it's pop team epic.", ms: 1500 }
+            ],
+            // TempleOS: random words from God
+            oracle: () => {
+                const words = ["divine", "intellect", "compiler", "640x480", "holy", "C", "glow", "temple", "random", "joy", "simplicity", "ring-0"]
+                const pick = () => words[Math.floor(Math.random() * words.length)]
+                return [
+                    { t: "( •_•) asking God...", ms: 1000 },
+                    { t: "(  •_•)⊹ " + pick(), ms: 450, color: "accent2" },
+                    { t: "(  •_•)⊹ " + pick() + " " + pick(), ms: 450, color: "accent2" },
+                    { t: "(  •_•)⊹ " + pick() + " " + pick() + " " + pick(), ms: 1300, color: "accent2" },
+                    { t: "( ^_^) God has spoken.", ms: 1300, sparkle: true }
+                ]
+            },
             // Cowboy Bebop
             cowboy: () => [
                 { t: "see you", ms: 700, color: "dim" },
