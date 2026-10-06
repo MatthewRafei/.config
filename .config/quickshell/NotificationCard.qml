@@ -16,8 +16,14 @@ Item {
 
     readonly property bool critical: notif !== null && notif.urgency === NotificationUrgency.Critical
     readonly property color stripe: critical ? Theme.danger : Theme.accent
+    // browsers mark website notifications that ask to stay up ("require
+    // interaction") as critical; those still time out, a bit later
+    readonly property bool fromBrowser: notif !== null
+        && /chrom|firefox|brave|vivaldi|librewolf/i.test((notif.appName || "") + " " + (notif.desktopEntry || ""))
     readonly property int timeoutMs: {
-        if (!notif || critical) return 0
+        if (!notif) return 0
+        if (fromBrowser) return notif.expireTimeout > 0 ? Math.min(notif.expireTimeout * 1000, 15000) : critical ? 12000 : 8000
+        if (critical) return 0
         return notif.expireTimeout > 0 ? notif.expireTimeout * 1000 : 6000
     }
 
