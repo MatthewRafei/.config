@@ -2,7 +2,8 @@
 # One JSON line for Syncthing.qml, from Syncthing's local REST API:
 #   { running, completion, needBytes, folders: [{ id, label, state, paused, errors }],
 #     devices: [{ name, connected, paused }], errors }
-# Prints {"running":false} when Syncthing isn't answering.
+# Prints {"installed":false} without Syncthing, {"running":false} when it isn't answering.
+command -v syncthing >/dev/null 2>&1 || { echo '{"installed":false,"running":false}'; exit 0; }
 conf="${XDG_STATE_HOME:-$HOME/.local/state}/syncthing/config.xml"
 [ -f "$conf" ] || conf="$HOME/.config/syncthing/config.xml"
 key=$(sed -n 's:.*<apikey>\(.*\)</apikey>.*:\1:p' "$conf" 2>/dev/null | head -n 1)

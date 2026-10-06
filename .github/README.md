@@ -145,7 +145,13 @@ before the laptop suspends.
   phone. A Claude Code hook does the same when Claude finishes or needs you.
 - **Night light:** a tiny C gamma daemon with sunset scheduling.
 - **Clipboard history** on Mod+V.
-- **Brightness keys** with exponential steps that fade.
+- **Screen recorder:** a bar chip and panel for `wf-recorder`: whole screen or a dragged-out area
+  (no slurp needed), desktop audio or mic, a 3 s countdown, then the running time in red.
+  Mod+Alt+R starts and stops, Mod+Alt+Shift+R picks an area. Files go to `~/Videos/Recordings`.
+- **zathura** (PDFs): dark pages and colours from the wallpaper, live.
+- **Brightness keys:** `brightglide`, a tiny C helper (`~/.local/src/brightglide`, `make install`)
+  that steps in perceived lightness and glides there with easing. A held key is one continuous
+  glide. The bottom-centre popup shows brightness as well as volume.
 - **Battery charge limit.**
 - **`songtag`:** identifies your music library with Shazam, through SongRec, and fixes the tags
   and cover art.

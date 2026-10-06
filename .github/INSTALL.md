@@ -37,6 +37,8 @@ What lives where:
   Idle.qml                     idle settings: screensaver / lock / screen-off times, scene rotation
   Vpn.qml                      Tailscale state; bar chip + dropdown (click the VPN icon)
   Caffeine.qml                 keep awake: bar coffee chip blocks screensaver, idle lock and idle suspend
+  Recorder.qml                 screen recording (wf-recorder): bar chip, quick-panel page, area picker
+  Syncthing.qml, syncthing/    Syncthing bar chip (REST API status; hidden without syncthing)
   PhonePush.qml                phone pushes via ntfy while locked/idle: notifications, battery, charger, Tailscale
   QuickPanel.qml, VolumeOsd.qml, PerspectivePanel.qml, Hud*.qml, Slider.qml   shared UI bits
   hyprquickpaper/              wallpaper picker, a separate qs config (Mod+Shift+W)
@@ -52,6 +54,7 @@ What lives where:
                                phone), claude-ntfy (Claude Code hook: push when done / needs you)
 .local/share/applications/chromium.desktop   launcher entry pointing at the wrapper
 .local/src/nightlightd/        small C gamma daemon (build it, see below)
+.local/src/brightglide/        smooth brightness keys (build it, see below; brillo is the fallback)
 .local/src/battery-charge-limit/   root helper for the battery charge limit (optional install)
 ```
 
@@ -74,7 +77,9 @@ doas apk add niri quickshell alacritty fuzzel nautilus chromium \
 Optional: `tailscale` (VPN chip in the bar; once: `doas tailscale set --operator=$USER` so the
 bar can connect/disconnect and pick exit nodes); `orca` (screen reader, Super+Alt+S); `brillo` (brightness keys use it when present and
 fall back to `brightnessctl`); `fprintd libfprint-udev` (fingerprint reader: unlocks the lock
-screen, managed in Settings > Fingerprint, which only shows up when a reader is found). The shell
+screen, managed in Settings > Fingerprint, which only shows up when a reader is found);
+`wf-recorder` (screen recorder chip and panel, hidden without it; Mod+Alt+R); `zathura
+zathura-pdf-poppler` (PDF viewer, themed from the wallpaper). The shell
 is its own polkit agent (Auth.qml); if `polkit-gnome-authentication-agent-1` is installed niri
 starts it and it takes over instead.
 
@@ -135,6 +140,9 @@ For Claude Code, add `~/.local/bin/claude-ntfy` as a `Notification` and a `Stop`
 ```sh
 # night light daemon -> ~/.local/bin/nightlightd
 make -C ~/.local/src/nightlightd install        # gmake; on Chimera `make` is gmake if installed as above
+
+# smooth brightness keys -> ~/.local/bin/brightglide (needs the video group)
+make -C ~/.local/src/brightglide install
 
 # Papirus must live in ~/.local/share/icons so papirus-folders can recolour it without root
 mkdir -p ~/.local/share/icons

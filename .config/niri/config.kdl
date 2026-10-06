@@ -200,10 +200,11 @@ binds {
     XF86AudioNext allow-when-locked=true { spawn-sh "playerctl next"; }
 
     // Brightness
-    // brightness: exponential steps (even to the eye, finer when dim) that
-    // fade over 90 ms; cooldown so a held key doesn't stack fades
-    XF86MonBrightnessUp   allow-when-locked=true cooldown-ms=100 { spawn-sh "brillo -q -u 90000 -A 3 || brightnessctl -q -e4 -n2 set 3%+"; }
-    XF86MonBrightnessDown allow-when-locked=true cooldown-ms=100 { spawn-sh "brillo -q -u 90000 -U 3 || brightnessctl -q -e4 -n2 set 3%-"; }
+    // brightness: brightglide (~/.local/src/brightglide) steps in perceived
+    // lightness and glides there with easing; a held key keeps one continuous
+    // glide going. Falls back to brillo, then brightnessctl.
+    XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "~/.local/bin/brightglide up || brillo -q -u 90000 -A 3 || brightnessctl -q -e4 -n2 set 3%+"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "~/.local/bin/brightglide down || brillo -q -u 90000 -U 3 || brightnessctl -q -e4 -n2 set 3%-"; }
 
     Mod+O repeat=false { toggle-overview; }
     Mod+Q repeat=false { close-window; }
@@ -307,6 +308,11 @@ binds {
     Mod+P      { screenshot; }
     Mod+Ctrl+P { screenshot-screen; }	
     Mod+Alt+P  { screenshot-window; }
+
+    // Screen recording (Recorder.qml): start / stop with the last settings;
+    // the bar's record chip opens the options
+    Mod+Alt+R hotkey-overlay-title="Screen recording: start / stop" { spawn-sh "qs ipc call recorder toggle"; }
+    Mod+Alt+Shift+R hotkey-overlay-title="Screen recording: pick an area" { spawn-sh "qs ipc call recorder area"; }
     Mod+Shift+P  hotkey-overlay-title="Package finder" { spawn-sh "~/.local/bin/pkg-open"; }
 
 

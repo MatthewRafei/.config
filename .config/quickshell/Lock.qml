@@ -25,7 +25,12 @@ Scope {
     property string status: "idle"   // idle | checking | failed | error
     property string errorText: ""
     property int failures: 0
-    property string fingerStatus: "off"   // off | waiting | failed
+    property string fingerStatus: "off"   // off | waiting | nomatch (one scan missed) | failed
+
+    // the lock screen's fingerprint icon shows only with a reader and an
+    // enrolled finger, and hides again once the reader keeps giving up
+    readonly property bool fingerReady: Fingerprint.available && Fingerprint.fingers.length > 0
+                                        && fingerGiveUps < 3
 
     // retries after a scan that didn't match; stops after a few quick
     // give-ups in a row (no reader / nothing enrolled) until the next lock
@@ -95,6 +100,14 @@ Scope {
 
         onActiveChanged: if (active) { startedAt = Date.now(); root.fingerStatus = "waiting" }
 
+        // pam_fprintd reports each scan that didn't match before it gives up
+        onPamMessage: {
+            if (!responseRequired && /match|recogni/i.test(message) && !/^place|^swipe/i.test(message)) {
+                root.fingerStatus = "nomatch"
+                nomatchReset.restart()
+            }
+        }
+
         onCompleted: result => {
             if (result === PamResult.Success) {
                 root.unlocked()
@@ -115,6 +128,12 @@ Scope {
             root.fingerStatus = "off"
             if (root.locked) fingerRetry.restart()
         }
+    }
+
+    Timer {
+        id: nomatchReset
+        interval: 1400
+        onTriggered: if (root.fingerStatus === "nomatch") root.fingerStatus = "waiting"
     }
 
     Timer {

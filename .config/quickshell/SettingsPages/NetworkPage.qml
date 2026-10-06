@@ -8,8 +8,12 @@ Item {
     property bool wifiEnabled: true
     property var networks: []
     // the connected network first, then the rest (headed separately in the list)
-    readonly property var networksOrdered: networks.filter(n => n.connected)
-                                            .concat(networks.filter(n => !n.connected))
+    // the list runs: connected, saved and in range, saved but not in range
+    // (forget only), then everything you've never joined
+    readonly property var networksTop: networks.filter(n => n.connected)
+                                        .concat(networks.filter(n => !n.connected && page.known.indexOf(n.ssid) >= 0))
+    readonly property var networksNew: networks.filter(n => !n.connected && page.known.indexOf(n.ssid) < 0)
+    function firstOf(list, pred) { const m = list.find(pred); return m ? m.ssid : "" }
     property bool scanning: false
     property string pendingSsid: ""
 
@@ -1249,19 +1253,19 @@ Item {
                     // Networks
                     // ------------------------------------------------------
 
-                    Repeater {
-                        model: page.wired ? [] : page.networksOrdered
+                    Component {
+                        id: netRow
 
-                        delegate: Column {
+                        Column {
                             required property var modelData
-                            required property int index
 
                             width: list.width
                             spacing: 6
 
-                            // headings: the connected network, then the others
+                            // headings: connected, saved in range, then new networks
+                            readonly property bool saved: !modelData.connected && page.isKnown(modelData.ssid)
                             Text {
-                                visible: modelData.connected && index === 0
+                                visible: modelData.connected
                                 text: "// CONNECTED"
                                 color: Theme.textDim
                                 font.family: Theme.fontFamily
@@ -1269,9 +1273,18 @@ Item {
                                 font.letterSpacing: 3
                             }
                             Text {
-                                visible: !modelData.connected
-                                         && (index === 0 || page.networksOrdered[index - 1].connected)
-                                topPadding: index > 0 ? 12 : 0
+                                visible: saved && page.firstOf(page.networksTop, n => !n.connected) === modelData.ssid
+                                topPadding: page.networksTop.length > 0 && page.networksTop[0].ssid !== modelData.ssid ? 12 : 0
+                                text: "// SAVED, IN RANGE"
+                                color: Theme.textDim
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 11
+                                font.letterSpacing: 3
+                            }
+                            Text {
+                                visible: !modelData.connected && !saved
+                                         && page.networksNew.length > 0 && page.networksNew[0].ssid === modelData.ssid
+                                topPadding: page.networksTop.length > 0 || savedAway.count > 0 ? 12 : 0
                                 text: "// AVAILABLE NETWORKS"
                                 color: Theme.textDim
                                 font.family: Theme.fontFamily
@@ -1528,6 +1541,12 @@ Item {
                         }
                     }
 
+                    // connected + saved in range
+                    Repeater {
+                        model: page.wired ? [] : page.networksTop
+                        delegate: netRow
+                    }
+
                     // ------------------------------------------------------
                     // Saved networks that aren't in range (forget only)
                     // ------------------------------------------------------
@@ -1579,6 +1598,12 @@ Item {
                                 }
                             }
                         }
+                    }
+
+                    // networks you've never joined
+                    Repeater {
+                        model: page.wired ? [] : page.networksNew
+                        delegate: netRow
                     }
                 }
             }

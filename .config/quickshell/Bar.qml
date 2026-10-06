@@ -1147,6 +1147,26 @@ PanelWindow {
         }
 
         Connections {
+            target: Recorder
+            function onStateChanged() {
+                if (Recorder.state === "recording") quote.react("rec", [
+                    { t: "(•_•)📹 rolling...", ms: 1400, color: "dim" }
+                ], 5)
+            }
+            function onSaved(path) {
+                quote.react("rec-saved", [
+                    { t: "(•_•)📹 ...and cut!", ms: 900 },
+                    { t: "(ﾉ◕ヮ◕)ﾉ that's a wrap · " + Recorder.clock, ms: 1800, color: "accent2", sparkle: true }
+                ], 5)
+            }
+            function onFailed(why) {
+                quote.react("rec-failed", [
+                    { t: "(;´・ω・) the recording didn't save", ms: 2200, color: "danger" }
+                ], 5)
+            }
+        }
+
+        Connections {
             target: Caffeine
             function onOnChanged() {
                 if (Caffeine.on) quote.react("caffeine", [
@@ -1777,6 +1797,7 @@ PanelWindow {
         // syncthing: dim when stopped, accent + % while syncing, red on errors.
         // click = web UI (starts it first if needed), right-click = start / stop
         Chip {
+            visible: Syncthing.installed
             icon: !Syncthing.running ? "󰓨" : Syncthing.failing ? "󰓧" : "󰓦"
             value: Syncthing.running && Syncthing.syncing ? Math.floor(Syncthing.completion) + "%" : ""
             accent: !Syncthing.running ? Theme.textFaint
@@ -1786,6 +1807,26 @@ PanelWindow {
             onClicked: mouse => {
                 if (mouse.button === Qt.RightButton) Syncthing.toggle()
                 else Syncthing.open()
+            }
+        }
+
+        // screen recorder (wf-recorder): dim when idle, countdown, then red with
+        // the running time. click = recorder panel (or stop while recording),
+        // right-click = start / stop with the last settings
+        Chip {
+            visible: Recorder.available
+            icon: Recorder.state === "recording" ? "󰻃" : "󰑊"
+            value: Recorder.state === "countdown" ? String(Recorder.countdown)
+                 : Recorder.state === "recording" ? Recorder.clock
+                 : Recorder.state === "saving" ? "…" : ""
+            accent: Recorder.state === "recording" ? Theme.danger
+                  : Recorder.state === "idle" ? Theme.textFaint
+                  : Theme.accent
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton || Recorder.state === "recording" || Recorder.state === "countdown")
+                    Recorder.toggle()
+                else
+                    Quickshell.execDetached(["qs", "ipc", "call", "quick", "rec"])
             }
         }
 

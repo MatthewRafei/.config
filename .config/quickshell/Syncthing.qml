@@ -11,6 +11,7 @@ Singleton {
     id: root
 
     readonly property string url: "http://127.0.0.1:8384/"
+    property bool installed: false       // the chip only shows when Syncthing is installed
     property bool running: false
     property real completion: 100        // local completion over all folders, %
     property var folders: []             // [{ id, label, state, paused, errors }]
@@ -43,7 +44,7 @@ Singleton {
     }
 
     Timer {
-        interval: root.busy || root.syncing ? 1500 : 6000
+        interval: !root.installed ? 60000 : root.busy || root.syncing ? 1500 : 6000
         running: true
         repeat: true
         triggeredOnStart: true
@@ -57,6 +58,7 @@ Singleton {
             onStreamFinished: {
                 let d = null
                 try { d = JSON.parse(text) } catch (e) {}
+                root.installed = !(d && d.installed === false)
                 root.running = !!(d && d.running)
                 if (!root.running) { root.folders = []; root.devices = []; root.errors = 0; return }
                 root.completion = d.completion

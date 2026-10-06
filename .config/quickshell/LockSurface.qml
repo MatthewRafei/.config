@@ -275,9 +275,7 @@ Item {
                         Text {
                             visible: input.text === "" && root.lock.status === "idle"
                             anchors.verticalCenter: parent.verticalCenter
-                            text: root.lock.fingerStatus === "failed" ? "finger not recognised · try again"
-                                : root.lock.fingerStatus === "waiting" ? "type or touch the reader to unlock"
-                                : "type to unlock"
+                            text: "type to unlock"
                             color: Theme.textFaint
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
@@ -332,6 +330,50 @@ Item {
                 font.family: Theme.fontFamily
                 font.pixelSize: 10
                 font.letterSpacing: 3
+            }
+
+            // fingerprint: only with a reader and an enrolled finger. Dim while
+            // the reader is resting between tries, red when a scan misses.
+            Item { width: 1; height: 30; visible: fingerBox.visible }
+
+            Column {
+                id: fingerBox
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: root.lock.fingerReady
+                spacing: 10
+                readonly property string fs: root.lock.fingerStatus
+                readonly property bool miss: fs === "nomatch" || fs === "failed"
+
+                FingerprintIcon {
+                    id: fingerIcon
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: 40
+                    height: 40
+                    progress: 1
+                    baseColor: Theme.textFaint
+                    litColor: fingerBox.miss ? Theme.danger
+                            : fingerBox.fs === "waiting" ? Theme.textDim
+                            : Theme.textFaint
+                    property real nudge: 0
+                    transform: Translate { x: fingerIcon.nudge }
+                    SequentialAnimation {
+                        id: fingerNudge
+                        NumberAnimation { target: fingerIcon; property: "nudge"; to: -5; duration: 50 }
+                        NumberAnimation { target: fingerIcon; property: "nudge"; to: 4; duration: 60 }
+                        NumberAnimation { target: fingerIcon; property: "nudge"; to: 0; duration: 70 }
+                    }
+                }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: fingerBox.miss ? "NOT RECOGNISED" : fingerBox.fs === "waiting" ? "TOUCH TO UNLOCK" : "READER RESTING"
+                    color: fingerBox.miss ? Theme.danger : Theme.textFaint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 9
+                    font.letterSpacing: 3
+                }
+
+                onMissChanged: if (miss) fingerNudge.restart()
             }
         }
 
