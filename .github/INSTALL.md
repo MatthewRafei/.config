@@ -30,6 +30,7 @@ What lives where:
   Fingerprint.qml, FingerprintIcon.qml, fingerprint/fpctl.py   Settings > Fingerprint: enroll/test/delete via fprintd (D-Bus helper)
   Auth.qml                     polkit agent: HUD password prompt (needed to enroll fingerprints)
   Screensaver.qml, ScreensaverScenes.js, screensaver/   ASCII screensaver after 3 min idle
+                               (screensaver/fonts: OFL book fonts the Death Note scene loads itself)
   TelemetryHud.qml             desktop HUD with graphs (Mod+H)
   Power.qml, PowerMenu.qml     power profiles, battery, charge limit; power menu (Mod+Shift+E)
   NightLight.qml               night light (drives ~/.local/bin/nightlightd)

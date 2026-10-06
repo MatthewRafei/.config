@@ -300,40 +300,124 @@ const naruto = {
 }
 
 // ================================================================== DEATH NOTE
+// The notebook as in the show: the DEATH NOTE logo on black, then the "How to
+// Use It" rules pages, white on black: heading in blackletter, numerals and
+// the rules in an old book serif (fonts in screensaver/fonts, drawn through
+// ctx.texts), written out a page at a time.
 const deathNote = {
     id: "deathnote", name: "Death Note",
-    colors: ["#2a2a2a", "#d8d8d8", "#7a1a1a", "#555555"],
-    rules: [
-        "HOW TO USE IT",
-        "",
-        "I.",
-        "The human whose name is written in this note shall die.",
-        "",
-        "This note will not take effect unless the writer has the",
-        "person's face in their mind when writing his or her name.",
-        "",
-        "If the cause of death is written within 40 seconds of",
-        "writing the person's name, it will happen.",
-        "",
-        "If the cause of death is not specified, the person will",
-        "simply die of a heart attack."
+    colors: ["#3a3a3a", "#e6e6e6"],
+    // the logo as braille art (96 x 28 dots), redrawn with quarter blocks
+    logo: [
+        "⠀⠀⠀⠀⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⣿⠿⢿⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⣏⠀⠀⠀⢻⡆⢰⣦⣤⡄⢠⣶⠀⠶⢿⡿⠲⣿⠀⢰⡇⠀⠀⠀⢰⣄⠀⠀⠀⠀⠀⠀⠀⢶⣤⣿⢤⣤⠀⠀⠀⠀⠀⠀",
+        "⠀⠀⠀⠀⢿⠀⠀⠀⢸⣿⢰⡇⠀⠀⢸⠀⢧⠀⠀⣿⠀⠀⣿⣤⣿⠀⠀⠀⠀⡟⣿⡀⢸⠀⡴⠒⡆⠀⠀⣾⠀⠀⣿⠛⠛⠀⠀⠀",
+        "⠀⠀⠀⠀⢸⠀⠀⠀⣸⡟⢸⠏⠉⠁⣿⠛⢻⠀⢘⡇⠀⢸⡇⠀⣿⠀⠀⠀⠀⣿⠀⢻⣾⠀⡇⠀⢸⠀⠀⣯⠀⠀⣿⠶⠶⠀⠀⠀",
+        "⠀⠀⠀⠀⢸⠀⣤⣶⠋⠀⠛⠛⠒⠀⣿⠀⠸⠀⠀⢿⠀⠀⡿⠀⣿⠀⠀⠀⢠⠇⠀⠀⠙⠀⠙⠛⠁⠀⠀⠉⠀⠸⠷⠦⠄⠀⠀⠀",
+        "⠀⠀⠀⠀⢿⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
     ],
-    init(ctx) { newLayers(ctx, 4) },
+    // the rules as written in the notebook
+    pages: [
+        { numeral: "I", heading: true, rules: [
+            "The human whose name is written in this note shall die.",
+            "This note will not take effect unless the writer has the person's face in their mind when writing his/her name. Therefore, people sharing the same name will not be affected.",
+            "If the cause of death is written within the next 40 seconds of writing the person's name, it will happen.",
+            "If the cause of death is not specified, the person will simply die of a heart attack.",
+            "After writing the cause of death, details of the death should be written in the next 6 minutes and 40 seconds."
+        ] },
+        { numeral: "II", rules: [
+            "This note shall become the property of the human world, once it touches the ground of the human world.",
+            "The owner of the note can recognize the image and voice of its original owner, i.e. a god of death.",
+            "The human who uses this note can neither go to Heaven nor Hell."
+        ] }
+    ],
+    init(ctx) {
+        newLayers(ctx, 2)
+        const C = ctx.cols, R = ctx.rows, asp = ctx.asp
+        // the page: centred, book-ish proportions
+        const pw = Math.min(C - 6, Math.round(R * asp * 0.78)), ph = R - 4
+        const px = Math.floor((C - pw) / 2), py = 2
+        // logo across the top of the page
+        const img = brailleDots(this.logo)
+        const W = Math.round(pw * 0.62), L = Math.max(4, Math.round(W * img.h / img.w / asp))
+        const lx = px + Math.floor((pw - W) / 2), ly = py + 2
+        const cells = []
+        for (let y = 0; y < L; y++)
+            for (let x = 0; x < W; x++) {
+                let m = 0
+                for (let q = 0; q < 4; q++) {
+                    const sx = Math.floor((x * 2 + (q & 1) + 0.5) / (W * 2) * img.w)
+                    const sy = Math.floor((y * 2 + (q >> 1) + 0.5) / (L * 2) * img.h)
+                    if (img.dots[sy][sx]) m |= 1 << q
+                }
+                if (m) cells.push({ x: lx + x, y: ly + y, ch: QUAD[m], n: Math.random() })
+            }
+        // wrap every rule to the page width (average serif letter ≈ 0.45 em)
+        const size = 1.15, tx = px + Math.round(pw * 0.1), tw = pw - 2 * Math.round(pw * 0.1)
+        const per = Math.max(20, Math.floor(tw / (0.45 * size * asp)))
+        const wrap = s => {
+            const out = []
+            let line = ""
+            for (const w of s.split(" ")) {
+                if (line && (line + " " + w).length > per) { out.push(line); line = w }
+                else line = line ? line + " " + w : w
+            }
+            if (line) out.push(line)
+            return out
+        }
+        const pages = this.pages.map(p => ({
+            numeral: p.numeral, heading: !!p.heading,
+            rules: p.rules.map(r => wrap(r))
+        }))
+        ctx.dn = { pw: pw, ph: ph, px: px, py: py, cells: cells, logoBottom: ly + L,
+                   tx: tx, size: size, pages: pages }
+    },
     frame(ctx, t) {
         clearAll(ctx)
-        const C = ctx.cols, R = ctx.rows
-        const w = Math.min(70, C - 6), x0 = Math.floor((C - w) / 2), y0 = 4
-        for (let y = y0; y < R - 3; y += 2) ctx.layers[0].text(x0, y + 1, "_".repeat(w))
-        for (let y = y0; y < R - 3; y++) ctx.layers[2].put(x0 + 5, y, "│")
-        ctx.layers[1].center(1, "D E A T H   N O T E")
-        let chars = Math.floor(t * 14), row = 0
-        for (const line of this.rules) {
-            const n = clamp(chars, 0, line.length)
-            ctx.layers[line === "HOW TO USE IT" || line === "I." ? 2 : 1].text(x0 + 8, y0 + row * 2, line.slice(0, n))
-            if (n < line.length && n >= 0) { ctx.layers[3].put(x0 + 8 + n, y0 + row * 2, "✎"); break }
-            chars -= line.length + 6
-            row++
+        const d = ctx.dn
+        // page edge
+        const g = ctx.layers[0], x1 = d.px + d.pw - 1, y1 = d.py + d.ph - 1
+        g.text(d.px, d.py, "┌" + "─".repeat(d.pw - 2) + "┐")
+        g.text(d.px, y1, "└" + "─".repeat(d.pw - 2) + "┘")
+        for (let y = d.py + 1; y < y1; y++) { g.put(d.px, y, "│"); g.put(x1, y, "│") }
+        // logo fades in over the first two seconds, then stays
+        const reveal = fade(t, 0.2, 2)
+        for (const c of d.cells) if (c.n <= reveal) ctx.layers[1].put(c.x, c.y, c.ch)
+
+        // pages: written at 24 letters a second, held, faded, next page
+        const texts = []
+        const lens = d.pages.map(p => p.rules.reduce((a, r) => a + r.join("").length + 30, 40))
+        const durs = lens.map(n => n / 24 + 6)
+        const cycle = durs.reduce((a, b) => a + b, 0)
+        let tt = Math.max(0, t - 2.5) % cycle, pi = 0
+        while (tt > durs[pi]) { tt -= durs[pi]; pi++ }
+        const page = d.pages[pi]
+        const opacity = Math.min(fade(tt, 0, 0.8), 1 - fade(tt, durs[pi] - 1.2, 1))
+        let chars = Math.floor(tt * 24)
+        let y = d.logoBottom + 2
+        const ink = "#e8e8e8", body = "#cfcfcf"
+        if (page.heading) {
+            texts.push({ t: "How to Use It", center: true, y: y, size: 2.2, font: "blackletter", color: ink, opacity: opacity })
+            y += 4
+            chars -= 10
         }
+        texts.push({ t: page.numeral, center: true, y: y, size: 1.8, font: "serif", color: ink, opacity: opacity })
+        y += 3
+        for (let r = 0; r < page.rules.length && chars > 0; r++) {
+            const lines = page.rules[r]
+            for (let i = 0; i < lines.length && chars > 0; i++) {
+                const s = lines[i]
+                const shown = s.slice(0, Math.max(0, chars))
+                if (shown.trim())
+                    texts.push({ t: (i === 0 ? (r + 1) + ".  " : "      ") + shown, x: d.tx, y: y, size: d.size, font: "serif", color: body, opacity: opacity })
+                chars -= s.length
+                y += 1.6
+            }
+            y += 0.8
+            chars -= 20   // a pause between rules
+        }
+        ctx.texts = texts
         title(ctx, t, "", "", "#d8d8d8", 0, 99)
     }
 }

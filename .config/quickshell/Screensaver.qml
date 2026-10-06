@@ -150,6 +150,10 @@ Scope {
             visible: root.active || backdrop.opacity > 0.01
 
             // ---------------- scene state ----------------
+            FontLoader { id: blackletterFont; source: Qt.resolvedUrl("screensaver/fonts/UnifrakturMaguntia-Book.ttf") }
+            FontLoader { id: serifFont; source: Qt.resolvedUrl("screensaver/fonts/IMFellEnglish-Regular.ttf") }
+            FontLoader { source: Qt.resolvedUrl("screensaver/fonts/IMFellEnglish-Italic.ttf") }
+
             property var ctx: ({})
             property var scene: null
             property string currentId: ""      // picked scene, set before a GIF finishes loading
@@ -157,6 +161,10 @@ Scope {
             // one property per layer, so an unchanged layer isn't laid out again
             property var layers: ["", "", "", "", "", "", "", ""]
             property var sceneColors: []
+            // real text over the grid (ctx.texts): [{ t, x, y (cells), size (rows),
+            // font: "blackletter" | "serif" | "italic", color, opacity, center }]
+            property var texts: []
+            property string textsKey: ""
             property bool loading: false
             property string tTitle: ""
             property string tSub: ""
@@ -314,6 +322,8 @@ Scope {
                 tColor = ctx.titleColor || "#ffffff"
                 tOpacity = ctx.titleOpacity || 0
                 tY = ctx.titleY || 0.78
+                const tk = ctx.texts ? JSON.stringify(ctx.texts) : ""
+                if (tk !== textsKey) { textsKey = tk; texts = ctx.texts || [] }
                 if (sceneTime > sceneLength) loadScene(pickScene(""))
             }
 
@@ -409,6 +419,27 @@ Scope {
                                 textFormat: Text.PlainText
                                 wrapMode: Text.NoWrap
                                 renderType: Text.NativeRendering
+                            }
+                        }
+
+                        // scene text in book fonts (Death Note's rules)
+                        Repeater {
+                            model: win.texts
+                            Text {
+                                required property var modelData
+                                x: modelData.center ? 0 : modelData.x * grid.cw
+                                width: modelData.center ? grid.width : implicitWidth
+                                horizontalAlignment: modelData.center ? Text.AlignHCenter : Text.AlignLeft
+                                y: modelData.y * grid.ch
+                                text: modelData.t
+                                color: modelData.color || "#ffffff"
+                                opacity: modelData.opacity === undefined ? 1 : modelData.opacity
+                                font.family: modelData.font === "blackletter" ? blackletterFont.name
+                                    : modelData.font === "serif" || modelData.font === "italic" ? serifFont.name
+                                    : Theme.fontFamily
+                                font.italic: modelData.font === "italic"
+                                font.pixelSize: Math.round((modelData.size || 1) * grid.ch)
+                                textFormat: Text.PlainText
                             }
                         }
 
