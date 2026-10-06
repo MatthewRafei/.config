@@ -15,7 +15,8 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Overlay
     // take the keyboard while open so Esc works without clicking in first
-    WlrLayershell.keyboardFocus: root.showing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    // (but hand it to the polkit prompt while one is up, e.g. enrolling a finger)
+    WlrLayershell.keyboardFocus: root.showing && !Auth.active ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // Only grab input while open (clicks pass through during the close animation).
     mask: Region {
@@ -91,6 +92,7 @@ PanelWindow {
         { name: "Network",    icon: Net.mode === "wired" ? "󰈀" : "\uf1eb", page: "NetworkPage" },
         { name: "Bluetooth",  icon: "󰂯", page: "BluetoothPage" }
     ].concat(Power.available || Power.hasBattery ? [{ name: "Power", icon: "󰂄", page: "PowerPage" }] : [])
+     .concat(Fingerprint.available ? [{ name: "Fingerprint", icon: "󰈷", page: "FingerprintPage" }] : [])
 
     property int selectedIndex: 0
 

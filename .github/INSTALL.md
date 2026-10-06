@@ -26,7 +26,9 @@ What lives where:
   Notifs.qml + Notification*.qml   notification daemon + popups + center (Mod+N)
   SettingsWindow.qml + SettingsPages/  settings (Mod+S): system, sound, monitors, screensaver (preview scenes), network + VPN, bluetooth, power
   Calendar*.qml, CalendarLib.js, EventForm.qml, TimeField.qml   calendar dropdown + big calendar window (Mod+C); events in ~/.calendar/*.ics (Syncthing-friendly)
-  Lock.qml, LockSurface.qml, pam/   lock screen (Mod+Shift+L, after 5 min idle, before suspend)
+  Lock.qml, LockSurface.qml, pam/   lock screen (Mod+Shift+L, after 5 min idle, before suspend); password or fingerprint
+  Fingerprint.qml, FingerprintGlyph.qml, fingerprint/fpctl.py   Settings > Fingerprint: enroll/test/delete via fprintd (D-Bus helper)
+  Auth.qml                     polkit agent: HUD password prompt (needed to enroll fingerprints)
   Screensaver.qml, ScreensaverScenes.js, screensaver/   ASCII screensaver after 3 min idle
   TelemetryHud.qml             desktop HUD with graphs (Mod+H)
   Power.qml, PowerMenu.qml     power profiles, battery, charge limit; power menu (Mod+Shift+E)
@@ -70,8 +72,10 @@ doas apk add niri quickshell alacritty fuzzel nautilus chromium \
 
 Optional: `tailscale` (VPN chip in the bar; once: `doas tailscale set --operator=$USER` so the
 bar can connect/disconnect and pick exit nodes); `orca` (screen reader, Super+Alt+S); `brillo` (brightness keys use it when present and
-fall back to `brightnessctl`); a polkit agent (niri starts `polkit-gnome-authentication-agent-1`
-if it exists).
+fall back to `brightnessctl`); `fprintd libfprint-udev` (fingerprint reader: unlocks the lock
+screen, managed in Settings > Fingerprint, which only shows up when a reader is found). The shell
+is its own polkit agent (Auth.qml); if `polkit-gnome-authentication-agent-1` is installed niri
+starts it and it takes over instead.
 
 Enable the services (Chimera uses dinit):
 
@@ -214,8 +218,9 @@ Nothing is Chimera-only except package names, `doas`, and dinit. Notes:
 
 - Use your package manager's names for the list above. `awww` is the wallpaper daemon
   (the successor to swww); `wayland-progs` provides `wayland-scanner`.
-- Lock screen auth uses `~/.config/quickshell/pam/password.conf` (`pam_unix`), so no system PAM
-  file is needed.
+- Lock screen auth uses `~/.config/quickshell/pam/password.conf` (`pam_unix`) and
+  `pam/fingerprint.conf` (`pam_fprintd`, skipped when fprintd or an enrolled finger is missing),
+  so no system PAM file is needed.
 - The OS scene in the screensaver and the package finder detect the system at runtime; the
   package finder only supports apk and flatpak.
 - Desktops without a backlight: the brightness slider hides itself; nothing to install.

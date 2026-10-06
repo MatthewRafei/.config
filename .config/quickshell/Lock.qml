@@ -5,7 +5,8 @@ import Quickshell.Services.Pam
 import QtQuick
 
 // Lock screen (ext-session-lock, so niri keeps the session locked even if
-// this process dies) with PAM password auth via pam/password.conf.
+// this process dies) with PAM password auth via pam/password.conf, and
+// fingerprint auth (fprintd) via pam/fingerprint.conf running alongside it.
 //
 //   qs ipc call lock lock       lock now (bound to Mod+Shift+L in niri)
 //   qs ipc call lock preview    show the UI in a normal window (Esc closes)
@@ -13,7 +14,7 @@ import QtQuick
 // Locks automatically after 5 minutes idle (screensaver at 3); apps that inhibit idle (video
 // players, games) prevent that. Also locks before suspend (lid close etc.).
 //
-// There is deliberately no IPC to unlock: only the password does that.
+// There is deliberately no IPC to unlock: only the password or a finger does that.
 Scope {
     id: root
 
@@ -24,6 +25,11 @@ Scope {
     property string status: "idle"   // idle | checking | failed | error
     property string errorText: ""
     property int failures: 0
+    property string fingerStatus: "off"   // off | waiting | failed
+
+    // retries after a scan that didn't match; stops after a few quick
+    // give-ups in a row (no reader / nothing enrolled) until the next lock
+    property int fingerGiveUps: 0
 
     signal shake()
 
@@ -31,7 +37,18 @@ Scope {
         password = ""
         status = "idle"
         previewing = false
+        fingerGiveUps = 0
         locked = true
+        fingerRetry.restart()
+    }
+
+    function unlocked() {
+        root.status = "idle"
+        root.failures = 0
+        root.fingerStatus = "off"
+        fingerRetry.stop()
+        if (finger.active) finger.abort()
+        root.locked = false
     }
 
     function tryUnlock() {
@@ -54,9 +71,7 @@ Scope {
         onCompleted: result => {
             root.password = ""
             if (result === PamResult.Success) {
-                root.status = "idle"
-                root.failures = 0
-                root.locked = false
+                root.unlocked()
             } else {
                 root.status = "failed"
                 root.failures++
@@ -69,6 +84,46 @@ Scope {
             root.status = "error"
             root.errorText = PamError.toString(err)
             root.shake()
+        }
+    }
+
+    PamContext {
+        id: finger
+        configDirectory: Quickshell.shellPath("pam")
+        config: "fingerprint.conf"
+        property double startedAt: 0
+
+        onActiveChanged: if (active) { startedAt = Date.now(); root.fingerStatus = "waiting" }
+
+        onCompleted: result => {
+            if (result === PamResult.Success) {
+                root.unlocked()
+                return
+            }
+            if (!root.locked) return
+            // ended within a couple of seconds = no reader or no enrolled finger
+            if (Date.now() - startedAt < 2000) root.fingerGiveUps++
+            else root.fingerGiveUps = 0
+            if (result === PamResult.Failed) { root.fingerStatus = "failed"; root.shake() }
+            else root.fingerStatus = "off"
+            fingerRetry.restart()
+        }
+
+        onError: err => {
+            root.fingerGiveUps++
+            root.fingerStatus = "off"
+            if (root.locked) fingerRetry.restart()
+        }
+    }
+
+    Timer {
+        id: fingerRetry
+        interval: 1500
+        onTriggered: {
+            if (root.locked && !finger.active && root.fingerGiveUps < 3)
+                finger.start()
+            else if (root.fingerGiveUps >= 3)
+                root.fingerStatus = "off"
         }
     }
 

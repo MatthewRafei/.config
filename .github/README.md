@@ -73,8 +73,13 @@ Mod+H hides it.
 <p align="center"><img src="screenshots/settings.gif" alt="Settings: system, sound, monitors, screensaver" width="80%"></p>
 
 The pages are System, Sound (outputs and inputs), Monitors (brightness, night light, scale),
-Screensaver, Network (Wi-Fi, wired and VPNs), Bluetooth and Power. The Power page has profiles
-that switch automatically on battery, battery health, and a charge limit.
+Screensaver, Network (Wi-Fi, wired and VPNs), Bluetooth, Power and Fingerprint. The Power page
+has profiles that switch automatically on battery, battery health, and a charge limit.
+
+The **Fingerprint** page shows both hands: pick a finger and enroll it, and a grey fingerprint fills
+in with colour, ridge by ridge, as the reader takes each scan. Missed scans flash red, and the print
+turns green when it's done. You can also test or delete prints there. Enrolled fingers unlock the
+lock screen. Run `qs ipc call fingerprint demo` to watch the animation without the reader.
 
 The **Screensaver** page sets when the screensaver starts, how often the scene changes, when the
 screen locks and when it turns off. It can also skip the screensaver on battery, and it has a
@@ -111,7 +116,7 @@ transparent ones and checkerboards, scale pixel art without smoothing, and anima
 
 ![Lock screen](screenshots/lock.gif)
 
-The lock screen uses PAM, shows the wallpaper blurred, a clock and a quote, and always locks
+The lock screen uses PAM (password, or an enrolled fingerprint), shows the wallpaper blurred, a clock and a quote, and always locks
 before the laptop suspends.
 
 ## And the rest

@@ -224,7 +224,8 @@ Singleton {
     function openLink(url) {
         windowOpen = false
         panelOpen = false
-        Qt.openUrlExternally(url.replace(/&amp;/g, "&"))
+        // xdg-open, not Qt.openUrlExternally: Qt routes that through the portal, which pops a GNOME "Open with" chooser
+        Quickshell.execDetached(["xdg-open", url.replace(/&amp;/g, "&")])
     }
 
     function timeLabel(o) {

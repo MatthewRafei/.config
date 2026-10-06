@@ -7,6 +7,8 @@ import Quickshell
 ShellRoot {
     // singletons are lazy; touch NightLight so its schedule runs from login
     readonly property bool nightLightActive: NightLight.active
+    // and Auth, so the polkit agent (password prompts) is registered
+    readonly property bool authAgent: Auth.registered
 
     // one bar per monitor
     Variants {

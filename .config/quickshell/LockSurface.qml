@@ -275,7 +275,9 @@ Item {
                         Text {
                             visible: input.text === "" && root.lock.status === "idle"
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "type to unlock"
+                            text: root.lock.fingerStatus === "failed" ? "finger not recognised · try again"
+                                : root.lock.fingerStatus === "waiting" ? "type or touch the reader to unlock"
+                                : "type to unlock"
                             color: Theme.textFaint
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
