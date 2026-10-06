@@ -1774,6 +1774,21 @@ PanelWindow {
             }
         }
 
+        // syncthing: dim when stopped, accent + % while syncing, red on errors.
+        // click = web UI (starts it first if needed), right-click = start / stop
+        Chip {
+            icon: !Syncthing.running ? "󰓨" : Syncthing.failing ? "󰓧" : "󰓦"
+            value: Syncthing.running && Syncthing.syncing ? Math.floor(Syncthing.completion) + "%" : ""
+            accent: !Syncthing.running ? Theme.textFaint
+                  : Syncthing.failing ? Theme.danger
+                  : Syncthing.syncing || Syncthing.scanning || Syncthing.busy ? Theme.accent
+                  : Theme.text
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton) Syncthing.toggle()
+                else Syncthing.open()
+            }
+        }
+
         // caffeine: keep awake (no screensaver, idle lock or idle suspend)
         Chip {
             icon: Caffeine.on ? "󰅶" : "󰛊"

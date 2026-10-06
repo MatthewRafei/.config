@@ -36,7 +36,7 @@ the folder icons. A mostly grey wallpaper gets a monochrome theme.
 
 - **Left:** workspaces with a sliding indicator and the focused window's title.
 - **Middle:** the clock, with the calendar one click away.
-- **Right:** chips for volume, Wi-Fi, Bluetooth, Tailscale, caffeine, CPU, RAM, battery, power
+- **Right:** chips for volume, Wi-Fi, Bluetooth, Tailscale, Syncthing, caffeine, CPU, RAM, battery, power
   profile, notifications and the tray. Click a chip for a dropdown; right-click it for a
   shortcut.
 - **The quote slot:** quotes from games, anime and hacker culture type themselves out next to the
@@ -137,6 +137,8 @@ before the laptop suspends.
 - **fastfetch:** a HUD tree layout with the right logo for each distro.
 - **htop:** a header with live graphs, in the theme's colours.
 - **Tailscale:** a bar chip and dropdown, plus a VPN section in Settings.
+- **Syncthing:** a bar chip (needs `syncthing` with its dinit user service, plus curl and jq).
+  Click opens the web UI, starting Syncthing first if needed; right-click starts or stops it.
 - **Caffeine:** keeps the machine awake.
 - **Phone pushes** through [ntfy](https://ntfy.sh): while the screen is locked or you've been
   idle for 2 minutes, notifications, low battery, the charger and Tailscale dropping go to your
