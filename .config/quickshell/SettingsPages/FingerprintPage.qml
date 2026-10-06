@@ -17,6 +17,8 @@ Item {
     readonly property real iconProgress: enrolling || Fingerprint.result === "done" ? Fingerprint.progress
         : Fingerprint.has(selected) ? 1 : 0
     readonly property bool done: !enrolling && iconProgress >= 1
+    // the selected finger is on the reader for someone else (e.g. root)
+    readonly property string owner: Fingerprint.owner(selected)
 
     // last scan feedback for the disc: "" | "ok" | "retry" | "match" | "nomatch"
     property string scanKind: ""
@@ -153,6 +155,7 @@ Item {
                     wrapMode: Text.Wrap
                     text: Fingerprint.message !== "" ? Fingerprint.message
                         : Fingerprint.has(page.selected) ? "Enrolled. Test it, or re-enroll to replace it."
+                        : page.owner !== "" ? "Enrolled for " + page.owner + ", not you. Remove that print to enroll this finger."
                         : "Not enrolled yet."
                     color: Fingerprint.messageBad ? Theme.danger : Theme.textDim
                     font.family: Theme.fontFamily
@@ -163,7 +166,13 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: 6
                     HudButton {
-                        visible: !Fingerprint.busy
+                        visible: !Fingerprint.busy && page.owner !== ""
+                        label: "REMOVE " + page.owner.toUpperCase() + "'S PRINT"
+                        danger: true
+                        onClicked: Fingerprint.remove(page.selected, page.owner)
+                    }
+                    HudButton {
+                        visible: !Fingerprint.busy && page.owner === ""
                         label: Fingerprint.has(page.selected) ? "RE-ENROLL" : "ENROLL"
                         on: !Fingerprint.has(page.selected)
                         onClicked: Fingerprint.enroll(page.selected)
@@ -223,6 +232,7 @@ Item {
                                     required property string modelData
                                     readonly property string finger: handCol.modelData + "-" + modelData
                                     readonly property bool enrolled: Fingerprint.has(finger)
+                                    readonly property string owner: Fingerprint.owner(finger)
                                     readonly property bool sel: page.selected === finger
                                     readonly property bool active: Fingerprint.busy && Fingerprint.target === finger
 
@@ -240,9 +250,9 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: 20
                                         height: 20
-                                        progress: row.active && page.enrolling ? Fingerprint.progress : row.enrolled ? 1 : 0
+                                        progress: row.active && page.enrolling ? Fingerprint.progress : row.enrolled || row.owner !== "" ? 1 : 0
                                         baseColor: Theme.alpha(Theme.textDim, 0.5)
-                                        litColor: Theme.accent
+                                        litColor: row.enrolled || row.active ? Theme.accent : Theme.textDim
                                     }
 
                                     Text {
@@ -259,10 +269,12 @@ Item {
                                         anchors.right: parent.right
                                         anchors.rightMargin: 8
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: row.active ? (page.enrolling ? "…" : "TESTING") : row.enrolled ? "✓" : ""
-                                        color: Theme.accent
+                                        text: row.active ? (page.enrolling ? "…" : "TESTING") : row.enrolled ? "✓"
+                                            : row.owner !== "" ? row.owner.toUpperCase() : ""
+                                        color: row.enrolled || row.active ? Theme.accent : Theme.textDim
                                         font.family: Theme.fontFamily
-                                        font.pixelSize: 11
+                                        font.pixelSize: row.enrolled || row.active ? 11 : 9
+                                        font.letterSpacing: row.owner !== "" && !row.enrolled ? 1 : 0
                                         font.bold: true
                                     }
 
@@ -279,15 +291,23 @@ Item {
                     }
                 }
 
-                Row {
+                Flow {
+                    width: parent.width
                     spacing: 8
                     topPadding: 4
-                    visible: Fingerprint.fingers.length > 0 && !Fingerprint.busy
+                    visible: !Fingerprint.busy
                     HudButton {
+                        visible: !Fingerprint.othersChecked
+                        label: Fingerprint.checkingOthers ? "CHECKING…" : "CHECK OTHER USERS"
+                        onClicked: Fingerprint.checkOthers()
+                    }
+                    HudButton {
+                        visible: Fingerprint.fingers.length > 0
                         label: "TEST ANY FINGER"
                         onClicked: Fingerprint.verify("")
                     }
                     HudButton {
+                        visible: Fingerprint.fingers.length > 0
                         label: "DELETE ALL"
                         danger: true
                         onClicked: Fingerprint.remove("")
@@ -298,6 +318,7 @@ Item {
                     width: parent.width
                     wrapMode: Text.Wrap
                     text: "Enrolled fingers unlock the lock screen. Enrolling and deleting ask for your password first."
+                        + " Prints enrolled for another user (say, with doas fprintd-enroll) block that finger; CHECK OTHER USERS finds them."
                     color: Theme.textFaint
                     font.family: Theme.fontFamily
                     font.pixelSize: 10

@@ -13,7 +13,8 @@ PanelWindow {
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
 
-    WlrLayershell.layer: WlrLayer.Overlay
+    // Top, not Overlay, so the polkit prompt (Auth.qml, Overlay) always lands above it
+    WlrLayershell.layer: WlrLayer.Top
     // take the keyboard while open so Esc works without clicking in first
     // (but hand it to the polkit prompt while one is up, e.g. enrolling a finger)
     WlrLayershell.keyboardFocus: root.showing && !Auth.active ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None

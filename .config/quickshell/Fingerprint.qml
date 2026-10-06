@@ -23,6 +23,10 @@ Singleton {
     property string deviceName: ""
     property int stages: 0
     property var fingers: []
+    // fingers enrolled for other users (e.g. root): finger -> user. They sit on
+    // the sensor and block enrolling that finger for you.
+    property var others: ({})
+    property bool othersChecked: false
 
     property string mode: "idle"      // idle | enroll | verify | delete
     property string target: ""        // finger being enrolled / verified / deleted
@@ -39,6 +43,12 @@ Singleton {
     signal scan(string kind)
 
     function has(f) { return fingers.indexOf(f) >= 0 }
+    function owner(f) { return has(f) ? "" : (others[f] || "") }
+    function setOwner(f, user) {
+        const o = Object.assign({}, others)
+        if (user) o[f] = user; else delete o[f]
+        others = o
+    }
 
     function refresh() {
         if (!busy) run("list", [])
@@ -54,10 +64,11 @@ Singleton {
         run("verify", f ? [f] : [])
         say("Press " + (f ? "your " + label(f).toLowerCase() : "any enrolled finger") + " on the reader.", false)
     }
-    function remove(f) {
+    // user: delete another user's print (asks for an admin password)
+    function remove(f, user) {
         if (busy) return
-        run(f ? "delete" : "delete-all", f ? [f] : [])
-        say("Authenticate to delete " + (f ? label(f).toLowerCase() : "every fingerprint") + ".", false)
+        run(f ? "delete" : "delete-all", f ? (user ? [f, user] : [f]) : [])
+        say("Authenticate to delete " + (user ? user + "'s " : "") + (f ? label(f).toLowerCase() : "every fingerprint") + ".", false)
     }
     function cancel() {
         if (proc.running) proc.running = false
@@ -113,7 +124,7 @@ Singleton {
         "enroll-finger-not-centered": "Centre your finger on the reader.",
         "enroll-remove-and-retry": "Lift your finger and try again.",
         "enroll-completed": "Enrolled. It works on the lock screen now.",
-        "enroll-duplicate": "The reader already has this finger, maybe for another user (doas fprintd-delete root).",
+        "enroll-duplicate": "The reader already has this finger for another user. Remove that print first.",
         "enroll-data-full": "The reader is full. Delete a fingerprint first.",
         "enroll-disconnected": "The reader disconnected.",
         "enroll-failed": "Enrolling failed. Try again.",
@@ -152,6 +163,7 @@ Singleton {
             else if (o.result === "enroll-completed") { stage = stages; result = "done"; scan("match") }
             else if (o.done) { result = "failed"; scan("nomatch") }
             else scan("retry")
+            if (o.result === "enroll-duplicate" && !others[target]) setOwner(target, "root")
             say(enrollText[o.result] || o.result, o.done && o.result !== "enroll-completed"
                 || o.result.indexOf("retry") >= 0 || o.result.indexOf("short") >= 0 || o.result.indexOf("centered") >= 0)
         } else if (o.ev === "verify") {
@@ -159,12 +171,46 @@ Singleton {
             else if (o.done) { result = "nomatch"; scan("nomatch") }
             else scan("retry")
             say(verifyText[o.result] || o.result, o.result !== "verify-match")
+        } else if (o.ev === "others") {
+            others = o.others
         } else if (o.ev === "deleted") {
+            if (o.finger !== "all") setOwner(o.finger, "")
             say(o.finger === "all" ? "Deleted every fingerprint." : label(o.finger) + " deleted.", false)
         } else if (o.ev === "error") {
             if (o.stage === "device") { loaded = true; available = false }
             if (mode !== "idle" || o.stage !== "list") say(errorText[o.name] || o.msg, true)
             if (mode === "enroll") { result = "failed"; scan("nomatch") }
+        }
+    }
+
+    // other users' prints. fprintd wants an admin password even to list
+    // them, so this only runs when asked (the CHECK OTHER USERS button).
+    readonly property bool checkingOthers: othersProc.running
+    function checkOthers() {
+        if (othersProc.running) return
+        othersFailed = false
+        say("Authenticate to see other users' prints.", false)
+        othersProc.running = true
+    }
+    property bool othersFailed: false
+    Process {
+        id: othersProc
+        command: ["python3", "-I", Quickshell.shellPath("fingerprint/fpctl.py"), "others"]
+        stdout: SplitParser {
+            onRead: line => {
+                try {
+                    const o = JSON.parse(line)
+                    if (o.ev === "error") root.othersFailed = true
+                    else if (o.ev === "others") {
+                        root.others = o.others
+                        root.othersChecked = !root.othersFailed
+                        const n = Object.keys(o.others).length
+                        root.say(root.othersFailed ? "Couldn't check other users (cancelled?)."
+                                 : n ? n + " finger" + (n > 1 ? "s" : "") + " enrolled for other users, marked in the list."
+                                 : "No other users have prints on the reader.", root.othersFailed)
+                    }
+                } catch (e) {}
+            }
         }
     }
 

@@ -2,9 +2,10 @@
 """Talk to fprintd over D-Bus for Settings > Fingerprint (Fingerprint.qml).
 
     fpctl.py list                 enrolled fingers + device info
+    fpctl.py others               other users' fingers (fprintd asks for an admin password)
     fpctl.py enroll <finger>      live enroll progress
     fpctl.py verify [finger]      one verify attempt (default: any finger)
-    fpctl.py delete <finger>      delete one finger
+    fpctl.py delete <finger> [user]   delete one finger (another user's needs admin auth)
     fpctl.py delete-all           delete every finger of this user
 
 Prints one JSON object per line (flushed), always ending with {"ev": "end"}.
@@ -73,21 +74,33 @@ def fail(e, stage):
     out(ev="error", stage=stage, name=name, msg=msg)
     finish(1)
 
-def claim():
+def claim(user=""):
     global claimed
     try:
-        call(dev, "Claim", "(s)", ("",))
+        call(dev, "Claim", "(s)", (user,))
         claimed = True
     except GLib.Error as e:
         fail(e, "claim")
 
-def list_fingers():
+def list_fingers(user="", timeout=5000):
     try:
-        return list(call(dev, "ListEnrolledFingers", "(s)", ("",), 5000).unpack()[0])
+        return list(call(dev, "ListEnrolledFingers", "(s)", (user,), timeout).unpack()[0])
     except GLib.Error as e:
         if err_name(e).endswith("NoEnrolledPrints"):
             return []
         raise
+
+def other_users():
+    """root and human accounts other than us: their prints can block ours on
+    readers that store prints on the sensor"""
+    me = os.environ.get("USER") or ""
+    users = []
+    with open("/etc/passwd") as f:
+        for line in f:
+            p = line.split(":")
+            if len(p) > 2 and p[0] != me and (p[2] == "0" or 1000 <= int(p[2] or -1) < 60000):
+                users.append(p[0])
+    return users
 
 def on_signal(_p, _sender, signame, params):
     res, done = params.unpack()[:2]
@@ -129,11 +142,22 @@ def main():
             fingers = list_fingers()
         except GLib.Error as e:
             fail(e, "list")
-        out(ev="list", fingers=fingers, name=prop("name", ""), stages=prop("num-enroll-stages", 0),
-            scanType=prop("scan-type", "press"))
+        out(ev="list", fingers=fingers, name=prop("name", ""),
+            stages=prop("num-enroll-stages", 0), scanType=prop("scan-type", "press"))
         finish()
 
-    claim()
+    if cmd == "others":
+        others = {}
+        for u in other_users():
+            try:
+                for f in list_fingers(u, FOREVER):
+                    others.setdefault(f, u)
+            except GLib.Error as e:
+                out(ev="error", stage="others", name=short(e)[0], msg=short(e)[1])
+        out(ev="others", others=others)
+        finish()
+
+    claim(sys.argv[3] if cmd == "delete" and len(sys.argv) > 3 else "")
     if cmd == "delete":
         try: call(dev, "DeleteEnrolledFinger", "(s)", (arg,))
         except GLib.Error as e: fail(e, "delete")
