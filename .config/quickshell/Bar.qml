@@ -704,6 +704,15 @@ PanelWindow {
                 { t: "see you space", ms: 700, color: "dim" },
                 { t: "see you space cowboy...", ms: 2200, color: "dim" }
             ],
+            // fingerprint scanner bit
+            fingerprint: () => [
+                { t: "( •_•)", ms: 500 },
+                { t: "( •_•)☝", ms: 500 },
+                { t: "( •_•)☝[▒▒]", ms: 450 },
+                { t: "( •_•)☝[▓▒]", ms: 300 },
+                { t: "( •_•)☝[▓▓]", ms: 300 },
+                { t: "( ^_^)b access granted", ms: 1500, sparkle: true }
+            ],
             // gets bodied by a boss, tries again
             died: () => [
                 { t: "(ง •_•)ง", ms: 800 },
@@ -965,6 +974,53 @@ PanelWindow {
                 if (NightLight.active) quote.react("night", [{ t: "( -_-)☾ easy on the eyes", ms: 1600, color: "dim" }], 30)
                 else quote.react("day", [{ t: "( ・_・)☀ lights up", ms: 1400 }], 30)
             }
+        }
+
+        // fingerprints: enrolling / testing in Settings, and unlocking with a finger
+        Connections {
+            target: Fingerprint
+            function onEvent(kind, finger) {
+                const f = finger && finger !== "all" ? Fingerprint.label(finger).toLowerCase() : ""
+                if (kind === "unlock") {
+                    // beats the generic "welcome back", which would fire right after
+                    quote.lastFired["welcome"] = Date.now()
+                    fpUnlockLater.restart()
+                } else if (kind === "enrolled") quote.react("fp-enrolled", [
+                    { t: "( •_•)☝", ms: 500 },
+                    { t: "( •_•)☝ boop", ms: 600 },
+                    { t: "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ " + f + " saved!", ms: 2000, color: "accent2", sparkle: true }
+                ], 5)
+                else if (kind === "duplicate") quote.react("fp-dupe", [
+                    { t: "( ・_・)☝", ms: 500 },
+                    { t: "(¬_¬) i already know that finger...", ms: 2000 }
+                ], 5)
+                else if (kind === "enroll-failed") quote.react("fp-fail", [
+                    { t: "( >_<)☝", ms: 600, color: "danger" },
+                    { t: "( ;_;) the reader didn't like that", ms: 1800, color: "danger" }
+                ], 5)
+                else if (kind === "match") quote.react("fp-match", [
+                    { t: "( •_•)", ms: 450 },
+                    { t: "( •_•)>⌐■-■", ms: 500 },
+                    { t: "(⌐■_■) identity confirmed.", ms: 1600, sparkle: true }
+                ], 5)
+                else if (kind === "nomatch") quote.react("fp-nomatch", [
+                    { t: "(¬_¬)", ms: 600, color: "danger" },
+                    { t: "(¬_¬) who are you?", ms: 1600, color: "danger" }
+                ], 5)
+                else if (kind === "deleted") quote.react("fp-deleted", [
+                    { t: "( ・_・)ノ", ms: 500, color: "dim" },
+                    { t: "( ・_・)ノ bye bye, " + (f || "prints"), ms: 1600, color: "dim" }
+                ], 5)
+            }
+        }
+        Timer {
+            id: fpUnlockLater
+            interval: 700   // let the lock screen fade first
+            onTriggered: quote.react("fp-unlock", [
+                { t: "( ^_^)☝", ms: 500 },
+                { t: "( ^_^)☝ *beep*", ms: 600 },
+                { t: "( ^‿^)ノ it's you! welcome back", ms: 1800, sparkle: true }
+            ], 10)
         }
 
         // the clock and the calendar, checked once a minute

@@ -46,7 +46,7 @@ the folder icons. A mostly grey wallpaper gets a monochrome theme.
 
 ### Skits
 
-Every few quote changes, a little skit plays instead. There are 19 of them.
+Every few quote changes, a little skit plays instead. There are 20 of them.
 
 <p align="center"><img src="screenshots/skits.gif" alt="Bar skits: table flip, Pac-Man, Naruto run, bonfire, fishing" width="100%"></p>
 
@@ -54,6 +54,9 @@ The bar also **reacts to the machine**:
 - **Battery and power:** it begs for a charge at low battery, thanks you for plugging in, and
   says "POWER UP!" on the performance profile.
 - **Connections:** it mourns lost internet, and puts on shades (⌐■_■) when Tailscale connects.
+- **Fingerprints:** it says "it's you! welcome back" when a finger unlocks the screen, cheers a
+  newly enrolled print, and reacts to tests in Settings ("identity confirmed." / "who are you?").
+  `qs ipc call fingerprint event unlock` (or enrolled, match, nomatch...) plays one.
 - **Everything else:** it waves at new Bluetooth devices, dances when a song starts, says
   cheese for screenshots, warns about calendar events, says welcome back, and tells you to go to
   bed at 3 AM.

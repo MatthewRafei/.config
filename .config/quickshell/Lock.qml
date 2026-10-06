@@ -98,6 +98,7 @@ Scope {
         onCompleted: result => {
             if (result === PamResult.Success) {
                 root.unlocked()
+                Fingerprint.event("unlock", "")   // the bar does a little skit
                 return
             }
             if (!root.locked) return

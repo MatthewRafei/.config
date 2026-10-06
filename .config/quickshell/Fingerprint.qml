@@ -39,8 +39,11 @@ Singleton {
     readonly property real progress: mode === "enroll" || result === "done"
         ? (stages > 0 ? Math.min(1, stage / stages) : 0) : 0
 
-    // one per scan: "ok" | "retry" | "match" | "nomatch" (the glyph flashes)
+    // one per scan: "ok" | "retry" | "match" | "nomatch" (the icon's disc reacts)
     signal scan(string kind)
+    // outcomes, for the bar's skits: "enrolled" | "enroll-failed" | "duplicate" |
+    // "match" | "nomatch" | "deleted" | "unlock" (Lock.qml: a finger unlocked the screen)
+    signal event(string kind, string finger)
 
     function has(f) { return fingers.indexOf(f) >= 0 }
     function owner(f) { return has(f) ? "" : (others[f] || "") }
@@ -103,6 +106,8 @@ Singleton {
         target: "fingerprint"
         function demo(): void { root.demo() }
         function refresh(): void { root.refresh() }
+        // fire a bar skit without the reader: enrolled, duplicate, enroll-failed, match, nomatch, deleted, unlock
+        function event(kind: string): void { root.event(kind, "right-index-finger") }
     }
 
     function say(m, bad) { message = m; messageBad = !!bad }
@@ -160,21 +165,25 @@ Singleton {
             if (mode === "enroll") say("Press your " + label(target).toLowerCase() + " on the reader.", false)
         } else if (o.ev === "enroll") {
             if (o.result === "enroll-stage-passed") { stage++; scan("ok") }
-            else if (o.result === "enroll-completed") { stage = stages; result = "done"; scan("match") }
-            else if (o.done) { result = "failed"; scan("nomatch") }
+            else if (o.result === "enroll-completed") { stage = stages; result = "done"; scan("match"); event("enrolled", target) }
+            else if (o.done) {
+                result = "failed"; scan("nomatch")
+                event(o.result === "enroll-duplicate" ? "duplicate" : "enroll-failed", target)
+            }
             else scan("retry")
             if (o.result === "enroll-duplicate" && !others[target]) setOwner(target, "root")
             say(enrollText[o.result] || o.result, o.done && o.result !== "enroll-completed"
                 || o.result.indexOf("retry") >= 0 || o.result.indexOf("short") >= 0 || o.result.indexOf("centered") >= 0)
         } else if (o.ev === "verify") {
-            if (o.result === "verify-match") { result = "match"; scan("match") }
-            else if (o.done) { result = "nomatch"; scan("nomatch") }
+            if (o.result === "verify-match") { result = "match"; scan("match"); event("match", target) }
+            else if (o.done) { result = "nomatch"; scan("nomatch"); event("nomatch", target) }
             else scan("retry")
             say(verifyText[o.result] || o.result, o.result !== "verify-match")
         } else if (o.ev === "others") {
             others = o.others
         } else if (o.ev === "deleted") {
             if (o.finger !== "all") setOwner(o.finger, "")
+            event("deleted", o.finger)
             say(o.finger === "all" ? "Deleted every fingerprint." : label(o.finger) + " deleted.", false)
         } else if (o.ev === "error") {
             if (o.stage === "device") { loaded = true; available = false }
