@@ -1,11 +1,12 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
-import "../"
-import "../micfx/Presets.js" as Presets
+import qs
+import qs.widgets
+import "Presets.js" as Presets
 
 // Settings > Audio FX: switches for the music EQ (AudioFx.qml) and the
-// microphone chain (MicFx.qml), each optional, and the chain's controls.
+// microphone chain (page.service.qml), each optional, and the chain's controls.
 //
 //   noise suppression   NoiseTorch's RNNoise filter: on/off, which microphone,
 //                       voice threshold
@@ -18,17 +19,18 @@ import "../micfx/Presets.js" as Presets
 // The music EQ itself is the bar's EQ chip (EqPanel.qml).
 Item {
     id: page
+    property var service
 
     property int rightMargin: 36
-    readonly property var m: MicFx.settings
-    readonly property bool live: MicFx.connected
+    readonly property var m: page.service.settings
+    readonly property bool live: page.service.connected
 
     // the meters run (and the real mic opens) while this page is showing
-    Component.onCompleted: MicFx.holdMeter(true)
-    Component.onDestruction: MicFx.holdMeter(false)
+    Component.onCompleted: page.service.holdMeter(true)
+    Component.onDestruction: page.service.holdMeter(false)
 
     function num(key, fallback) { const v = m ? m[key] : undefined; return v === undefined ? fallback : v }
-    function set(key, value) { MicFx.setSetting(key, value) }
+    function set(key, value) { page.service.setSetting(key, value) }
     function db(v) { return (v > 0 ? "+" : "") + v.toFixed(1) }
     function semis(v) { return (v > 0 ? "+" : "") + v.toFixed(1) + " st" }
     function hz(f) { return f >= 1000 ? (f / 1000).toFixed(f >= 10000 ? 0 : 1) + "k" : Math.round(f) + "" }
@@ -72,7 +74,7 @@ Item {
     readonly property var micPresets: Presets.mic
     readonly property var eqPresets: Presets.eq
     property string selectedPreset: ""
-    readonly property string userKey: JSON.stringify(MicFx.userPresets)
+    readonly property string userKey: JSON.stringify(page.service.userPresets)
     readonly property var channelPresets: {
         const user = JSON.parse(userKey), out = [], used = {}
         for (const f of micPresets) {
@@ -102,18 +104,18 @@ Item {
     function eqBandsOf(key) { const p = eqPresets.find(x => x.key === key); return p ? p.bands : null }
     function applyChannelPreset(p) {
         selectedPreset = p.key
-        if (p.user) { MicFx.setSettings(p.settings); return }
+        if (p.user) { page.service.setSettings(p.settings); return }
         const patch = presetBase()
         for (const k in p.factory.set) if (k !== "eqPreset") patch[k] = p.factory.set[k]
         patch.eq = (eqBandsOf(p.factory.set.eqPreset) || []).map(b => ({ on: true, type: b.type, freq: b.freq, gain: b.gain, q: b.q }))
         patch.enabled = true
-        MicFx.setSettings(patch)
+        page.service.setSettings(patch)
     }
     function saveNewPreset(name) {
         name = name.trim() || "My preset"
         const key = "user-" + Date.now()
         selectedPreset = key
-        MicFx.saveUserPreset(key, name)
+        page.service.saveUserPreset(key, name)
     }
 
     // ---------------------------------------------------------------- reverb spaces
@@ -128,13 +130,13 @@ Item {
         const patch = { space: kind }
         const p = spacePresets[kind]
         if (p) for (const k in p) patch[k] = p[k]
-        MicFx.setSettings(patch)
+        page.service.setSettings(patch)
     }
-    function setFx(key, on) { const p = { voice: "none" }; p[key] = on; MicFx.setSettings(p) }
+    function setFx(key, on) { const p = { voice: "none" }; p[key] = on; page.service.setSettings(p) }
 
     // ---------------------------------------------------------------- auto-tune notes
     function scaleNotes() {
-        const notes = MicFx.tuneKeyOptions.length ? MicFx.tuneKeyOptions : ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]
+        const notes = page.service.tuneKeyOptions.length ? page.service.tuneKeyOptions : ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]
         const sc = m.autoTuneScale || "chromatic"
         const steps = sc === "major" ? [0, 2, 4, 5, 7, 9, 11] : sc === "minor" ? [0, 2, 3, 5, 7, 8, 10]
             : sc === "pentatonic" ? [0, 2, 4, 7, 9] : sc === "blues" ? [0, 3, 5, 6, 7, 10] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
@@ -409,7 +411,7 @@ Item {
                 height: 28
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "AUDIO FX"
+                    text: "MICROPHONE"
                     color: Theme.text
                     font.family: Theme.fontFamily
                     font.pixelSize: 18
@@ -420,26 +422,17 @@ Item {
             Rectangle { width: parent.width; height: 1; color: Theme.border }
             Hint { text: "Each feature runs a background program only while it's switched on, so leave off what you don't use (on battery, especially). Settings are kept per machine." }
 
-            // ------------------------------------------------ music EQ
-            Section { text: "MUSIC EQ" }
-            Switch {
-                label: "Equalizer"
-                hint: !AudioFx.available ? "EasyEffects isn't installed" : "Genre presets and a 10-band EQ on the bar's  󰺢  chip · runs EasyEffects"
-                on: AudioFx.enabled
-                onToggled: if (AudioFx.available || AudioFx.enabled) AudioFx.setEnabled(!AudioFx.enabled)
-            }
-
             // ------------------------------------------------ noise suppression
             Section { text: "NOISE SUPPRESSION" }
             Switch {
                 label: "NoiseTorch"
-                hint: !MicFx.noiseAvailable ? "Not built: ~/.local/lib/noisetorch/rnnoise_ladspa.so is missing (see INSTALL.md)"
+                hint: !page.service.noiseAvailable ? "Not built: ~/.local/lib/noisetorch/rnnoise_ladspa.so is missing (see INSTALL.md)"
                     : "RNNoise removes fans, keyboards and room noise · about 10 ms"
-                on: MicFx.noiseOn
-                onToggled: if (MicFx.noiseAvailable || MicFx.noiseOn) MicFx.setNoise(!MicFx.noiseOn)
+                on: page.service.noiseOn
+                onToggled: if (page.service.noiseAvailable || page.service.noiseOn) page.service.setNoise(!page.service.noiseOn)
             }
             Row {
-                visible: MicFx.noiseOn
+                visible: page.service.noiseOn
                 spacing: 8
                 width: parent.width
                 Text {
@@ -454,31 +447,31 @@ Item {
                 Buttons {
                     width: parent.width - 118
                     Repeater {
-                        model: MicFx.micNodes
+                        model: page.service.micNodes
                         HudButton {
                             required property var modelData
-                            label: MicFx.micLabel(modelData.name).toUpperCase()
-                            on: MicFx.mic === modelData.name
-                            onClicked: MicFx.setMicSource(modelData.name)
+                            label: page.service.micLabel(modelData.name).toUpperCase()
+                            on: page.service.mic === modelData.name
+                            onClicked: page.service.setMicSource(modelData.name)
                         }
                     }
                 }
             }
             Item {
-                visible: MicFx.noiseOn
+                visible: page.service.noiseOn
                 width: parent.width
                 height: 50
                 Slider {
                     anchors.fill: parent
-                    property real v: MicFx.threshold
+                    property real v: page.service.threshold
                     label: "VOICE THRESHOLD  ·  " + Math.round(v) + "%"
                     icon: "󰍬"
                     value: v / 95
                     onMoved: value => v = Math.round(value * 95)
-                    onCommitted: value => MicFx.setThreshold(value * 95)
+                    onCommitted: value => page.service.setThreshold(value * 95)
                 }
             }
-            Hint { visible: MicFx.noiseOn; text: "How sure RNNoise must be that you're talking before it lets sound through. Higher cuts more between words; too high clips quiet speech. NoiseTorch's default is 95." }
+            Hint { visible: page.service.noiseOn; text: "How sure RNNoise must be that you're talking before it lets sound through. Higher cuts more between words; too high clips quiet speech. NoiseTorch's default is 95." }
 
             // ------------------------------------------------ mic effects
             Item {
@@ -486,11 +479,11 @@ Item {
                 height: 34
                 Section { anchors.bottom: parent.bottom; text: "MIC EFFECTS" }
                 Text {
-                    visible: MicFx.fxEnabled
+                    visible: page.service.fxEnabled
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    text: !page.live ? "STARTING…" : MicFx.active ? "● IN USE" : "IDLE"
-                    color: !page.live ? Theme.danger : MicFx.active ? Theme.accent : Theme.textFaint
+                    text: !page.live ? "STARTING…" : page.service.active ? "● IN USE" : "IDLE"
+                    color: !page.live ? Theme.danger : page.service.active ? Theme.accent : Theme.textFaint
                     font.family: Theme.fontFamily
                     font.pixelSize: 9
                     font.letterSpacing: 2
@@ -498,20 +491,20 @@ Item {
             }
             Switch {
                 label: "Effects rack"
-                hint: !MicFx.fxAvailable ? "Not built: ~/.local/lib/mic-effects/mic-effects-server is missing (see INSTALL.md)"
+                hint: !page.service.fxAvailable ? "Not built: ~/.local/lib/mic-effects/mic-effects-server is missing (see INSTALL.md)"
                     : "Compressor, EQ, de-esser, reverb, auto-tune… as a “Microphone Effects” mic"
-                on: MicFx.fxEnabled
-                onToggled: if (MicFx.fxAvailable || MicFx.fxEnabled) MicFx.setFx(!MicFx.fxEnabled)
+                on: page.service.fxEnabled
+                onToggled: if (page.service.fxAvailable || page.service.fxEnabled) page.service.setFx(!page.service.fxEnabled)
             }
             Hint {
-                visible: MicFx.fxEnabled
+                visible: page.service.fxEnabled
                 text: "Apps use “Microphone Effects” as the mic (it's the system default). Signal: "
-                    + MicFx.micLabel(MicFx.mic) + (MicFx.noiseOn ? "  →  NoiseTorch" : "") + "  →  rack  →  apps."
-                    + (MicFx.commandError ? "   ⚠ " + MicFx.commandError : "")
+                    + page.service.micLabel(page.service.mic) + (page.service.noiseOn ? "  →  NoiseTorch" : "") + "  →  rack  →  apps."
+                    + (page.service.commandError ? "   ⚠ " + page.service.commandError : "")
             }
 
             Column {
-                visible: MicFx.fxEnabled
+                visible: page.service.fxEnabled
                 width: parent.width
                 spacing: 12
                 enabled: page.live
@@ -520,33 +513,33 @@ Item {
                 Switch {
                     label: "Effects"
                     hint: "Off passes the microphone through untouched (apps keep the same mic)"
-                    on: MicFx.enabled
-                    onToggled: page.set("enabled", !MicFx.enabled)
+                    on: page.service.enabled
+                    onToggled: page.set("enabled", !page.service.enabled)
                 }
                 Row {
                     spacing: 6
                     HudButton {
-                        label: MicFx.muted ? "MUTED" : "MUTE"
+                        label: page.service.muted ? "MUTED" : "MUTE"
                         danger: true
-                        on: MicFx.muted
-                        onClicked: MicFx.setMuted(!MicFx.muted)
+                        on: page.service.muted
+                        onClicked: page.service.setMuted(!page.service.muted)
                     }
                     HudButton {
                         label: "MONITOR"
-                        on: MicFx.listen
-                        onClicked: MicFx.setListen(!MicFx.listen)
+                        on: page.service.listen
+                        onClicked: page.service.setListen(!page.service.listen)
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: MicFx.listen
+                        visible: page.service.listen
                         text: "  hear yourself · use headphones (speakers will feed back)"
                         color: Theme.danger
                         font.family: Theme.fontFamily
                         font.pixelSize: 10
                     }
                 }
-                Meter { label: "IN"; level: MicFx.inLevel }
-                Meter { label: "OUT"; level: MicFx.outLevel }
+                Meter { label: "IN"; level: page.service.inLevel }
+                Meter { label: "OUT"; level: page.service.outLevel }
                 Item {
                     width: parent.width
                     height: 50
@@ -593,7 +586,7 @@ Item {
                         readonly property var sel: page.channelPresets.find(p => p.key === page.selectedPreset)
                         visible: !!sel
                         label: "UPDATE " + (sel ? sel.label.toUpperCase() : "")
-                        onClicked: MicFx.saveUserPreset(sel.key, sel.label)
+                        onClicked: page.service.saveUserPreset(sel.key, sel.label)
                     }
                     HudButton {
                         readonly property var sel: page.channelPresets.find(p => p.key === page.selectedPreset)
@@ -602,7 +595,7 @@ Item {
                         label: sel && sel.builtin ? "RESTORE" : "DELETE"
                         onClicked: {
                             const s = sel
-                            MicFx.deleteUserPreset(s.key)
+                            page.service.deleteUserPreset(s.key)
                             if (s.builtin) page.applyChannelPreset({ key: s.key, user: false, factory: s.factory })
                             else page.selectedPreset = ""
                         }
@@ -612,7 +605,7 @@ Item {
 
                 // ---------------- signal chain
                 Text {
-                    text: "SIGNAL CHAIN  ·  " + MicFx.chain.filter(id => page.stageOn(id)).length + " ENGAGED"
+                    text: "SIGNAL CHAIN  ·  " + page.service.chain.filter(id => page.stageOn(id)).length + " ENGAGED"
                     color: Theme.textDim
                     font.family: Theme.fontFamily
                     font.pixelSize: 10
@@ -623,14 +616,14 @@ Item {
                     width: parent.width
                     spacing: 3
                     Repeater {
-                        model: MicFx.chain
+                        model: page.service.chain
                         Rectangle {
                             id: mod
                             required property string modelData
                             required property int index
                             readonly property bool sel: page.stage === modelData
                             readonly property bool engaged: page.stageOn(modelData)
-                            width: (rail.width - rail.spacing * (MicFx.chain.length - 1)) / MicFx.chain.length
+                            width: (rail.width - rail.spacing * (page.service.chain.length - 1)) / page.service.chain.length
                             height: 46
                             radius: Theme.radius
                             color: sel ? Theme.alpha(Theme.accent, 0.15) : modMouse.containsMouse ? Theme.bgCard : Theme.alpha(Theme.text, 0.03)
@@ -692,8 +685,8 @@ Item {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 4
-                                HudButton { label: "◀ EARLIER"; onClicked: MicFx.moveStage(page.stage, -1) }
-                                HudButton { label: "LATER ▶"; onClicked: MicFx.moveStage(page.stage, 1) }
+                                HudButton { label: "◀ EARLIER"; onClicked: page.service.moveStage(page.stage, -1) }
+                                HudButton { label: "LATER ▶"; onClicked: page.service.moveStage(page.stage, 1) }
                             }
                         }
 
@@ -831,7 +824,7 @@ Item {
             spacing: 8
             Buttons {
                 Repeater {
-                    model: MicFx.spaceOptions.filter(s => s !== "trap")
+                    model: page.service.spaceOptions.filter(s => s !== "trap")
                     HudButton {
                         required property string modelData
                         label: modelData === "none" ? "OFF" : modelData.toUpperCase()
@@ -901,23 +894,23 @@ Item {
                 }
                 Buttons {
                     Repeater {
-                        model: MicFx.tuneScaleOptions
+                        model: page.service.tuneScaleOptions
                         HudButton {
                             required property string modelData
                             label: modelData.toUpperCase()
                             on: (page.m.autoTuneScale || "chromatic") === modelData
-                            onClicked: MicFx.setSettings({ autoTuneScale: modelData, autoTuneNotes: [] })
+                            onClicked: page.service.setSettings({ autoTuneScale: modelData, autoTuneNotes: [] })
                         }
                     }
                 }
                 Buttons {
                     Repeater {
-                        model: MicFx.tuneKeyOptions
+                        model: page.service.tuneKeyOptions
                         HudButton {
                             required property string modelData
                             label: modelData.toUpperCase()
                             on: (page.m.autoTuneKey || "c") === modelData
-                            onClicked: MicFx.setSettings({ autoTuneKey: modelData, autoTuneNotes: [] })
+                            onClicked: page.service.setSettings({ autoTuneKey: modelData, autoTuneNotes: [] })
                         }
                     }
                 }
@@ -1054,7 +1047,7 @@ Item {
             Buttons {
                 visible: page.eqSel < page.eqBands.length
                 Repeater {
-                    model: MicFx.eqTypeOptions
+                    model: page.service.eqTypeOptions
                     HudButton {
                         required property string modelData
                         label: page.eqTypeLabels[modelData] || modelData

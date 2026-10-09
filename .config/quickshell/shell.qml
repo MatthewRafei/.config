@@ -10,10 +10,6 @@ ShellRoot {
     readonly property bool modulesReady: Modules.ready
     // and Auth, so the polkit agent (password prompts) is registered
     readonly property bool authAgent: Auth.registered
-    // and AudioFx, which starts and watches EasyEffects (music EQ)
-    readonly property bool audioFx: AudioFx.eeRunning
-    // and MicFx: noise suppression + the mic effects rack
-    readonly property bool micFx: MicFx.loaded
 
     // one bar per monitor
     Variants {
@@ -32,5 +28,4 @@ ShellRoot {
     Screensaver { locked: lock.locked }
     PowerMenu {}
     QuickPanel {}
-    EqPanel {}
 }

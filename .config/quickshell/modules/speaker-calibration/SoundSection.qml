@@ -1,16 +1,18 @@
 import QtQuick
 import Quickshell
-import "../"
+import qs
+import qs.widgets
 
-// Speaker calibration (../Speaker.qml, backend in ../speaker/), shown at the
+// Speaker calibration (../root.service.qml, backend in ../speaker/), shown at the
 // bottom of Settings > Sound: measure the speakers with a mic, the EQ it
 // fitted, loudness / deep bass switches, check, A/B against the previous one.
 Column {
     id: root
+    property var service
     width: parent ? parent.width : 0
     spacing: 4
 
-    Component.onCompleted: Speaker.refresh()
+    Component.onCompleted: root.service.refresh()
     Timer { id: copied; interval: 1500 }
 
     component Head: Item {
@@ -284,14 +286,14 @@ Column {
 
         Head {
             title: "// SPEAKER CALIBRATION"
-            on: Speaker.enabled && !Speaker.bypassed
-            showToggle: Speaker.calibrated
+            on: root.service.enabled && !root.service.bypassed
+            showToggle: root.service.calibrated
             showRescan: true
-            onToggled: if (!Speaker.busy) {
-                if (!Speaker.enabled) Speaker.useCalibratedOutput()
-                else Speaker.bypass()
+            onToggled: if (!root.service.busy) {
+                if (!root.service.enabled) root.service.useCalibratedOutput()
+                else root.service.bypass()
             }
-            onRescan: Speaker.refresh()
+            onRescan: root.service.refresh()
         }
 
         Rectangle { width: parent.width; height: 1; color: Theme.border }
@@ -300,13 +302,13 @@ Column {
             id: spkMsg
             width: parent.width
             wrapMode: Text.Wrap
-            text: Speaker.working || Speaker.message === "" ? Speaker.summary() : Speaker.message
-            color: Speaker.working ? Theme.accent : Theme.textDim
+            text: root.service.working || root.service.message === "" ? root.service.summary() : root.service.message
+            color: root.service.working ? Theme.accent : Theme.textDim
             font.family: Theme.fontFamily
             font.pixelSize: 9
             topPadding: 4
             SequentialAnimation on opacity {
-                running: Speaker.working
+                running: root.service.working
                 loops: Animation.Infinite
                 NumberAnimation { to: 0.4; duration: 800; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 1; duration: 800; easing.type: Easing.InOutSine }
@@ -314,109 +316,109 @@ Column {
             }
         }
         Text {
-            visible: Speaker.error !== ""
+            visible: root.service.error !== ""
             width: parent.width
             wrapMode: Text.Wrap
-            text: Speaker.error
+            text: root.service.error
             color: Theme.danger
             font.family: Theme.fontFamily
             font.pixelSize: 9
         }
         Text {
-            visible: !Speaker.working && Speaker.qualityText() !== ""
+            visible: !root.service.working && root.service.qualityText() !== ""
             width: parent.width
             wrapMode: Text.Wrap
-            text: Speaker.qualityText()
+            text: root.service.qualityText()
             color: Theme.danger
             font.family: Theme.fontFamily
             font.pixelSize: 8
         }
         // a failure can suggest another microphone, for this run only
         Row2 {
-            readonly property int offered: Speaker.offer ? Speaker.indexOf(Speaker.microphones, Speaker.offer.microphone) : -1
-            visible: offered >= 0 && !Speaker.busy
+            readonly property int offered: root.service.offer ? root.service.indexOf(root.service.microphones, root.service.offer.microphone) : -1
+            visible: offered >= 0 && !root.service.busy
             height: 30
             icon: "󰍬"
-            label: offered >= 0 ? "Measure with " + Speaker.microphones[offered].description + " instead" : ""
-            onClicked: Speaker.calibrate(Speaker.microphones[offered].name,
-                Speaker.microphones[offered].internal && Number(Speaker.microphones[offered].channels || 1) > 1 ? "all" : 0)
+            label: offered >= 0 ? "Measure with " + root.service.microphones[offered].description + " instead" : ""
+            onClicked: root.service.calibrate(root.service.microphones[offered].name,
+                root.service.microphones[offered].internal && Number(root.service.microphones[offered].channels || 1) > 1 ? "all" : 0)
         }
 
         // what measuring still needs
         Column {
-            visible: !Speaker.canMeasure
+            visible: !root.service.canMeasure
             width: parent.width
             spacing: 4
-            Label2 { text: "MISSING  ·  " + (Speaker.support.missing || []).join("  ").toUpperCase(); color: Theme.danger }
+            Label2 { text: "MISSING  ·  " + (root.service.support.missing || []).join("  ").toUpperCase(); color: Theme.danger }
             Text {
                 width: parent.width
                 wrapMode: Text.WrapAnywhere
-                text: Speaker.support.command || ""
+                text: root.service.support.command || ""
                 color: Theme.textDim
                 font.family: Theme.fontFamily
                 font.pixelSize: 8
             }
             Row2 {
                 height: 30
-                icon: Speaker.support.fixable ? "󰄠" : "󰆏"
-                label: Speaker.support.fixable ? "Install numpy + scipy (venv)" : "Copy the command"
-                tag: !Speaker.support.fixable && copied.running ? "COPIED" : ""
-                busy: Speaker.busy && Speaker.phase === "support"
+                icon: root.service.support.fixable ? "󰄠" : "󰆏"
+                label: root.service.support.fixable ? "Install numpy + scipy (venv)" : "Copy the command"
+                tag: !root.service.support.fixable && copied.running ? "COPIED" : ""
+                busy: root.service.busy && root.service.phase === "support"
                 onClicked: {
-                    if (Speaker.support.fixable) Speaker.installSupport()
-                    else { Speaker.copy(Speaker.support.command); copied.restart() }
+                    if (root.service.support.fixable) root.service.installSupport()
+                    else { root.service.copy(root.service.support.command); copied.restart() }
                 }
             }
         }
 
         // a new calibration plays and waits for a decision
         Column {
-            visible: Speaker.previewing
+            visible: root.service.previewing
             width: parent.width
             spacing: 2
             Label2 { text: "NEW CALIBRATION  ·  KEEP IT?"; color: Theme.accent }
             Row2 {
                 height: 30; icon: "󰄬"; label: "Apply the new calibration"
-                busy: Speaker.busy && Speaker.phase === "previewapply"
-                onClicked: if (!Speaker.busy) Speaker.applyPreview()
+                busy: root.service.busy && root.service.phase === "previewapply"
+                onClicked: if (!root.service.busy) root.service.applyPreview()
             }
             Row2 {
                 height: 30; icon: "󰕍"; label: "Keep the previous one"
-                busy: Speaker.busy && Speaker.phase === "previewdiscard"
-                onClicked: if (!Speaker.busy) Speaker.discardPreview()
+                busy: root.service.busy && root.service.phase === "previewdiscard"
+                onClicked: if (!root.service.busy) root.service.discardPreview()
             }
             Row2 {
-                visible: (Speaker.status.compare || {}).available === true
+                visible: (root.service.status.compare || {}).available === true
                 height: 30; icon: "󰓦"
-                label: (Speaker.status.compare || {}).active === "previous" ? "Hear the new one" : "Hear the previous one"
+                label: (root.service.status.compare || {}).active === "previous" ? "Hear the new one" : "Hear the previous one"
                 detail: "LEVEL MATCHED"
-                busy: Speaker.busy && Speaker.phase === "compare"
-                onClicked: if (!Speaker.busy) Speaker.compare()
+                busy: root.service.busy && root.service.phase === "compare"
+                onClicked: if (!root.service.busy) root.service.compare()
             }
         }
 
         // sound went to another output (headphones, an app)
         Row2 {
-            visible: Speaker.calibrated && !Speaker.enabled && Speaker.status.service === "active"
+            visible: root.service.calibrated && !root.service.enabled && root.service.status.service === "active"
             height: 30
             icon: "󰓃"
             label: "Play through Calibrated Speakers"
-            busy: Speaker.busy && Speaker.phase === "output"
-            onClicked: if (!Speaker.busy) Speaker.useCalibratedOutput()
+            busy: root.service.busy && root.service.phase === "output"
+            onClicked: if (!root.service.busy) root.service.useCalibratedOutput()
         }
 
         // the EQ the calibration applies: each section faint, their sum bright
         Label2 {
             visible: eq.visible
-            text: "EQUALIZER" + (Speaker.bypassed ? "  ·  SWITCHED OFF" : "  ·  " + ((Speaker.profile || {}).fit || {}).filter_count + " SECTIONS")
+            text: "EQUALIZER" + (root.service.bypassed ? "  ·  SWITCHED OFF" : "  ·  " + ((root.service.profile || {}).fit || {}).filter_count + " SECTIONS")
         }
         Canvas {
             id: eq
-            readonly property var fit: Speaker.profile ? Speaker.profile.fit : null
+            readonly property var fit: root.service.profile ? root.service.profile.fit : null
             visible: fit !== null && fit !== undefined
             width: parent.width
             height: 110
-            opacity: Speaker.bypassed ? 0.35 : 1
+            opacity: root.service.bypassed ? 0.35 : 1
             onFitChanged: requestPaint()
             onVisibleChanged: if (visible) requestPaint()
             onWidthChanged: requestPaint()
@@ -428,50 +430,50 @@ Column {
         }
 
         Column {
-            visible: Speaker.calibrated
+            visible: root.service.calibrated
             width: parent.width
             spacing: 2
             Label2 { text: "SOUND" }
             Row2 {
                 height: 30; icon: "󰓃"; label: "Loudness  ·  fuller, more bass"
-                active: Speaker.bass === "full"; tag: active ? "ON" : ""; detail: "OFF"
-                busy: Speaker.busy && Speaker.phase === "relevel"
-                onClicked: Speaker.setBass(Speaker.bass !== "full")
+                active: root.service.bass === "full"; tag: active ? "ON" : ""; detail: "OFF"
+                busy: root.service.busy && root.service.phase === "relevel"
+                onClicked: root.service.setBass(root.service.bass !== "full")
             }
             Row2 {
                 height: 30; icon: "󰝝"; label: "Make it louder"
-                active: Speaker.loudness !== "protected"; tag: active ? "ON" : ""; detail: "OFF"
-                onClicked: Speaker.setLouder(Speaker.loudness === "protected")
+                active: root.service.loudness !== "protected"; tag: active ? "ON" : ""; detail: "OFF"
+                onClicked: root.service.setLouder(root.service.loudness === "protected")
             }
             Row2 {
                 height: 30; icon: "󰋋"; label: "Deep bass  ·  virtual low notes"
-                active: Speaker.status.deepBass === "on"; tag: active ? "ON" : ""; detail: "OFF"
-                busy: Speaker.busy && Speaker.phase === "deepbass"
-                onClicked: if (!Speaker.busy) Speaker.deepBass()
+                active: root.service.status.deepBass === "on"; tag: active ? "ON" : ""; detail: "OFF"
+                busy: root.service.busy && root.service.phase === "deepbass"
+                onClicked: if (!root.service.busy) root.service.deepBass()
             }
             Row2 {
                 height: 30; icon: "󰕾"; label: "Follow volume  ·  ISO 226 loudness"
-                active: Speaker.status.loudnessCompensation === "on"
-                tag: active ? (Speaker.status.loudnessTracker === "running" ? "ON" : "ON · STALLED") : ""
+                active: root.service.status.loudnessCompensation === "on"
+                tag: active ? (root.service.status.loudnessTracker === "running" ? "ON" : "ON · STALLED") : ""
                 detail: "OFF"
-                busy: Speaker.busy && Speaker.phase === "loudness"
-                onClicked: if (!Speaker.busy) Speaker.loudnessCompensation()
+                busy: root.service.busy && root.service.phase === "loudness"
+                onClicked: if (!root.service.busy) root.service.loudnessCompensation()
             }
             Row2 {
                 height: 30; icon: "󰔏"; label: "Voicing"
-                tag: Speaker.voicing === "warm" ? "WARM" : ""; detail: "FLAT"
-                busy: Speaker.busy && Speaker.phase === "refit"
-                onClicked: Speaker.setVoicing(Speaker.voicing === "warm" ? "neutral" : "warm")
+                tag: root.service.voicing === "warm" ? "WARM" : ""; detail: "FLAT"
+                busy: root.service.busy && root.service.phase === "refit"
+                onClicked: root.service.setVoicing(root.service.voicing === "warm" ? "neutral" : "warm")
             }
 
             Label2 { text: "CHECK" }
             Text {
-                visible: !!Speaker.status.verification
+                visible: !!root.service.status.verification
                 width: parent.width
                 wrapMode: Text.Wrap
-                text: Speaker.verificationSummary(Speaker.status.verification)
-                color: Speaker.status.verification && !Speaker.status.verification.stale
-                       && Speaker.status.verification.verdict === "fail" ? Theme.danger : Theme.textDim
+                text: root.service.verificationSummary(root.service.status.verification)
+                color: root.service.status.verification && !root.service.status.verification.stale
+                       && root.service.status.verification.verdict === "fail" ? Theme.danger : Theme.textDim
                 font.family: Theme.fontFamily
                 font.pixelSize: 9
                 bottomPadding: 2
@@ -479,24 +481,24 @@ Column {
             Row2 {
                 height: 30; icon: "󰗠"
                 label: "Check the calibration"
-                detail: Speaker.profileMicConnected ? "SWEEPS AGAIN" : "ITS MIC IS UNPLUGGED"
-                opacity: Speaker.profileMicConnected && Speaker.canMeasure ? 1 : 0.45
-                busy: Speaker.busy && Speaker.phase === "verify"
-                onClicked: if (!Speaker.busy && Speaker.profileMicConnected && Speaker.canMeasure) Speaker.verify()
+                detail: root.service.profileMicConnected ? "SWEEPS AGAIN" : "ITS MIC IS UNPLUGGED"
+                opacity: root.service.profileMicConnected && root.service.canMeasure ? 1 : 0.45
+                busy: root.service.busy && root.service.phase === "verify"
+                onClicked: if (!root.service.busy && root.service.profileMicConnected && root.service.canMeasure) root.service.verify()
             }
             Row2 {
-                visible: !!Speaker.status.verification && !Speaker.status.verification.stale
-                         && Speaker.status.verification.verdict !== "inconclusive"
+                visible: !!root.service.status.verification && !root.service.status.verification.stale
+                         && root.service.status.verification.verdict !== "inconclusive"
                 height: 30; icon: "󰁨"
                 label: "Improve from the check"
-                busy: Speaker.busy && Speaker.phase === "refine"
-                onClicked: if (!Speaker.busy) Speaker.refine()
+                busy: root.service.busy && root.service.phase === "refine"
+                onClicked: if (!root.service.busy) root.service.refine()
             }
         }
 
         Label2 { text: "SPEAKERS" }
         Repeater {
-            model: Speaker.sinks
+            model: root.service.sinks
             Row2 {
                 required property var modelData
                 required property int index
@@ -504,15 +506,15 @@ Column {
                 icon: /head|line/i.test(modelData.description) ? "󰋋"
                     : /hdmi|displayport/i.test(modelData.description) ? "󰍹" : "󰓃"
                 label: modelData.description
-                active: index === Speaker.sinkIndex
-                detail: (Speaker.profile && (Speaker.profile.speaker || {}).name === modelData.name) ? "CALIBRATED" : ""
-                onClicked: if (!Speaker.busy) Speaker.pickSink(index)
+                active: index === root.service.sinkIndex
+                detail: (root.service.profile && (root.service.profile.speaker || {}).name === modelData.name) ? "CALIBRATED" : ""
+                onClicked: if (!root.service.busy) root.service.pickSink(index)
             }
         }
 
         Label2 { text: "MICROPHONE  ·  AT YOUR SEAT" }
         Repeater {
-            model: Speaker.microphones
+            model: root.service.microphones
             Row2 {
                 required property var modelData
                 required property int index
@@ -520,21 +522,21 @@ Column {
                 height: 30
                 icon: "󰍬"
                 label: modelData.description
-                active: index === Speaker.micIndex
+                active: index === root.service.micIndex
                 opacity: modelData.available === false ? 0.45 : 1
                 // a multi-channel interface: click again to step through its inputs
-                tag: active && chans > 1 ? (Speaker.micArray ? "ALL " + chans : "CH " + (Speaker.channel + 1) + "/" + chans) : ""
+                tag: active && chans > 1 ? (root.service.micArray ? "ALL " + chans : "CH " + (root.service.channel + 1) + "/" + chans) : ""
                 detail: modelData.available === false ? "EMPTY JACK"
                       : modelData.silenced ? "MUTED"
                       : modelData.internal ? "BUILT-IN" : ""
-                onClicked: if (!Speaker.busy) Speaker.pickMic(index)
+                onClicked: if (!root.service.busy) root.service.pickMic(index)
             }
         }
         Text {
-            visible: (Speaker.status.unusableMicrophones || []).length > 0
+            visible: (root.service.status.unusableMicrophones || []).length > 0
             width: parent.width
             wrapMode: Text.Wrap
-            text: (Speaker.status.unusableMicrophones || []).join(", ") + ": headset mics can't measure speakers"
+            text: (root.service.status.unusableMicrophones || []).join(", ") + ": headset mics can't measure speakers"
             color: Theme.textFaint
             font.family: Theme.fontFamily
             font.pixelSize: 8
@@ -544,11 +546,11 @@ Column {
 
         Rectangle {
             id: calBtn
-            readonly property bool usable: !Speaker.busy && Speaker.canMeasure && Speaker.sink !== null && Speaker.mic !== null
+            readonly property bool usable: !root.service.busy && root.service.canMeasure && root.service.sink !== null && root.service.mic !== null
             width: parent.width
             height: 40
             radius: Theme.radius
-            opacity: usable || Speaker.measuring ? 1 : 0.45
+            opacity: usable || root.service.measuring ? 1 : 0.45
             color: Theme.alpha(Theme.accent, calMouse.containsMouse && usable ? 0.22 : 0.12)
             border.color: Theme.accent
             Row {
@@ -562,15 +564,15 @@ Column {
                     font.family: Theme.iconFont
                     font.pixelSize: 16
                     RotationAnimation on rotation {
-                        running: Speaker.measuring
+                        running: root.service.measuring
                         from: 0; to: 360; duration: 1600; loops: Animation.Infinite
                         onRunningChanged: if (!running) spkIcon.rotation = 0
                     }
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Speaker.measuring ? "MEASURING  ·  KEEP QUIET"
-                        : Speaker.calibrated ? "CALIBRATE AGAIN" : "CALIBRATE SPEAKERS"
+                    text: root.service.measuring ? "MEASURING  ·  KEEP QUIET"
+                        : root.service.calibrated ? "CALIBRATE AGAIN" : "CALIBRATE SPEAKERS"
                     color: Theme.accent
                     font.family: Theme.fontFamily
                     font.pixelSize: 10
@@ -583,7 +585,7 @@ Column {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: calBtn.usable ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: if (calBtn.usable) Speaker.calibrate()
+                onClicked: if (calBtn.usable) root.service.calibrate()
             }
         }
         Text {
@@ -598,15 +600,15 @@ Column {
         }
 
         Row2 {
-            visible: Speaker.calibrated && Speaker.status.service === "active"
+            visible: root.service.calibrated && root.service.status.service === "active"
             height: 30
             icon: "󰅖"
             label: "Remove the calibration"
             tag: spk.armed ? "CLICK AGAIN" : ""
-            busy: Speaker.busy && Speaker.phase === "disable"
+            busy: root.service.busy && root.service.phase === "disable"
             onClicked: {
-                if (Speaker.busy) return
-                if (spk.armed) { spk.armed = false; Speaker.disable() }
+                if (root.service.busy) return
+                if (spk.armed) { spk.armed = false; root.service.disable() }
                 else { spk.armed = true; spkDisarm.restart() }
             }
         }

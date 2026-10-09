@@ -1,8 +1,9 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import qs
 
-// Music EQ widget, bottom left (AudioFx.qml). Opened from the bar's EQ chip.
+// Music EQ widget, bottom left (root.service.qml). Opened from the bar's EQ chip.
 //
 //   genre presets   click to apply (also turns the EQ on)
 //   sliders         drag, scroll for ±0.5 dB, double-click for 0
@@ -12,8 +13,9 @@ import QtQuick
 //   qs ipc call eq panel
 PanelWindow {
     id: root
+    property var service
 
-    readonly property bool open: AudioFx.panelOpen
+    readonly property bool open: root.service.panelOpen
 
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
@@ -25,7 +27,7 @@ PanelWindow {
 
     MouseArea {
         anchors.fill: parent
-        onClicked: AudioFx.panelOpen = false
+        onClicked: root.service.panelOpen = false
     }
 
     function fmtFreq(f) { return f >= 1000 ? (f / 1000) + "k" : String(f) }
@@ -42,7 +44,7 @@ PanelWindow {
         color: Theme.alpha(Theme.bgPanel, 0.96)
         border.color: Theme.accent
         focus: root.open
-        Keys.onEscapePressed: AudioFx.panelOpen = false
+        Keys.onEscapePressed: root.service.panelOpen = false
 
         opacity: root.open ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: Theme.animMed; easing.type: Easing.OutCubic } }
@@ -82,8 +84,8 @@ PanelWindow {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (AudioFx.preset || "CUSTOM").toUpperCase()
-                        color: AudioFx.eqOn ? Theme.accent : Theme.textFaint
+                        text: (root.service.preset || "CUSTOM").toUpperCase()
+                        color: root.service.eqOn ? Theme.accent : Theme.textFaint
                         font.family: Theme.fontFamily
                         font.pixelSize: 10
                         font.letterSpacing: 2
@@ -96,19 +98,19 @@ PanelWindow {
                     width: 44
                     height: 22
                     radius: 11
-                    color: AudioFx.eqOn ? Theme.accent : Theme.trackBg
+                    color: root.service.eqOn ? Theme.accent : Theme.trackBg
                     border.color: Theme.border
                     Rectangle {
                         width: 16; height: 16; radius: 8
                         anchors.verticalCenter: parent.verticalCenter
-                        x: AudioFx.eqOn ? parent.width - width - 3 : 3
+                        x: root.service.eqOn ? parent.width - width - 3 : 3
                         color: Theme.text
                         Behavior on x { NumberAnimation { duration: Theme.animFast } }
                     }
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: AudioFx.setOn(!AudioFx.eqOn)
+                        onClicked: root.service.setOn(!root.service.eqOn)
                     }
                 }
             }
@@ -118,12 +120,12 @@ PanelWindow {
                 width: parent.width
                 spacing: 4
                 Repeater {
-                    model: AudioFx.genres
+                    model: root.service.genres
                     HudButton {
                         required property var modelData
                         label: modelData.name.toUpperCase()
-                        on: AudioFx.preset === modelData.name
-                        onClicked: AudioFx.applyPreset(modelData.name)
+                        on: root.service.preset === modelData.name
+                        onClicked: root.service.applyPreset(modelData.name)
                     }
                 }
             }
@@ -133,14 +135,14 @@ PanelWindow {
                 id: eqArea
                 width: parent.width
                 height: 190
-                opacity: AudioFx.eqOn ? 1 : 0.45
+                opacity: root.service.eqOn ? 1 : 0.45
                 Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
 
                 readonly property real labelW: 30
                 readonly property real plotW: width - labelW
                 readonly property real plotTop: 18
                 readonly property real plotH: height - plotTop - 22
-                function yOf(db) { return plotTop + (1 - (db + AudioFx.maxDb) / (2 * AudioFx.maxDb)) * plotH }
+                function yOf(db) { return plotTop + (1 - (db + root.service.maxDb) / (2 * root.service.maxDb)) * plotH }
                 function colX(i) { return labelW + (i + 0.5) * plotW / 10 }
 
                 // dB grid
@@ -170,7 +172,7 @@ PanelWindow {
                 Canvas {
                     id: curve
                     anchors.fill: parent
-                    property var g: AudioFx.gains
+                    property var g: root.service.gains
                     onGChanged: requestPaint()
                     onPaint: {
                         const c = getContext("2d")
@@ -184,7 +186,7 @@ PanelWindow {
                                 const d = pos - i
                                 db += g[i] * Math.exp(-d * d / (2 * 0.42 * 0.42))
                             }
-                            pts.push([x0 + (pos) * (x1 - x0) / 9, eqArea.yOf(Math.max(-AudioFx.maxDb, Math.min(AudioFx.maxDb, db)))])
+                            pts.push([x0 + (pos) * (x1 - x0) / 9, eqArea.yOf(Math.max(-root.service.maxDb, Math.min(root.service.maxDb, db)))])
                         }
                         c.beginPath()
                         c.moveTo(pts[0][0], eqArea.yOf(0))
@@ -207,7 +209,7 @@ PanelWindow {
                     Item {
                         id: band
                         required property int index
-                        readonly property real v: AudioFx.gains[index]
+                        readonly property real v: root.service.gains[index]
                         x: eqArea.colX(index) - width / 2
                         width: eqArea.plotW / 10
                         height: eqArea.height
@@ -250,7 +252,7 @@ PanelWindow {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.bottom: parent.bottom
-                            text: root.fmtFreq(AudioFx.freqs[band.index])
+                            text: root.fmtFreq(root.service.freqs[band.index])
                             color: Theme.textDim
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
@@ -264,12 +266,12 @@ PanelWindow {
                             cursorShape: Qt.SizeVerCursor
                             function dbAt(my) {
                                 const y = my + anchors.topMargin
-                                return (1 - (y - eqArea.plotTop) / eqArea.plotH) * 2 * AudioFx.maxDb - AudioFx.maxDb
+                                return (1 - (y - eqArea.plotTop) / eqArea.plotH) * 2 * root.service.maxDb - root.service.maxDb
                             }
-                            onPressed: mouse => AudioFx.setGain(band.index, dbAt(mouse.y))
-                            onPositionChanged: mouse => { if (pressed) AudioFx.setGain(band.index, dbAt(mouse.y)) }
-                            onDoubleClicked: AudioFx.setGain(band.index, 0)
-                            onWheel: wheel => AudioFx.setGain(band.index, band.v + (wheel.angleDelta.y > 0 ? 0.5 : -0.5))
+                            onPressed: mouse => root.service.setGain(band.index, dbAt(mouse.y))
+                            onPositionChanged: mouse => { if (pressed) root.service.setGain(band.index, dbAt(mouse.y)) }
+                            onDoubleClicked: root.service.setGain(band.index, 0)
+                            onWheel: wheel => root.service.setGain(band.index, band.v + (wheel.angleDelta.y > 0 ? 0.5 : -0.5))
                         }
                     }
                 }
@@ -277,15 +279,15 @@ PanelWindow {
 
             // ---------------- your presets
             Flow {
-                visible: Object.keys(AudioFx.userPresets).length > 0
+                visible: Object.keys(root.service.userPresets).length > 0
                 width: parent.width
                 spacing: 4
                 Repeater {
-                    model: Object.keys(AudioFx.userPresets).sort()
+                    model: Object.keys(root.service.userPresets).sort()
                     Rectangle {
                         id: up
                         required property string modelData
-                        readonly property bool cur: AudioFx.preset === modelData
+                        readonly property bool cur: root.service.preset === modelData
                         width: upRow.implicitWidth + 16
                         height: 26
                         radius: Theme.radius
@@ -296,7 +298,7 @@ PanelWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: AudioFx.applyPreset(up.modelData)
+                            onClicked: root.service.applyPreset(up.modelData)
                         }
                         Row {
                             id: upRow
@@ -321,7 +323,7 @@ PanelWindow {
                                     anchors.margins: -4
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: AudioFx.deleteUser(up.modelData)
+                                    onClicked: root.service.deleteUser(up.modelData)
                                 }
                             }
                         }
@@ -337,24 +339,24 @@ PanelWindow {
                     id: nameField
                     width: 160
                     placeholder: "name this curve ↵"
-                    onAccepted: { AudioFx.saveUser(text); text = "" }
+                    onAccepted: { root.service.saveUser(text); text = "" }
                 }
                 HudButton {
                     label: "SAVE"
-                    onClicked: { AudioFx.saveUser(nameField.text); nameField.text = "" }
+                    onClicked: { root.service.saveUser(nameField.text); nameField.text = "" }
                 }
                 HudButton {
                     label: "RESET"
-                    onClicked: AudioFx.applyPreset("Flat")
+                    onClicked: root.service.applyPreset("Flat")
                 }
                 Text {
                     width: parent.width - x
                     anchors.verticalCenter: parent.verticalCenter
                     horizontalAlignment: Text.AlignRight
                     elide: Text.ElideLeft
-                    text: !AudioFx.eeRunning ? "starting EasyEffects…"
-                        : "preamp " + root.fmtDb(AudioFx.preamp) + " dB  ·  → " + (AudioFx.calibrated ? "calibrated speakers" : AudioFx.outputName)
-                    color: AudioFx.eeRunning ? Theme.textFaint : Theme.danger
+                    text: !root.service.eeRunning ? "starting EasyEffects…"
+                        : "preamp " + root.fmtDb(root.service.preamp) + " dB  ·  → " + (root.service.calibrated ? "calibrated speakers" : root.service.outputName)
+                    color: root.service.eeRunning ? Theme.textFaint : Theme.danger
                     font.family: Theme.fontFamily
                     font.pixelSize: 9
                 }

@@ -1,0 +1,10 @@
+{
+    "name": "Speaker calibration",
+    "description": "Measure the speakers with a microphone and play everything through a correction filter (the \"Calibrated Speakers\" output); in Settings > Sound",
+    "icon": "󰓃",
+    "default": true,
+    "credit": "https://github.com/thefreshoffice/omarchy-speaker-calibrator",
+    "requires": { "commands": ["python3", "pactl"] },
+    "service": "Service.qml",
+    "sections": [ { "page": "Sound", "file": "SoundSection.qml" } ]
+}

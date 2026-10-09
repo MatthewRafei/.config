@@ -90,7 +90,6 @@ PanelWindow {
     readonly property var corePages: [
         { name: "System",     icon: "󰒓", page: "SystemPage" },
         { name: "Sound",      icon: "\uf028", page: "SoundPage" },
-        { name: "Audio FX",   icon: "󰍬", page: "AudioFxPage" },
         { name: "Monitors",   icon: "\uf108", page: "MonitorsPage" },
         { name: "Screensaver", icon: "󰍹", page: "ScreensaverPage" },
         { name: "Mouse",      icon: "󰍽", page: "MousePage" },

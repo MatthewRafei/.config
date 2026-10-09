@@ -87,9 +87,10 @@ property var bar        // Chip.qml only: the bar it sits in
 
 * `Service.qml`: a `Scope` (or `QtObject`). It's created when the module
   turns on and destroyed when it turns off, so its timers, processes and
-  `IpcHandler`s live and die with it. Start helpers with
-  `Quickshell.execDetached` only if they must survive a shell reload, and
-  stop them in `Component.onDestruction`.
+  `IpcHandler`s live and die with it. Helpers started with
+  `Quickshell.execDetached` survive a shell reload (good for audio
+  processing); stop them in `function moduleStopping()`, which the registry
+  calls when the module is switched off (not when the shell exits).
 * `Chip.qml`: a `BarChip` (from `qs.widgets`), or anything `36` px high.
 * `Page.qml` / sections: plain `Item`s; a page gets the full page area,
   a section the page's width.

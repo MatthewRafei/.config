@@ -1,4 +1,5 @@
 import QtQuick
+import qs.widgets
 import Quickshell.Services.Pipewire
 import "../"
 
@@ -887,9 +888,8 @@ Item {
 
         Item { width: 1; height: 18 }
 
-        SpeakerCalibration {
-            width: parent.width
-        }
+        // sections from modules (speaker calibration …)
+        ModuleSections { page: "Sound"; width: parent.width }
     }
     }
 }

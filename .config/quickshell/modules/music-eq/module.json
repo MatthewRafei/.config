@@ -1,0 +1,12 @@
+{
+    "name": "Music EQ",
+    "description": "Bar chip that opens a 10-band EQ with 16 genre presets (bottom left); EasyEffects does the processing, on top of the speaker calibration",
+    "icon": "󰺢",
+    "default": false,
+    "cost": "runs EasyEffects in the background",
+    "credit": "https://github.com/wwmm/easyeffects",
+    "requires": { "commands": ["easyeffects", "dconf", "gsettings"] },
+    "service": "Service.qml",
+    "chip": { "file": "Chip.qml", "order": 70 },
+    "windows": ["EqPanel.qml"]
+}

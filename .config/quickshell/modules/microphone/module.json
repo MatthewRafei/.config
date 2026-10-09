@@ -1,0 +1,11 @@
+{
+    "name": "Microphone",
+    "description": "Settings > Microphone: NoiseTorch noise suppression and a mic effects rack (compressor, EQ, de-esser, reverb, auto-tune…) as a \"Microphone Effects\" mic; each can be switched on there",
+    "icon": "󰍬",
+    "default": false,
+    "cost": "runs the noise filter and the effects daemon while they're switched on",
+    "credit": "https://github.com/WhoIsCalebBrown/mic-effects",
+    "requires": { "commands": ["pactl", "pipewire"] },
+    "service": "Service.qml",
+    "page": { "file": "Page.qml", "title": "Microphone", "icon": "󰍬", "after": "Sound" }
+}

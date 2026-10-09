@@ -1,7 +1,7 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Speaker calibration, adapted from thefreshoffice/omarchy-speaker-calibrator:
 // measure the speakers with a microphone (sine sweeps), fit a protective
@@ -9,7 +9,7 @@ import QtQuick
 // Speakers") in front of the real output. Shown at the bottom of Settings >
 // Sound (SettingsPages/SpeakerCalibration.qml).
 //
-// All the work is done by speaker/speaker-calibrate.py, run with the venv in
+// All the work is done by speaker-calibrate.py, run with the venv in
 // ~/.local/share/speaker-calibrator-venv (numpy + scipy). The filter graph runs
 // as the OpenRC user service speaker-tuning (and speaker-loudness for volume-
 // following loudness compensation), scripts in ~/.config/rc/init.d.
@@ -17,10 +17,10 @@ import QtQuick
 //
 //   qs ipc call speaker panel      open Settings > Sound
 //   qs ipc call speaker bypass     calibration on / off
-Singleton {
+Scope {
     id: root
 
-    readonly property string helper: Quickshell.shellPath("speaker/speaker-calibrate.py")
+    readonly property string helper: Quickshell.shellPath("modules/speaker-calibration/speaker-calibrate.py")
     readonly property string venv: Quickshell.env("HOME") + "/.local/share/speaker-calibrator-venv"
 
     property var sinks: []

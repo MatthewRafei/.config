@@ -1726,18 +1726,6 @@ PanelWindow {
 
 
 
-        // music EQ (AudioFx.qml): lit while on. click = EQ widget (bottom left),
-        // right-click = EQ on / off. Hidden while the feature is off (Settings > Audio FX)
-        Chip {
-            visible: AudioFx.enabled && AudioFx.available
-            icon: "󰺢"
-            value: AudioFx.eqOn && AudioFx.preset !== "Flat" ? (AudioFx.preset || "custom").toUpperCase() : ""
-            accent: !AudioFx.eqOn ? Theme.textFaint : AudioFx.eeRunning ? Theme.accent : Theme.danger
-            onClicked: mouse => {
-                if (mouse.button === Qt.RightButton) AudioFx.setOn(!AudioFx.eqOn)
-                else AudioFx.panelOpen = !AudioFx.panelOpen
-            }
-        }
 
         // caffeine: keep awake (no screensaver, idle lock or idle suspend)
         Chip {

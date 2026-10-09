@@ -1,8 +1,8 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 import QtQuick
+import qs
 
 // Audio effects around the speaker calibration (Speaker.qml):
 //
@@ -18,18 +18,17 @@ import QtQuick
 // services this singleton starts them (detached: a shell reload doesn't stop
 // them) and restarts them if they die.
 //
-// Optional (Settings > Audio FX): disabled, EasyEffects isn't run at all.
+// Optional (Settings > Modules): off, EasyEffects isn't run at all.
 //
-//   qs ipc call eq toggle | on | off | preset NAME | panel | enable | disable | status
-Singleton {
+//   qs ipc call eq toggle | on | off | preset NAME | panel | status
+Scope {
     id: root
 
     // ---------------------------------------------------------------- EQ state
     readonly property var freqs: [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
     readonly property real maxDb: 12
-    // the feature itself: off = EasyEffects isn't run at all (no battery cost)
-    // and the bar chip is hidden. Off on a new machine; per machine (state file).
-    property bool enabled: false
+    // (the module being on is the switch: Settings > Modules)
+    readonly property bool enabled: true
     property bool available: true          // easyeffects installed
     property bool eqOn: true
     property var gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -133,7 +132,6 @@ Singleton {
                 const d = JSON.parse(text())
                 if (d.gains && d.gains.length === 10) root.gains = d.gains
                 if (typeof d.on === "boolean") root.eqOn = d.on
-                if (typeof d.enabled === "boolean") root.enabled = d.enabled
                 if (typeof d.preset === "string") root.preset = d.preset
                 root.userPresets = d.user || {}
             } catch (e) {}
@@ -145,7 +143,7 @@ Singleton {
     function save() {
         if (!loaded) return
         mkdir.running = true
-        store.setText(JSON.stringify({ enabled: enabled, on: eqOn, preset: preset, gains: gains, user: userPresets }, null, 1))
+        store.setText(JSON.stringify({ on: eqOn, preset: preset, gains: gains, user: userPresets }, null, 1))
     }
     Process { id: mkdir; command: ["mkdir", "-p", root.stateDir] }
 
@@ -217,15 +215,10 @@ for st in json.loads(run('-f', 'json', 'list', 'sink-inputs') or '[]') if ee els
 "]
         stdout: StdioCollector { onStreamFinished: if (text.trim()) console.log("audiofx:", text.trim()) }
     }
-    function setEnabled(v) {
-        enabled = v
-        save()
-        if (!v) {
-            // apps fall back to the default output on their own
-            Quickshell.execDetached(["pkill", "-x", "easyeffects"])
-            eeRunning = false
-            panelOpen = false
-        }
+    // switched off in Settings > Modules: stop EasyEffects (apps fall back to
+    // the default output on their own)
+    function moduleStopping() {
+        Quickshell.execDetached(["pkill", "-x", "easyeffects"])
     }
     Process {
         running: true
@@ -271,14 +264,11 @@ for st in json.loads(run('-f', 'json', 'list', 'sink-inputs') or '[]') if ee els
     IpcHandler {
         target: "eq"
         function toggle(): void { root.setOn(!root.eqOn) }
-        function enable(): void { root.setEnabled(true) }
-        function disable(): void { root.setEnabled(false) }
         function on(): void { root.setOn(true) }
         function off(): void { root.setOn(false) }
         function preset(name: string): void { root.applyPreset(name) }
         function panel(): void { root.panelOpen = !root.panelOpen }
         function status(): string {
-            if (!root.enabled) return "disabled (EasyEffects not running)" + (root.available ? "" : " · easyeffects not installed")
             return (root.eqOn ? "on" : "off") + " · " + (root.preset || "custom") + " · [" + root.gains.join(", ")
                 + "] · preamp " + root.preamp + " dB · easyeffects " + (root.eeRunning ? "running" : "not running")
                 + " · → " + root.outputName

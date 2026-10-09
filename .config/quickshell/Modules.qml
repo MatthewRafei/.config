@@ -183,6 +183,8 @@ Singleton {
         for (const id in inst) {
             if (active(id) && manifests[id]) continue
             const i = inst[id]
+            // switched off (not the shell exiting): let it stop what it started
+            if (i.service && typeof i.service.moduleStopping === "function") i.service.moduleStopping()
             for (const w of i.windows) w.destroy()
             if (i.service) i.service.destroy()
             delete inst[id]

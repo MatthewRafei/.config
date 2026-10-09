@@ -1,8 +1,8 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 import QtQuick
+import qs
 
 // The microphone chain (Settings > Audio FX):
 //
@@ -26,7 +26,7 @@ import QtQuick
 // restarted if they die.
 //
 //   qs ipc call micfx noise on|off · rack on|off · mute · status
-Singleton {
+Scope {
     id: root
 
     // ---------------------------------------------------------------- settings
@@ -91,6 +91,12 @@ Singleton {
             pendingDefault = noiseOn ? "noisetorch_mic" : mic
         }
     }
+    // switched off in Settings > Modules: stop both helpers, back to the plain mic
+    function moduleStopping() {
+        Quickshell.execDetached(["sh", "-c", "\"$1\" quit >/dev/null 2>&1; pkill -f \"^$1 run\"; pkill -f \" -c $2\\$\"; "
+            + "[ -n \"$3\" ] && pactl set-default-source \"$3\"", "sh", daemon, ntConf, mic])
+    }
+
     // a default mic to switch to once its node exists
     property string pendingDefault: ""
     Process {
