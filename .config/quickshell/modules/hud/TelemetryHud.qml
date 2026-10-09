@@ -1,7 +1,6 @@
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
-import Quickshell.Services.Mpris
 import QtQuick
 import qs
 import qs.widgets
@@ -16,7 +15,6 @@ import qs.widgets
 //  - 60-tick seconds strip
 //  - live CPU / MEM sparkline (last 60s)
 //  - segmented gauges for CPU, MEM, TEMP, BAT
-//  - MPRIS now-playing strip with controls (only when a player exists)
 //
 // Toggle it from niri, e.g. in config.kdl:
 //   Mod+H { spawn "qs" "ipc" "call" "hud" "toggle"; }
@@ -128,24 +126,6 @@ PanelWindow {
     }
 
     // -------------------------
-    // Media
-    // -------------------------
-    readonly property var player: {
-        var ps = Mpris.players.values
-        for (var i = 0; i < ps.length; i++)
-            if (ps[i].isPlaying)
-                return ps[i]
-        return ps.length > 0 ? ps[0] : null
-    }
-
-    Timer {
-        interval: 1000
-        repeat: true
-        running: root.visible && root.player !== null && root.player.isPlaying
-        onTriggered: root.player.positionChanged()
-    }
-
-    // -------------------------
     // Inline components
     // -------------------------
 
@@ -227,25 +207,6 @@ PanelWindow {
             width: 1; height: parent.height
             x: hDir > 0 ? 0 : parent.width - 1
             color: Theme.textDim
-        }
-    }
-
-    component MediaButton: Text {
-        id: mb
-        signal clicked()
-        font.family: Theme.iconFont
-        font.pixelSize: 16
-        color: ma.containsMouse ? Theme.text : Theme.textDim
-        Behavior on color { ColorAnimation { duration: Theme.animFast } }
-        scale: ma.pressed ? 0.85 : 1
-        Behavior on scale { NumberAnimation { duration: Theme.animFast } }
-        MouseArea {
-            id: ma
-            anchors.fill: parent
-            anchors.margins: -4
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: mb.clicked()
         }
     }
 
@@ -624,88 +585,6 @@ PanelWindow {
                     accent: root.batStatus === "Charging" ? Theme.ok
                           : root.bat <= 15 ? Theme.danger
                           : Theme.text
-                }
-            }
-
-            // ---- media ----
-            Item {
-                visible: root.player !== null
-                width: parent.width
-                height: visible ? media.implicitHeight : 0
-
-                Column {
-                    id: media
-                    width: parent.width
-                    spacing: 8
-
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-
-                    Item {
-                        width: parent.width
-                        height: 34
-
-                        Column {
-                            anchors.left: parent.left
-                            anchors.right: controls.left
-                            anchors.rightMargin: 12
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 3
-
-                            Text {
-                                width: parent.width
-                                elide: Text.ElideRight
-                                text: root.player ? (root.player.trackTitle || "Unknown") : ""
-                                color: Theme.text
-                                font.family: Theme.fontFamily
-                                font.pixelSize: 12
-                            }
-                            Text {
-                                width: parent.width
-                                elide: Text.ElideRight
-                                text: root.player ? (root.player.trackArtist || root.player.identity).toUpperCase() : ""
-                                color: Theme.textDim
-                                font.family: Theme.fontFamily
-                                font.pixelSize: 9
-                                font.letterSpacing: 1
-                            }
-                        }
-
-                        Row {
-                            id: controls
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 14
-
-                            MediaButton {
-                                text: "󰒮"
-                                onClicked: if (root.player && root.player.canGoPrevious) root.player.previous()
-                            }
-                            MediaButton {
-                                text: root.player && root.player.isPlaying ? "󰏤" : "󰐊"
-                                color: Theme.text
-                                onClicked: if (root.player && root.player.canTogglePlaying) root.player.togglePlaying()
-                            }
-                            MediaButton {
-                                text: "󰒭"
-                                onClicked: if (root.player && root.player.canGoNext) root.player.next()
-                            }
-                        }
-                    }
-
-                    // progress
-                    Rectangle {
-                        visible: root.player !== null && root.player.positionSupported && root.player.length > 0
-                        width: parent.width
-                        height: 2
-                        color: Theme.trackBg
-                        Rectangle {
-                            height: parent.height
-                            color: Theme.text
-                            width: root.player && root.player.length > 0
-                                ? parent.width * Math.min(1, root.player.position / root.player.length)
-                                : 0
-                        }
-                    }
                 }
             }
         }
