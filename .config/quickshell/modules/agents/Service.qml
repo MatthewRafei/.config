@@ -29,8 +29,8 @@ Scope {
     readonly property var busy: sessions.filter(s => s.status === "busy")
     readonly property var idle: sessions.filter(s => s.status !== "waiting" && s.status !== "busy")
 
-    readonly property string script: Quickshell.shellPath("modules/agents.py")
-    readonly property string conf: Quickshell.shellPath("modules/tmux.conf")
+    readonly property string script: Quickshell.shellPath("modules/agents/agents.py")
+    readonly property string conf: Quickshell.shellPath("modules/agents/tmux.conf")
     readonly property string terminal: Quickshell.env("TERMINAL") || "alacritty"
     readonly property string home: Quickshell.env("HOME")
 
