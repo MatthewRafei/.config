@@ -1,0 +1,11 @@
+#!/bin/sh
+# beam          show the clipboard as a QR code (the shell's Beam overlay)
+# beam TEXT     show TEXT instead; it passes through qs's command line, so
+#               for anything secret copy it and run plain `beam`
+# echo x | beam -   the same, from stdin
+case "$1" in
+  "") exec qs ipc call beam clipboard ;;
+  -h|--help) sed -n 2,5p "$0"; exit 0 ;;
+esac
+if [ "$1" = "-" ]; then text=$(cat); else text=$*; fi
+exec qs ipc call beam text "$text"

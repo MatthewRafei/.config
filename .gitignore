@@ -1,2 +1,5 @@
 # Private data that lives in $HOME but must never be committed (this repo is public)
 .calendar/
+
+# Python bytecode from the shell's helper scripts
+__pycache__/
