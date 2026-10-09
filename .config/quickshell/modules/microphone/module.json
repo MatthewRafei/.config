@@ -4,7 +4,7 @@
     "icon": "󰍬",
     "default": false,
     "cost": "runs the noise filter and the effects daemon while they're switched on",
-    "credit": "https://github.com/WhoIsCalebBrown/mic-effects",
+    "credit": ["https://github.com/noisetorch/NoiseTorch", "https://github.com/WhoIsCalebBrown/mic-effects"],
     "requires": { "commands": ["pactl", "pipewire"] },
     "service": "Service.qml",
     "page": { "file": "Page.qml", "title": "Microphone", "icon": "󰍬", "after": "Sound" }

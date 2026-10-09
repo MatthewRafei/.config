@@ -4,7 +4,7 @@
     "icon": "󰋊",
     "default": true,
     "cost": "lists block devices every few seconds",
-    "credit": "https://github.com/qadram/omarchy-nvme-health",
+    "credit": ["https://github.com/mtolhuys/omarchy-disk-lens", "https://github.com/Wian47/omarchy-removable-drives", "https://github.com/qadram/omarchy-nvme-health"],
     "requires": { "commands": ["lsblk", "python3"] },
     "service": "Service.qml",
     "chip": { "file": "Chip.qml", "order": 5 },

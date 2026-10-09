@@ -4,7 +4,7 @@
     "icon": "󰚩",
     "default": true,
     "cost": "reads Claude Code's session files every few seconds",
-    "credit": "https://github.com/anthropics/claude-code",
+    "credit": "https://github.com/grivera82/omarchy-agents",
     "requires": { "commands": ["claude", "tmux", "python3"] },
     "service": "Service.qml",
     "chip": { "file": "Chip.qml", "order": 30 },

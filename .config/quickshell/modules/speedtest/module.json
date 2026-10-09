@@ -3,7 +3,7 @@
     "description": "Download, upload and ping against speed.cloudflare.com, in Settings > Network",
     "icon": "󰓅",
     "default": true,
-    "credit": "https://speed.cloudflare.com",
+    "credit": "https://github.com/Davedes83/omarchy-netspeed-plugin",
     "requires": { "commands": ["curl", "python3"] },
     "service": "Service.qml",
     "sections": [ { "page": "Network", "file": "NetworkSection.qml" } ]

@@ -57,7 +57,7 @@ Singleton {
             const m = manifests[id]
             const need = (m.requires || {}).modules || []
             return { id: id, name: m.name, description: m.description || "", icon: m.icon || "",
-                     cost: m.cost || "", credit: m.credit || "", enabled: enabled(id), active: active(id),
+                     cost: m.cost || "", credits: [].concat(m.credit || []), enabled: enabled(id), active: active(id),
                      missing: (missing[id] || []).concat(need.filter(n => !active(n)).map(n => "the " + (manifests[n] ? manifests[n].name : n) + " module")) }
         })
     }

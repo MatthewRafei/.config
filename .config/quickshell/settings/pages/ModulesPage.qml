@@ -111,20 +111,23 @@ Item {
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
                         }
-                        Text {
-                            visible: card.m.credit !== ""
-                            width: parent.width
-                            elide: Text.ElideRight
-                            text: "from " + card.m.credit.replace(/^https?:\/\//, "")
-                            color: creditMouse.containsMouse ? Theme.accent : Theme.textFaint
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 9
-                            MouseArea {
-                                id: creditMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Quickshell.execDetached(["xdg-open", card.m.credit])
+                        Repeater {
+                            model: card.m.credits
+                            Text {
+                                required property string modelData
+                                width: cardCol.width
+                                elide: Text.ElideRight
+                                text: "from " + modelData.replace(/^https?:\/\//, "")
+                                color: creditMouse.containsMouse ? Theme.accent : Theme.textFaint
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 9
+                                MouseArea {
+                                    id: creditMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Quickshell.execDetached(["xdg-open", parent.modelData])
+                                }
                             }
                         }
                     }

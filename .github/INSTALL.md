@@ -18,38 +18,29 @@ What lives where:
 .bashrc                        prompt (starship), PATH, the `dots` alias
 .config/niri/config.kdl        compositor: startup programs, keybinds, layout, colours
 .config/hypr/hyprland.lua      the same for Hyprland (Lua config); loads machine.lua + colors.lua
-.config/quickshell/            the shell (started by niri as `qs`)
-  shell.qml                    entry point: lists every component below
-  Compositor.qml               niri/Hyprland detection: workspaces, focused window, actions
-  Theme.qml                    colours/fonts; colours come live from ~/.cache/theme/palette.json
-  Bar.qml                      top bar (workspaces, quote/face, clock, media, stats, tray, power)
-  Notifs.qml + Notification*.qml   notification daemon + popups + center (Mod+N)
-  SettingsWindow.qml + SettingsPages/  settings (Mod+S): system, sound, monitors, screensaver (preview scenes), network + VPN, bluetooth, power
-                               (keyboard page: typing test, passages in typing/, CC0 from leomoon-studios/omarchy-typing-test)
-  Calendar*.qml, CalendarLib.js, EventForm.qml, TimeField.qml   calendar dropdown + big calendar window (Mod+C); events in ~/.calendar/*.ics (Syncthing-friendly)
-  Lock.qml, LockSurface.qml, pam/   lock screen (Mod+Shift+L, after 5 min idle, before suspend); password or fingerprint
-  Fingerprint.qml, FingerprintIcon.qml, fingerprint/fpctl.py   Settings > Fingerprint: enroll/test/delete via fprintd (D-Bus helper)
-  Auth.qml                     polkit agent: HUD password prompt (needed to enroll fingerprints)
-  Screensaver.qml, ScreensaverScenes.js, screensaver/   ASCII screensaver after 3 min idle
-                               (screensaver/fonts: OFL book fonts the Death Note scene loads itself)
-  TelemetryHud.qml             desktop HUD with graphs (Mod+H)
-  Power.qml, PowerMenu.qml     power profiles, battery, charge limit; power menu (Mod+Shift+E)
-  NightLight.qml               night light (drives ~/.local/bin/nightlightd)
-  Idle.qml                     idle settings: screensaver / lock / screen-off times, scene rotation
-  Vpn.qml                      Tailscale state; bar chip + dropdown (click the VPN icon)
-  Caffeine.qml                 keep awake: bar coffee chip blocks screensaver, idle lock and idle suspend
-  Recorder.qml                 screen recording (wf-recorder): bar chip, quick-panel page, area picker
-  Syncthing.qml, syncthing/    Syncthing bar chip (REST API status; hidden without syncthing)
-  AudioFx.qml, EqPanel.qml     music EQ: bar chip + bottom-left widget, genre presets; drives a headless
-                               EasyEffects (dconf), which plays into the default output (the speaker calibration when installed)
-  MicFx.qml, micfx/, SettingsPages/AudioFxPage.qml   Settings > Audio FX: NoiseTorch noise suppression + mic effects rack.
-                               Needs ~/.local/lib/noisetorch/rnnoise_ladspa.so (make -C c/ladspa in a NoiseTorch-ng checkout)
-                               and ~/.local/lib/mic-effects/mic-effects-server (make -C daemon in WhoIsCalebBrown/mic-effects).
-                               Quickshell starts and restarts EasyEffects, the filter and the daemon (they need the session D-Bus).
-                               All three are optional and OFF on a new machine (switches in Settings > Audio FX, state in
-                               ~/.local/share/quickshell): off, nothing runs or is polled.
-  PhonePush.qml                phone pushes via ntfy while locked/idle: notifications, battery, charger, Tailscale
-  QuickPanel.qml, VolumeOsd.qml, PerspectivePanel.qml, Hud*.qml, Slider.qml   shared UI bits
+.config/quickshell/            the shell (started by niri / Hyprland as `qs`); core + modules, see MODULES.md
+  shell.qml                    entry point: mounts the core
+  *.qml at the top             core singletons: Theme (colours from ~/.cache/theme/palette.json),
+                               Compositor (niri / Hyprland), Modules (the module registry), Notifs,
+                               Net, Power, Input, Idle, Auth (polkit agent), Caffeine, Session
+  bar/                         top bar; Quote.qml is the typed quote + skits
+  settings/ (+ pages/)         settings window (Mod+S) and its core pages, incl. Settings > Modules
+  lock/ (+ pam/)               lock screen (Mod+Shift+L, after 5 min idle, before suspend); password or fingerprint
+  notifications/               notification popups + center (Mod+N)
+  panels/                      quick panel (network, bluetooth, sound + module pages), power menu, volume OSD
+  screensaver/                 ASCII screensaver (Screensaver.qml, ScreensaverScenes.js, gif2ascii.py, fonts, gifs,
+                               the Matrix shader)
+  widgets/                     shared UI: BarChip, HudButton, HudField, Slider, Switch, Section, Quick* …
+  input/, monitors/            helpers for the Mouse / Keyboard and Monitors pages
+  modules/<id>/                optional features, each with a module.json (what it needs, what it adds):
+                               agents, beam, calendar, disks, fingerprint, hud, lens, microphone, music-eq,
+                               nightlight, phone-push, recorder, speaker-calibration, speedtest, syncthing,
+                               typing-test, vpn. Switch them in Settings > Modules (per machine, in
+                               ~/.local/share/quickshell/modules.json); off = not loaded at all.
+                               microphone needs ~/.local/lib/noisetorch/rnnoise_ladspa.so (make -C c/ladspa
+                               in a NoiseTorch-ng checkout) and ~/.local/lib/mic-effects/mic-effects-server
+                               (make -C daemon in WhoIsCalebBrown/mic-effects); night light needs
+                               ~/.local/bin/nightlightd; phone-push needs ~/.config/ntfy/config.
   hyprquickpaper/              wallpaper picker, a separate qs config (Mod+Shift+W)
   quotes/quotes                quotes shown in the bar and on the lock screen
 .config/theme/wallpaper-theme  derives a palette from the wallpaper and recolours everything
@@ -195,7 +186,7 @@ skipping the screensaver on battery, the scene-name label, and which scenes are 
 (click a card to preview it). Everything respects idle inhibitors (video players) and Caffeine.
 The screen also locks before suspend. `qs ipc call screensaver status` prints the timings in use.
 
-Screensaver scenes are in `ScreensaverScenes.js`. Hand-drawn scenes: Half-Life, your OS (logo
+Screensaver scenes are in `screensaver/ScreensaverScenes.js`. Hand-drawn scenes: Half-Life, your OS (logo
 from fastfetch: Chimera, Gentoo, ...), Naruto, Death Note, The Matrix. The Matrix rain is a
 fragment shader (`screensaver/MatrixRain.qml`, `screensaver/matrix-rain.frag`, adapted from
 nzkritik/omarchy-matrix-lock); after editing the `.frag`, rebuild the `.qsb` with the `qsb`
@@ -203,7 +194,7 @@ command at the top of it (qt6-shadertools). Logos can be pasted in as braille ar
 (see `brailleDots()`); they are redrawn with quarter blocks. GIF scenes come from
 `screensaver/gifs/` and are converted to coloured block characters by `screensaver/gif2ascii.py`.
 The converted frames are cached in `~/.cache/screensaver/` per screen size. To add one, drop a GIF
-in `screensaver/gifs/` and add a `gifScene(...)` line in `ScreensaverScenes.js`.
+in `screensaver/gifs/` and add a `gifScene(...)` line in `screensaver/ScreensaverScenes.js`.
 GIFs with a flat light background (like the Nintendo 64 boot screen) need converter options in
 the scene: `{ convert: ["8", "crop=WxH+X+Y", "key=auto", "keytol=70"] }` crops, removes the
 background, and draws the rest as solid colour blocks. Other options: `key=alpha` (transparent
@@ -239,7 +230,7 @@ Nothing is Chimera-only except package names, `doas`, and dinit. Notes:
 
 - Use your package manager's names for the list above. `awww` is the wallpaper daemon
   (the successor to swww); `wayland-progs` provides `wayland-scanner`.
-- Lock screen auth uses `~/.config/quickshell/pam/password.conf` (`pam_unix`) and
+- Lock screen auth uses `~/.config/quickshell/lock/pam/password.conf` (`pam_unix`) and
   `pam/fingerprint.conf` (`pam_fprintd`, skipped when fprintd or an enrolled finger is missing),
   so no system PAM file is needed.
 - The OS scene in the screensaver and the package finder detect the system at runtime; the
