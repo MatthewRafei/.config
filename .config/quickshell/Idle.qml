@@ -20,6 +20,7 @@ Singleton {
     property alias screenOffMin: st.screenOffMin     // idle minutes before the screen turns off, 0 = never
     property alias onBattery: st.onBattery           // screensaver on battery too (else skip it)
     property alias showName: st.showName             // scene name in the corner
+    property alias shadersOnBattery: st.shadersOnBattery // shader scenes on battery too (else ASCII only)
     property alias disabled: st.disabled             // scene ids left out of the rotation
 
     function sceneEnabled(id) { return disabled.indexOf(id) < 0 }
@@ -46,6 +47,7 @@ Singleton {
             property int screenOffMin: 0
             property bool onBattery: true
             property bool showName: true
+            property bool shadersOnBattery: false
             property var disabled: []
         }
     }

@@ -258,8 +258,10 @@ Scope {
                 const all = Scenes.list().filter(i => root.available(i))
                 if (want && all.indexOf(want) >= 0) return want
                 // only scenes left in the rotation (all of them if every one is off)
-                const on = all.filter(i => Idle.sceneEnabled(i))
-                const ids = on.length ? on : all
+                // on battery, shader scenes only if asked for (Settings > Screensaver)
+                const light = all.filter(i => Power.onAC || Idle.shadersOnBattery || Scenes.kind(i) !== "shader")
+                const on = light.filter(i => Idle.sceneEnabled(i))
+                const ids = on.length ? on : light.length ? light : all
                 // random, never one another monitor is showing or one of the last few here
                 const others = root.showingElsewhere(win)
                 const n = Math.min(3, ids.length - 1)

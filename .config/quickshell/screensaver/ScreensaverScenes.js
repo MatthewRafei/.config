@@ -737,6 +737,7 @@ const gentoo = {
 // it through ctx.native and fades it in.
 const matrix = {
     id: "matrix", name: "The Matrix",
+    shader: true,          // drawn on the GPU every frame (kind() below)
     colors: ["#4dff6a"],
     // [text, start, typed (false: appears at once), end]
     lines: [
@@ -834,6 +835,9 @@ const scenes = [halfLife, osScene, naruto, deathNote, gentoo, matrix].concat(gif
 
 function list() { return scenes.map(s => s.id) }
 function get(id) { return scenes.find(s => s.id === id) || scenes[0] }
+// "shader": the GPU draws every pixel each frame (heavier, kept off on
+// battery by default); "gif" / "drawn": ASCII text the CPU redraws 10-20x a second
+function kind(id) { const s = get(id); return s.shader ? "shader" : s.gif ? "gif" : "drawn" }
 function gifs() { return gifScenes.map(s => ({ id: s.id, file: s.gif, convert: s.convert })) }
 
 function render(ctx) {

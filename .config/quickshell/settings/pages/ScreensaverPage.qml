@@ -15,7 +15,7 @@ Item {
 
     readonly property var scenes: Scenes.list().map(id => {
         const s = Scenes.get(id)
-        return { id: id, name: s.name, gif: !!s.gif }
+        return { id: id, name: s.name, gif: !!s.gif, kind: Scenes.kind(id) }
     })
 
     // the settings rows: label, choices, and how to read / write the value
@@ -32,6 +32,8 @@ Item {
           get: () => Idle.screenOffMin, set: v => Idle.screenOffMin = v },
         { k: "ON BATTERY", opts: [{ l: "SCREENSAVER", v: true }, { l: "SKIP IT", v: false }],
           get: () => Idle.onBattery, set: v => Idle.onBattery = v },
+        { k: "SHADERS ON BAT", opts: [{ l: "SKIP THEM", v: false }, { l: "PLAY THEM", v: true }],
+          get: () => Idle.shadersOnBattery, set: v => Idle.shadersOnBattery = v },
         { k: "SCENE NAME", opts: [{ l: "SHOW", v: true }, { l: "HIDE", v: false }],
           get: () => Idle.showName, set: v => Idle.showName = v }
     ]
@@ -156,127 +158,166 @@ Item {
             }
         }
 
-        Row {
-            width: parent.width
-            spacing: 10
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "// SCENES  ·  " + page.scenes.filter(x => Idle.sceneEnabled(x.id)).length + " IN ROTATION  ·  click to preview"
-                color: Theme.textDim
-                font.family: Theme.fontFamily
-                font.pixelSize: 11
-                font.letterSpacing: 2
-            }
-            HudButton {
-                label: "ALL"
-                onClicked: Idle.disabled = []
-            }
-            HudButton {
-                label: "NONE"
-                onClicked: Idle.disabled = page.scenes.map(x => x.id)
-            }
+        Text {
+            text: "click a scene to preview it  ·  the switch keeps it in or out of the rotation"
+            color: Theme.textFaint
+            font.family: Theme.fontFamily
+            font.pixelSize: 10
         }
 
-        // ---------------- scene cards ----------------
+        // ---------------- scene cards, by kind ----------------
         Flickable {
             width: parent.width
             height: parent.height - y
-            contentHeight: cards.implicitHeight
+            contentHeight: groups.implicitHeight
             clip: true
 
-            Flow {
-                id: cards
+            Column {
+                id: groups
                 width: parent.width
-                spacing: 8
+                spacing: 14
 
                 Repeater {
-                    model: page.scenes
-                    delegate: Rectangle {
-                        id: card
+                    // ASCII: text the CPU redraws 10-20 times a second. Shader: the
+                    // GPU draws every pixel each frame, heavier on a laptop battery.
+                    model: [
+                        { title: "ASCII", kinds: ["drawn", "gif"], note: "text drawn by the CPU, 10-20 times a second · light" },
+                        { title: "SHADER", kinds: ["shader"], note: "drawn by the GPU every frame · heavier"
+                            + (Idle.shadersOnBattery ? "" : " · skipped on battery") }
+                    ]
+                    delegate: Column {
+                        id: group
                         required property var modelData
-                        width: (cards.width - 2 * cards.spacing) / 3
-                        height: 58
-                        radius: Theme.radius
-                        readonly property bool inRotation: Idle.sceneEnabled(modelData.id)
-                        opacity: inRotation ? 1 : 0.5
-                        color: cardMouse.containsMouse ? Theme.alpha(Theme.accent, 0.10) : "transparent"
-                        border.color: cardMouse.containsMouse ? Theme.accent : Theme.border
-                        Behavior on color { ColorAnimation { duration: Theme.animFast } }
+                        readonly property var members: page.scenes.filter(x => modelData.kinds.indexOf(x.kind) >= 0)
+                        visible: members.length > 0
+                        width: groups.width
+                        spacing: 8
 
-                        Text {
-                            id: cardIcon
-                            x: 12
-                            anchors.verticalCenter: parent.verticalCenter
-                            // hand-drawn scenes vs. ones made from a GIF / image
-                            text: card.modelData.gif ? "󰵸" : "󰏘"
-                            color: cardMouse.containsMouse ? Theme.accent : Theme.textDim
-                            font.family: Theme.iconFont
-                            font.pixelSize: 16
-                        }
-
-                        Column {
-                            anchors.left: cardIcon.right
-                            anchors.leftMargin: 10
-                            anchors.right: parent.right
-                            anchors.rightMargin: 40
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 3
-
+                        Row {
+                            width: parent.width
+                            spacing: 10
                             Text {
-                                width: parent.width
-                                elide: Text.ElideRight
-                                text: card.modelData.name
-                                color: Theme.text
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "// " + group.modelData.title + " SCENES  ·  "
+                                    + group.members.filter(x => Idle.sceneEnabled(x.id)).length + " OF " + group.members.length + " IN ROTATION"
+                                color: Theme.textDim
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 11
-                                font.bold: true
+                                font.letterSpacing: 2
                             }
-                            Text {
-                                width: parent.width
-                                elide: Text.ElideRight
-                                text: cardMouse.containsMouse ? "▶ PREVIEW"
-                                    : (card.modelData.gif ? "GIF" : "DRAWN") + "  ·  " + card.modelData.id
-                                color: cardMouse.containsMouse ? Theme.accent : Theme.textFaint
-                                font.family: Theme.fontFamily
-                                font.pixelSize: 9
-                                font.letterSpacing: 1
+                            HudButton {
+                                label: "ALL"
+                                onClicked: { for (const x of group.members) Idle.setSceneEnabled(x.id, true) }
+                            }
+                            HudButton {
+                                label: "NONE"
+                                onClicked: { for (const x of group.members) Idle.setSceneEnabled(x.id, false) }
                             }
                         }
-
-                        // in the random rotation or not
-                        Rectangle {
-                            z: 2
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: 7
-                            width: 26
-                            height: 14
-                            radius: 7
-                            color: card.inRotation ? Theme.accent : Theme.trackBg
-                            border.color: Theme.border
-                            Rectangle {
-                                width: 10
-                                height: 10
-                                radius: 5
-                                anchors.verticalCenter: parent.verticalCenter
-                                x: card.inRotation ? parent.width - width - 2 : 2
-                                color: Theme.text
-                                Behavior on x { NumberAnimation { duration: Theme.animFast } }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                anchors.margins: -4
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Idle.setSceneEnabled(card.modelData.id, !card.inRotation)
-                            }
+                        Text {
+                            text: group.modelData.note
+                            color: Theme.textFaint
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 9
+                            font.letterSpacing: 1
                         }
 
-                        MouseArea {
-                            id: cardMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: page.preview(card.modelData.id)
+                        Flow {
+                            id: cards
+                            width: parent.width
+                            spacing: 8
+
+                            Repeater {
+                                model: group.members
+                                delegate: Rectangle {
+                                    id: card
+                                    required property var modelData
+                                    width: (cards.width - 2 * cards.spacing) / 3
+                                    height: 58
+                                    radius: Theme.radius
+                                    readonly property bool inRotation: Idle.sceneEnabled(modelData.id)
+                                    opacity: inRotation ? 1 : 0.5
+                                    color: cardMouse.containsMouse ? Theme.alpha(Theme.accent, 0.10) : "transparent"
+                                    border.color: cardMouse.containsMouse ? Theme.accent : Theme.border
+                                    Behavior on color { ColorAnimation { duration: Theme.animFast } }
+
+                                    Text {
+                                        id: cardIcon
+                                        x: 12
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        // shader, hand-drawn, or made from a GIF / image
+                                        text: card.modelData.kind === "shader" ? "󰢮" : card.modelData.gif ? "󰵸" : "󰏘"
+                                        color: cardMouse.containsMouse ? Theme.accent : Theme.textDim
+                                        font.family: Theme.iconFont
+                                        font.pixelSize: 16
+                                    }
+
+                                    Column {
+                                        anchors.left: cardIcon.right
+                                        anchors.leftMargin: 10
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 40
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 3
+
+                                        Text {
+                                            width: parent.width
+                                            elide: Text.ElideRight
+                                            text: card.modelData.name
+                                            color: Theme.text
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 11
+                                            font.bold: true
+                                        }
+                                        Text {
+                                            width: parent.width
+                                            elide: Text.ElideRight
+                                            text: cardMouse.containsMouse ? "▶ PREVIEW"
+                                                : (card.modelData.kind === "shader" ? "SHADER" : card.modelData.gif ? "GIF" : "DRAWN") + "  ·  " + card.modelData.id
+                                            color: cardMouse.containsMouse ? Theme.accent : Theme.textFaint
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 9
+                                            font.letterSpacing: 1
+                                        }
+                                    }
+
+                                    // in the random rotation or not
+                                    Rectangle {
+                                        z: 2
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        anchors.margins: 7
+                                        width: 26
+                                        height: 14
+                                        radius: 7
+                                        color: card.inRotation ? Theme.accent : Theme.trackBg
+                                        border.color: Theme.border
+                                        Rectangle {
+                                            width: 10
+                                            height: 10
+                                            radius: 5
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            x: card.inRotation ? parent.width - width - 2 : 2
+                                            color: Theme.text
+                                            Behavior on x { NumberAnimation { duration: Theme.animFast } }
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            anchors.margins: -4
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Idle.setSceneEnabled(card.modelData.id, !card.inRotation)
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: cardMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: page.preview(card.modelData.id)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
