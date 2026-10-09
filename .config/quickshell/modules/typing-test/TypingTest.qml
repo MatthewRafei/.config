@@ -1,10 +1,11 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../"
+import qs
+import qs.widgets
 
 // Typing test for Settings > Keyboard, after LeoMoon's Omarchy Typing Test
-// (passages: ../typing/passages.json, CC0). Timed, word-count and one-passage
+// (passages: passages.json, CC0). Timed, word-count and one-passage
 // tests; live WPM; results with accuracy, consistency, a per-second chart and
 // the keys you missed; history, personal best and a heatmap of missed keys
 // across every test (~/.cache/quickshell/typing-test.json).
@@ -81,7 +82,7 @@ Item {
     function save() { store.setText(JSON.stringify({ history: history, keys: keyStats })) }
 
     FileView {
-        path: Quickshell.shellPath("typing/passages.json")
+        path: Quickshell.shellPath("modules/typing-test/passages.json")
         onLoaded: { try { tt.passages = JSON.parse(text()); tt.reset(true) } catch (e) {} }
     }
 

@@ -1,0 +1,8 @@
+{
+    "name": "Typing test",
+    "description": "Timed, word-count and passage tests with live WPM, accuracy, consistency, history and a heatmap of missed keys; in Settings > Keyboard",
+    "icon": "󰌌",
+    "default": true,
+    "credit": "https://github.com/leomoon-studios/omarchy-typing-test",
+    "sections": [ { "page": "Keyboard", "file": "KeyboardSection.qml" } ]
+}

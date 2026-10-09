@@ -1,8 +1,9 @@
 import QtQuick
+import qs.widgets
 import Quickshell
 import "../"
 
-// Key repeat, a typing test (TypingTest.qml), layout, a few xkb options, and
+// Key repeat, module sections (the typing test), layout, a few xkb options, and
 // every Hyprland shortcut, which can be moved to another key combo or switched off. Options save to
 // ~/.config/hypr/settings.lua, shortcuts to keybinds.lua (../Input.qml).
 Item {
@@ -280,9 +281,8 @@ Item {
                     placeholder: "hold a key here to try the repeat"
                 }
 
-                // ------------------------------------------------ typing test
-                Section { text: "TYPING TEST" }
-                TypingTest { width: parent.width }
+                // sections from modules (the typing test …)
+                ModuleSections { page: "Keyboard"; width: parent.width }
 
                 // ------------------------------------------------ layout
                 Section { text: "LAYOUT" }
