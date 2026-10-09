@@ -11,8 +11,6 @@ ShellRoot {
     readonly property bool nightLightActive: NightLight.active
     // and Auth, so the polkit agent (password prompts) is registered
     readonly property bool authAgent: Auth.registered
-    // and SpeedTest, so `qs ipc call speedtest run` works with Settings closed
-    readonly property bool speedTest: SpeedTest.running
     // and DiskLens, so `qs ipc call disklens scan PATH` works with Settings closed
     readonly property bool diskLens: DiskLens.scanning
     // and AudioFx, which starts and watches EasyEffects (music EQ)

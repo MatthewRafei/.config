@@ -1,15 +1,14 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// Internet speed test for Settings > Network (netspeed/speedtest.py, curl
+// Internet speed test for Settings > Network (speedtest.py, curl
 // against speed.cloudflare.com). Only runs when asked: it moves a few hundred
 // MB. The last result is kept in ~/.cache/quickshell/speedtest.json, so the
 // page shows it until the next test.
 //
 //   qs ipc call speedtest run
-Singleton {
+Scope {
     id: root
 
     property real down: -1          // bits/s, -1 = not measured
@@ -20,7 +19,7 @@ Singleton {
     property string error: ""
     readonly property bool running: proc.running
 
-    readonly property string script: Quickshell.shellPath("netspeed/speedtest.py")
+    readonly property string script: Quickshell.shellPath("modules/speedtest/speedtest.py")
 
     // "463 Mb/s", "1.2 Gb/s"
     function mbps(bits) {

@@ -1,0 +1,10 @@
+{
+    "name": "Speed test",
+    "description": "Download, upload and ping against speed.cloudflare.com, in Settings > Network",
+    "icon": "󰓅",
+    "default": true,
+    "credit": "https://speed.cloudflare.com",
+    "requires": { "commands": ["curl", "python3"] },
+    "service": "Service.qml",
+    "sections": [ { "page": "Network", "file": "NetworkSection.qml" } ]
+}
