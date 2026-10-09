@@ -5,6 +5,8 @@ import Quickshell
 // Everything visible lives in its own component file next to this one;
 // this file just mounts them under one ShellRoot.
 ShellRoot {
+    // the module registry: starts the active modules (MODULES.md)
+    readonly property bool modulesReady: Modules.ready
     // singletons are lazy; touch NightLight so its schedule runs from login
     readonly property bool nightLightActive: NightLight.active
     // and Auth, so the polkit agent (password prompts) is registered

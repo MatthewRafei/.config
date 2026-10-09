@@ -44,7 +44,7 @@ PanelWindow {
         function page(name: string): void {
             for (let i = 0; i < root.navItems.length; i++)
                 if (root.navItems[i].name.toLowerCase() === name.toLowerCase())
-                    root.selectedIndex = i
+                    root.selectedName = root.navItems[i].name
             root.show()
         }
     }
@@ -85,7 +85,9 @@ PanelWindow {
     // -------------------------
     // Nav model
     // -------------------------
-    property var navItems: [
+    // core pages, then each active module's page after the one it names
+    // (Modules.qml), and Settings > Modules
+    readonly property var corePages: [
         { name: "System",     icon: "󰒓", page: "SystemPage" },
         { name: "Sound",      icon: "\uf028", page: "SoundPage" },
         { name: "Audio FX",   icon: "󰍬", page: "AudioFxPage" },
@@ -99,8 +101,19 @@ PanelWindow {
         { name: "Disks",      icon: "󰋊", page: "DisksPage" }
     ].concat(Power.available || Power.hasBattery ? [{ name: "Power", icon: "󰂄", page: "PowerPage" }] : [])
      .concat(Fingerprint.available ? [{ name: "Fingerprint", icon: "󰈷", page: "FingerprintPage" }] : [])
+     .concat([{ name: "Modules", icon: "󰏗", page: "ModulesPage" }])
+    readonly property var navItems: {
+        const out = corePages.slice()
+        for (const p of Modules.pages) {
+            const at = out.findIndex(x => x.name === p.after)
+            out.splice(at >= 0 ? at + 1 : out.length - 1, 0, p)
+        }
+        return out
+    }
+    // the selected page by name, so pages coming and going don't move it
+    property string selectedName: "System"
+    readonly property int selectedIndex: Math.max(0, navItems.findIndex(x => x.name === selectedName))
 
-    property int selectedIndex: 0
 
     // -------------------------
     // Card
@@ -236,7 +249,7 @@ PanelWindow {
 
                                 MouseArea {
                                     anchors.fill: parent
-                                    onClicked: root.selectedIndex = index
+                                    onClicked: root.selectedName = root.navItems[index].name
                                 }
                             }
                         }
@@ -258,10 +271,18 @@ PanelWindow {
                     Loader {
                         id: pageLoader
                         anchors.fill: parent
-                        source: "SettingsPages/" + root.navItems[root.selectedIndex].page + ".qml"
+                        // core pages by file name, module pages by url with their service
+                        readonly property var item_: root.navItems[root.selectedIndex]
+                        readonly property string key: item_.url || item_.page
+                        function load() {
+                            if (item_.url) setSource(item_.url, { service: Modules.service(item_.id) })
+                            else setSource("SettingsPages/" + item_.page + ".qml")
+                        }
+                        onKeyChanged: load()
+                        Binding { target: pageLoader.item; property: "service"; value: Modules.service(pageLoader.item_.id); when: pageLoader.item !== null && !!pageLoader.item_.url }
 
                         opacity: 0
-                        Component.onCompleted: opacity = 1
+                        Component.onCompleted: { load(); opacity = 1 }
                         onSourceChanged: fadeIn.restart()
 
                         Behavior on opacity {

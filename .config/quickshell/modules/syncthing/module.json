@@ -1,0 +1,11 @@
+{
+    "name": "Syncthing",
+    "description": "Bar chip with sync progress and errors; click for the web UI, right-click to start or stop it",
+    "icon": "󰓦",
+    "default": true,
+    "cost": "asks Syncthing's local API for its state every 6 s (1.5 s while syncing)",
+    "credit": "https://syncthing.net",
+    "requires": { "commands": ["syncthing"] },
+    "service": "Service.qml",
+    "chip": { "file": "Chip.qml", "order": 20 }
+}

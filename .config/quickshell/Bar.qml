@@ -7,6 +7,7 @@ import Quickshell.Services.Mpris
 import Quickshell.Services.SystemTray
 import Quickshell.Bluetooth
 import QtQuick
+import qs.widgets
 
 // Top bar (replaces waybar). Same HUD language as TelemetryHud.
 //
@@ -125,93 +126,8 @@ PanelWindow {
     // Inline components
     // -------------------------
 
-    // "LABEL value" chip with optional mini gauge underneath
-    component Chip: Item {
-        id: chip
-        property string label
-        property string icon            // shown instead of `label` when set
-        property string value
-        property real gauge: -1
-        property color accent: Theme.text
-        signal clicked(var mouse)
-        signal wheel(var wheel)
-
-        implicitWidth: chipRow.implicitWidth + 14
-        height: bar.implicitHeight
-
-        Rectangle {
-            anchors.fill: parent
-            anchors.topMargin: 6
-            anchors.bottomMargin: 6
-            radius: Theme.radius
-            color: chipMouse.containsMouse ? Theme.bgCard : "transparent"
-            border.color: chipMouse.containsMouse ? Theme.border : "transparent"
-            Behavior on color { ColorAnimation { duration: Theme.animFast } }
-        }
-
-        Row {
-            id: chipRow
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: chip.gauge >= 0 ? -2 : 0
-            spacing: 6
-            Text {
-                visible: chip.icon !== ""
-                anchors.verticalCenter: parent.verticalCenter
-                text: chip.icon
-                color: chip.accent === Theme.text ? Theme.textDim : chip.accent
-                font.family: Theme.iconFont
-                font.pixelSize: 14
-            }
-            Text {
-                visible: chip.label !== "" && chip.icon === ""
-                anchors.baseline: valueText.baseline
-                text: chip.label
-                color: Theme.textDim
-                font.family: Theme.fontFamily
-                font.pixelSize: 9
-                font.letterSpacing: 2
-            }
-            Text {
-                id: valueText
-                visible: chip.value !== ""
-                text: chip.value
-                color: chip.accent
-                font.family: Theme.fontFamily
-                font.pixelSize: 12
-                Behavior on color { ColorAnimation { duration: Theme.animMed } }
-            }
-        }
-
-        // 8-segment mini gauge
-        Row {
-            visible: chip.gauge >= 0
-            anchors.horizontalCenter: chipRow.horizontalCenter
-            anchors.top: chipRow.bottom
-            anchors.topMargin: 2
-            spacing: 1
-            Repeater {
-                model: 8
-                Rectangle {
-                    required property int index
-                    width: (chipRow.width - 7) / 8
-                    height: 2
-                    color: index < Math.round(chip.gauge * 8)
-                        ? (chip.accent === Theme.text ? Theme.accent : chip.accent)
-                        : Theme.trackBg
-                }
-            }
-        }
-
-        MouseArea {
-            id: chipMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-            cursorShape: Qt.PointingHandCursor
-            onClicked: mouse => chip.clicked(mouse)
-            onWheel: wheel => chip.wheel(wheel)
-        }
-    }
+    // "LABEL value" chip with optional mini gauge underneath (widgets/BarChip.qml)
+    component Chip: BarChip { height: bar.implicitHeight }
 
     component Divider: Rectangle {
         width: 1
@@ -1801,6 +1717,18 @@ PanelWindow {
             }
         }
 
+        // chips from active modules (Modules.qml, module.json "chip"), by their order
+        Repeater {
+            model: Modules.chips
+            Loader {
+                required property var modelData
+                anchors.verticalCenter: parent.verticalCenter
+                id: chipLoader
+                Component.onCompleted: setSource(modelData.url, { service: Modules.service(modelData.id), bar: bar })
+                Binding { target: chipLoader.item; property: "service"; value: Modules.service(chipLoader.modelData.id); when: chipLoader.item !== null }
+            }
+        }
+
         // tailscale: dim when stopped, accent + node name through an exit node.
         // click = VPN dropdown, right-click = connect / disconnect
         Chip {
@@ -1817,22 +1745,6 @@ PanelWindow {
                     Vpn.toggle()
                 else
                     Quickshell.execDetached(["qs", "ipc", "call", "quick", "vpn"])
-            }
-        }
-
-        // syncthing: dim when stopped, accent + % while syncing, red on errors.
-        // click = web UI (starts it first if needed), right-click = start / stop
-        Chip {
-            visible: Syncthing.installed
-            icon: !Syncthing.running ? "󰓨" : Syncthing.failing ? "󰓧" : "󰓦"
-            value: Syncthing.running && Syncthing.syncing ? Math.floor(Syncthing.completion) + "%" : ""
-            accent: !Syncthing.running ? Theme.textFaint
-                  : Syncthing.failing ? Theme.danger
-                  : Syncthing.syncing || Syncthing.scanning || Syncthing.busy ? Theme.accent
-                  : Theme.text
-            onClicked: mouse => {
-                if (mouse.button === Qt.RightButton) Syncthing.toggle()
-                else Syncthing.open()
             }
         }
 

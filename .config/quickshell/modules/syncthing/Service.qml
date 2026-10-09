@@ -1,13 +1,13 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// Syncthing state for the bar chip, from its local REST API
-// (syncthing/status.sh). Started and stopped through the dinit user service.
+// Syncthing module: state for the bar chip from its local REST API
+// (status.sh). Started and stopped through the user's service manager
+// (dinit, OpenRC user services), or run directly when it has none.
 //
 //   qs ipc call syncthing open | start | stop | status
-Singleton {
+Scope {
     id: root
 
     readonly property string url: "http://127.0.0.1:8384/"
@@ -32,8 +32,14 @@ Singleton {
         if (running) Quickshell.execDetached(["xdg-open", url])
         else { openWhenUp = true; start() }
     }
-    function start() { act(["dinitctl", "--user", "start", "syncthing"]) }
-    function stop() { act(["dinitctl", "--user", "stop", "syncthing"]) }
+    function start() {
+        act(["sh", "-c", "dinitctl --user start syncthing 2>/dev/null || rc-service --user syncthing start 2>/dev/null"
+             + " || setsid -f syncthing serve --no-browser >/dev/null 2>&1"])
+    }
+    function stop() {
+        act(["sh", "-c", "dinitctl --user stop syncthing 2>/dev/null || rc-service --user syncthing stop 2>/dev/null"
+             + " || pkill -x syncthing"])
+    }
     function toggle() { running ? stop() : start() }
 
     function act(cmd) {
@@ -53,7 +59,7 @@ Singleton {
 
     Process {
         id: status
-        command: ["sh", Quickshell.shellDir + "/syncthing/status.sh"]
+        command: ["sh", Quickshell.shellPath("modules/syncthing/status.sh")]
         stdout: StdioCollector {
             onStreamFinished: {
                 let d = null
