@@ -95,10 +95,18 @@ Item {
             id: iconBox
             width: 36
             height: 36
-            readonly property string imageSrc: card.notif ? card.notif.image : ""
+            // temp files (Chromium's) are read from Notifs' copies, once the
+            // copy has had a moment to land; until then the original is still there
+            property bool copied: {
+                const t = card.notif ? Notifs.times[card.notif.id] : null
+                return !t || Date.now() - t > 1000
+            }
+            Timer { running: !iconBox.copied; interval: 1000; onTriggered: iconBox.copied = true }
+            function src(kind, s) { return copied ? Notifs.imageSource(card.notif, kind, s) : s }
+            readonly property string imageSrc: card.notif ? src("image", card.notif.image) : ""
             readonly property string iconSrc: card.notif && card.notif.appIcon !== ""
                 ? (card.notif.appIcon.startsWith("/") || card.notif.appIcon.startsWith("file:")
-                    ? card.notif.appIcon
+                    ? src("icon", card.notif.appIcon)
                     : Quickshell.iconPath(card.notif.appIcon, true))
                 : ""
 
