@@ -4,7 +4,9 @@
 // A scene is { id, name, colors: [layer colours], init(ctx), frame(ctx, t, dt) }.
 // frame() draws into ctx.layers (character grids, one per colour; spaces are
 // transparent so layers stack) and may set ctx.title / ctx.sub / ctx.titleColor
-// / ctx.titleOpacity. ctx: { cols, rows, asp (cell height / width), os, logo }.
+// / ctx.titleOpacity / ctx.bg (backdrop colour) / ctx.floor ({ row, color }: backdrop
+// colour from that row down) / ctx.native ({ id, opacity }: a QML renderer drawn
+// under the grid, e.g. "matrix"). ctx: { cols, rows, asp (cell height / width), os, logo }.
 
 // ------------------------------------------------------------------ grid
 function Grid(c, r) {
@@ -403,6 +405,365 @@ const deathNote = {
     }
 }
 
+// ================================================================== GENTOO
+// The "Gentoo abducted" wallpaper, animated: a night farm, the Gentoo "g"
+// floats in as a UFO, beams up a cow and zips off; another cow wanders out
+// from behind the barn and it all starts again. Everything is drawn on a
+// half-block pixel canvas (each cell is two pixels, top and bottom), so
+// pixels are about square; the sky is the backdrop colour (ctx.bg).
+const gentoo = {
+    id: "gentoo", name: "Gentoo · Abducted",
+    //       stars      ground     beam dim   beam lit   g body     g shade    ink        white
+    colors: ["#e3cf1e", "#081008", "#3f3960", "#a9a3c6", "#8e8ba8", "#45425e", "#141128", "#f2f2f6"],
+    // the "g", traced from the wallpaper: d shade, b body, h highlight
+    logo: [
+        "....................dddddddddddd................................",
+        ".................ddddbbbbbbbbbddddd.............................",
+        "...............ddbbbbbbbbbbbbbbbbbdddd..........................",
+        ".............ddbbbbbbbbbbbbbbbbbbbbbdddd........................",
+        "............ddbbbbbbbbbbbbbbbbbbbbbbbbddd.......................",
+        "...........dbbbbbbbbbbbbbbbbbbbbbbbbbbbdddd.....................",
+        "..........dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdddd....................",
+        ".........dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdddddd..................",
+        "........dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddd................",
+        ".......dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddd...............",
+        "......dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddd..............",
+        ".....dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdddddddd.............",
+        ".....dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdddddddd............",
+        "....dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddddd...........",
+        "....dbbbbbbbbbbbbbbbbbbbbbbbbbbbhhhbbbbbbbbbbddddddddd..........",
+        "....dbbbbbbbbbbbbbbbbbbdbbbbbbbbbbhbbbbbbbbbbbddddddddd.........",
+        "...ddbbbbbbbbbbbbbbbbbbddbbbbbbbbbbbbbbbbbbbbbdddddddddd........",
+        "...ddbbbbbbbbbbbbbbbbbbddbbbbbbbbbbbbbbbbbbbbbdddddddddd........",
+        "...ddbbbbbbbbbbbbbbbbbbbddbbbbbbbbbbbbbbbbbbbbbdddddddddd.......",
+        "...ddbbbbbbbbbbbbbbbbbbbbddbddddbbbbbbbbbbbbbbbddddddddddd......",
+        "...dddbbbbbbbbbbbbbbbbbbbbddddddddbbbbbbbbbbbbbdddddddddddd.....",
+        "...dddddbbbbbbbbbbbbbbbbbbbbdddddbbbbbbbbbbbbbbddddddddddddd....",
+        "....dddddbbhhhhhhhbbbbbbbbbbbddddddddbbbbbbbbbbbdddddddddddd....",
+        "....dddddddbbhhhhhhbbbbbbbbbbbbdddddbbbbbbbbbbbbddddddddddddd...",
+        ".....ddddddddbbhhhhhbbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddddddddd...",
+        "......dddddddddbbhhhhbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddddddddd...",
+        ".......ddddddddddbbhhbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddddddddd...",
+        ".........ddddddddddbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddddddbbdd..",
+        "..........dddddddddddbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddddbhhbdd..",
+        "............ddddddddbhbbbbbbbbbbbbbbbbbbbbbbbbbbdddddddbhhbddd..",
+        "..............dddddbhbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddbhhbddd...",
+        "...............dddbhhbbbbbbbbbbbbbbbbbbbbbbbbbbbdddddbbhbdddd...",
+        "................dbhhhbbbbbbbbbbbbbbbbbbbbbbbbbbbddddbbhbddddd...",
+        "...............dbhhhbbbbbbbbbbbbbbbbbbbbbbbbbbbbdddbbhbdddddd...",
+        "..............dbhhbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdbbbbbdddddd....",
+        "............ddbhbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdddddd.....",
+        "...........ddbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdddddd......",
+        "..........ddbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddd......",
+        ".........dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddddddd.......",
+        "........ddbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdddbbdd........",
+        ".......ddbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddbbbdd.........",
+        "......dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddbbbbdd..........",
+        ".....dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddbbbbdd...........",
+        "....dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdbbbbbdd............",
+        "...ddbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddbbbbbd..............",
+        "...dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdbbbbbbd...............",
+        "...dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdbbbbbbd................",
+        "..dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdbbbbbbdd.................",
+        "..dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbdbbbbbbbd...................",
+        "..dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddbbbbbbdd....................",
+        "..dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbddbbbbbbbd......................",
+        "..dbbbbbbbbbbbbbbbbbbbbbbbbbbbdddbbbbbbbd.......................",
+        "..ddbbbbbbbbbbbbbbbbbbbbbbbbbddbbbbbbbbd........................",
+        "...dbbbbbbbbbbbbbbbbbbbbbbddbbbbbbbbbd..........................",
+        "...bdbbbbbbbbbbbbbbbbbbbddbhhbbbbbbd............................",
+        "...bbddbbbbbbbbbbbbbbddbbhhhhhbbbdd.............................",
+        "...dhbbddbbbbbbbbbdddbbhhhhhhhbdd..............................."
+
+    ],
+    // the cow, facing right: w white, k ink; two leg poses
+    cow: [
+        "......................k.....k...",
+        "......................kw...wk...",
+        "...................wwwwwwwwwwwww",
+        "....................wwwwwwwwwww.",
+        ".....................wwwwwwwww..",
+        "......wwwwwwwwwwwwwwwwkwwwwwkw..",
+        "....wkkkkwwwwwwwkkkwwwwwwwwwww..",
+        "...wkkkkkkwwwwwkkkkwwwwwwwwwww..",
+        "...wkkkkkwwwwwwwkkwwwwwwwwwwww..",
+        "..k.wkkwwwwwwwwwwwwwwwkkkkkkkk..",
+        "..k.wwwwwwwkkkwwwwwwwwkkkkkkkk..",
+        "..k.wwwwwwkkkkkwwwwwwwwkkkkkk...",
+        "...k.wwwwwwkkkwwwwwwwww.........",
+        "..kk.ww.ww........ww.ww.........",
+        ".....ww.ww........ww.ww.........",
+        ".....ww.ww........ww.ww.........",
+        ".....kk.kk........kk.kk........."
+    ],
+    cowKick: [
+        "..k.wwwwwwkkkkkwwwwwwwwkkkkkk...",
+        "...k.wwwwwwkkkwwwwwwwww.........",
+        "..kk..ww.ww......ww...ww........",
+        "......ww..ww....ww.....ww.......",
+        ".....ww....ww..ww.......ww......",
+        ".....kk.....kk.kk........kk....."
+    ],
+    // big stars where the wallpaper has them (fractions of the screen)
+    star: [
+        "..y..",
+        "yyyyy",
+        ".yyy.",
+        ".y.y."
+    ],
+    starDim: [
+        ".y.",
+        "yyy",
+        ".y."
+    ],
+    // ? ! ? over the cow's head
+    huh: [
+        ".ww....w....ww.",
+        "w..w...w...w..w",
+        "..w....w.....w.",
+        ".w.....w....w..",
+        "...............",
+        ".w.....w....w.."
+    ],
+    bigStars: [[0.08, 0.09], [0.315, 0.115], [0.517, 0.097], [0.70, 0.134], [0.9, 0.2],
+               [0.12, 0.3], [0.275, 0.31]],
+    init(ctx) {
+        newLayers(ctx, 8)
+        const C = ctx.cols, R = ctx.rows, asp = ctx.asp
+        ctx.bg = "#0b0322"
+        const P = R * 2                          // canvas height in pixels
+        const px = asp / 2                       // a pixel's height in cell widths
+        // the g: about 14% of the screen wide, like the wallpaper
+        const gw = Math.max(16, Math.round(C * 0.14))
+        const gh = Math.round(gw * this.logo.length / this.logo[0].length / px)
+        const gimg = []
+        for (let y = 0; y < gh; y++) {
+            const row = this.logo[Math.floor((y + 0.5) / gh * this.logo.length)]
+            let s = ""
+            for (let x = 0; x < gw; x++) s += row[Math.floor((x + 0.5) / gw * row.length)]
+            gimg.push(s)
+        }
+        // the cow: whole-pixel scale so the pixel art stays crisp
+        const cs = Math.max(1, Math.round(R / 80))
+        const stars = []
+        for (const s of this.bigStars) stars.push({ x: Math.round(s[0] * C), y: Math.round(s[1] * R), big: true, ph: rnd(0, 6) })
+        for (let i = 0; i < Math.round(C * R / 900); i++)
+            stars.push({ x: irnd(0, C - 1), y: irnd(0, Math.floor(R * 0.55)), big: false, ph: rnd(0, 6), sp: rnd(0.6, 2) })
+        ctx.ga = {
+            P: P, buf: new Int8Array(C * P), gimg: gimg, gw: gw, gh: gh, cs: cs, stars: stars,
+            horizon: R * 2 * 0.675, pool: Math.round(P * 0.735),
+            cow: null, shoot: null, cycle: -1
+        }
+        // the margin round the grid: sky above the ground, ground below it
+        ctx.floor = { row: Math.ceil(Math.max(this.groundAt(ctx.ga, C, 0), this.groundAt(ctx.ga, C, C)) / 2), color: this.colors[1] }
+    },
+    // ground line in pixels: a low hill, highest a little left of centre
+    groundAt(ga, C, x) {
+        const u = x / C - 0.42
+        return Math.round(ga.horizon + u * u * ga.P * 0.09)
+    },
+    frame(ctx, t) {
+        clearAll(ctx)
+        const C = ctx.cols, R = ctx.rows, asp = ctx.asp, ga = ctx.ga, P = ga.P, buf = ga.buf
+        const L = ctx.layers
+        buf.fill(-1)
+        const dot = (x, y, k) => {
+            x = Math.round(x); y = Math.round(y)
+            if (x >= 0 && y >= 0 && x < C && y < P) buf[y * C + x] = k
+        }
+        const rect = (x0, y0, x1, y1, k) => {
+            for (let y = Math.round(y0); y < Math.round(y1); y++)
+                for (let x = Math.round(x0); x < Math.round(x1); x++) dot(x, y, k)
+        }
+        const keys = { y: 0, w: 7, k: 6, b: 4, d: 5, h: 7 }
+        const sprite = (x0, y0, img, flip, s) => {
+            for (let j = 0; j < img.length; j++) {
+                const row = img[j], n = row.length
+                for (let i = 0; i < n; i++) {
+                    const k = keys[row[flip ? n - 1 - i : i]]
+                    if (k !== undefined) rect(x0 + i * s, y0 + j * s, x0 + (i + 1) * s, y0 + (j + 1) * s, k)
+                }
+            }
+        }
+
+        // ---- one abduction every 21 s; a new cow (and spot) each time
+        const CYC = 21, n = Math.floor(t / CYC), c = t % CYC
+        if (n !== ga.cycle) {
+            ga.cycle = n
+            ga.cow = { tx: Math.round(C * rnd(0.36, 0.5)) }
+        }
+        const cw = this.cow[0].length * ga.cs, chh = this.cow.length * ga.cs
+        const ease = v => v * v * (3 - 2 * v)
+
+        // cow: walks out from behind the barn (0-6 s), grazes, gets startled,
+        // floats up the beam (9-15 s) and is gone
+        const cow = ga.cow
+        const barnX = C * 0.77
+        const walk = ease(fade(c, 0, 6))
+        const cowX = Math.round(barnX + (cow.tx - cw / 2 - barnX) * walk)
+        const feet = this.groundAt(ga, C, cowX + cw / 2) + Math.round(ga.cs * 2)
+        // the g: in from the top left (0-6.5 s), hovers, out to the top right (17.5-19.5 s)
+        const hoverX = cow.tx - ga.gw * 0.34, hoverY = P * 0.17
+        const arrive = ease(fade(c, 0.5, 6)), leave = fade(c, 17.5, 2)
+        let gx = -ga.gw * 1.2 + (hoverX + ga.gw * 1.2) * arrive + leave * leave * C * 1.1
+        let gy = -ga.gh + (hoverY + ga.gh) * arrive - leave * leave * P * 0.3
+        gx += Math.sin(t * 0.7) * 1.5
+        gy += Math.sin(t * 1.4) * 1.2
+        const apexY = gy + ga.gh * 0.97, apexX = gx + ga.gw * 0.33
+        // beam: down 7-8 s, up 16-17 s
+        const beamOn = fade(c, 7, 1) - fade(c, 16, 1)
+        const rise = ease(fade(c, 9.5, 6.5))
+        const cowY = feet - chh - (feet - chh - apexY + chh * 0.3) * rise
+        const cowGone = c > 15.8
+
+        // ---- stars
+        for (const s of ga.stars) {
+            if (!s.big) continue
+            const img = Math.sin(t * 0.8 + s.ph) > -0.8 ? this.star : this.starDim
+            sprite(s.x - (img[0].length >> 1), s.y * 2 - (img.length >> 1), img, false, 1)
+        }
+        // now and then a shooting star
+        if (!ga.shoot && Math.random() < 0.004) ga.shoot = { x: rnd(0.1, 0.8) * C, y: rnd(0.04, 0.3) * R, age: 0 }
+        if (ga.shoot) {
+            const sh = ga.shoot
+            sh.age += 0.1
+            for (let i = 0; i < 6; i++) L[0].put(sh.x + (sh.age * 40 - i) * 1.6, sh.y + (sh.age * 40 - i) * 0.35, i === 0 ? "*" : i < 3 ? "-" : "·")
+            if (sh.age > 1.2) ga.shoot = null
+        }
+
+        // ---- beam: shading characters over sky and ground (below the
+        // pixel layers, so the cow and the g cover it)
+        if (beamOn > 0) {
+            const top = apexY, bot = ga.pool, len = (bot - top) * beamOn
+            const aw = ga.gw * 0.24, bw = ga.gw * 1.1
+            const cx = apexX + ga.gw * 0.03
+            const RAMP_B = [[2, "░"], [2, "▒"], [2, "▓"], [3, "░"], [3, "▒"], [3, "▓"]]
+            for (let y = Math.ceil(top / 2); y * 2 < top + len && y < R; y++) {
+                const v = (y * 2 - top) / (bot - top)
+                const half = aw + (bw - aw) * v
+                // a ring of light running up the beam
+                const ring = Math.max(0, Math.sin(v * 30 + t * 6)) * 0.12
+                for (let x = Math.floor(cx - half); x <= cx + half; x++) {
+                    const edge = 1 - Math.abs(x - cx) / half
+                    if (edge < 0) continue
+                    const lvl = (1 - v * 0.75) * Math.min(1, edge * 3) + ring
+                    const i = clamp(Math.floor(lvl * RAMP_B.length), 0, RAMP_B.length - 1)
+                    L[RAMP_B[i][0]].put(x, y, RAMP_B[i][1])
+                }
+            }
+        }
+
+        // ---- ground, fence, silo, barn
+        for (let x = 0; x < C; x++) rect(x, this.groundAt(ga, C, x), x + 1, P, 1)
+        // fence on the left: a rail rising to the right, posts every few columns
+        const fx1 = C * 0.26
+        for (let x = 0; x < fx1; x++) {
+            const ry = P * 0.655 - (x / fx1) * P * 0.04
+            rect(x, ry, x + 1, ry + Math.max(2, P * 0.012), 1)
+            if (x % Math.max(5, Math.round(C * 0.04)) === 2) rect(x, ry - P * 0.008, x + Math.max(1, C * 0.005), this.groundAt(ga, C, x), 1)
+        }
+        // silo: a dome
+        const sx0 = C * 0.652, sx1 = C * 0.725, sTop = P * 0.59, sr = (sx1 - sx0) / 2
+        for (let x = Math.round(sx0); x < sx1; x++) {
+            const u = (x + 0.5 - (sx0 + sr)) / sr
+            rect(x, sTop + sr * 2 / asp * (1 - Math.sqrt(Math.max(0, 1 - u * u))), x + 1, this.groundAt(ga, C, x) + 1, 1)
+        }
+        rect(C * 0.7, sTop - P * 0.01, C * 0.703, sTop + 2, 1)
+        // barn: walls, sloped roof, chimney
+        const bx0 = C * 0.757, bx1 = C * 0.935, roof = P * 0.555, eave = P * 0.6
+        for (let x = Math.round(bx0 - C * 0.008); x < bx1 + C * 0.008; x++) {
+            const u = (x - bx0) / (bx1 - bx0)
+            const top = u < 0.15 ? eave - (roof - eave) * -(u + 0.05) / 0.2 : u > 0.85 ? eave - (eave - roof) * (1.05 - u) / 0.2 : roof
+            rect(x, Math.min(top, eave), x + 1, this.groundAt(ga, C, x) + 1, 1)
+        }
+        rect(C * 0.823, P * 0.505, C * 0.837, roof + 1, 1)
+
+        // ---- light pool where the beam meets the ground
+        if (beamOn > 0.6) {
+            const pcx = apexX + ga.gw * 0.03, prx = ga.gw * 1.05 * Math.min(1, (beamOn - 0.6) / 0.4), pry = Math.max(1.5, P * 0.012)
+            for (let y = -Math.ceil(pry); y <= pry; y++)
+                for (let x = Math.floor(pcx - prx); x <= pcx + prx; x++) {
+                    const d = ((x - pcx) / prx) ** 2 + (y / pry) ** 2
+                    if (d <= 1) dot(x, ga.pool + y, d < 0.35 ? 7 : 3)
+                }
+        }
+
+        // ---- cow
+        if (!cowGone) {
+            const flailing = rise > 0
+            const img = flailing && Math.floor(t * 4) % 2 ? this.cow.slice(0, 11).concat(this.cowKick) : this.cow
+            const walking = walk > 0 && walk < 1
+            const step = walking && Math.floor(t * 5) % 2 ? this.cow.slice(0, 11).concat(this.cowKick) : null
+            const sway = flailing ? Math.sin(t * 2.2) * 1.5 : 0
+            sprite(cowX + sway, cowY, step || img, walking, ga.cs)
+            // ? ! ? while it works out what's happening
+            if (c > 7.6 && c < 12)
+                sprite(cowX + sway + cw * 0.6 - this.huh[0].length / 2, cowY - this.huh.length - 3 - Math.floor(t * 3) % 2, this.huh, false, 1)
+        }
+
+        // ---- the g
+        sprite(gx, gy, ga.gimg, false, 1)
+
+        // ---- pixels to half blocks
+        for (let y = 0; y < R; y++)
+            for (let x = 0; x < C; x++) {
+                const a = buf[(y * 2) * C + x], b = buf[(y * 2 + 1) * C + x]
+                if (a < 0 && b < 0) continue
+                if (a === b) {
+                    // plain ground below the floor row is the backdrop's (no cell seams)
+                    if (a !== 1 || y < ctx.floor.row) L[a].a[y][x] = "█"
+                    continue
+                }
+                if (a >= 0) L[a].a[y][x] = "▀"
+                if (b >= 0) L[b].a[y][x] = "▄"
+            }
+
+        // small stars twinkle in the gaps (not through half-filled cells)
+        for (const s of ga.stars) {
+            if (s.big || buf[s.y * 2 * C + s.x] >= 0 || buf[(s.y * 2 + 1) * C + s.x] >= 0) continue
+            const tw = Math.sin(t * s.sp + s.ph)
+            L[0].put(s.x, s.y, tw > 0.85 ? "+" : tw > 0.2 ? "·" : tw > -0.4 ? "." : " ")
+        }
+
+        ctx.titleY = 0.84
+        title(ctx, t, "If it moves, compile it.", "", "#ecebf3", 3, 1e9)
+    }
+}
+
+// ================================================================== MATRIX
+// The opening of the film: the messages typed on a black terminal, then the
+// digital rain. The rain is drawn natively by screensaver/MatrixRain.qml
+// (a shader: real katakana don't fit the ASCII grid); the scene only asks for
+// it through ctx.native and fades it in.
+const matrix = {
+    id: "matrix", name: "The Matrix",
+    colors: ["#4dff6a"],
+    // [text, start, typed (false: appears at once), end]
+    lines: [
+        ["Wake up, Neo...", 0.8, true, 4.2],
+        ["The Matrix has you...", 4.6, true, 7.8],
+        ["Follow the white rabbit.", 8.2, true, 11.2],
+        ["Knock, knock, Neo.", 11.8, false, 14]
+    ],
+    rainAt: 14.5,
+    init(ctx) { newLayers(ctx, 1) },
+    frame(ctx, t) {
+        clearAll(ctx)
+        const g = ctx.layers[0], x = 3, y = 2
+        let shown = false
+        for (const l of this.lines) {
+            if (t < l[1] || t >= l[3]) continue
+            const n = l[2] ? Math.min(l[0].length, Math.floor((t - l[1]) * 14)) : l[0].length
+            g.text(x, y, l[0].slice(0, n))
+            if (Math.floor(t * 2.5) % 2 === 0 || n < l[0].length) g.put(x + n, y, "█")
+            shown = true
+        }
+        if (!shown && t < this.rainAt && Math.floor(t * 2.5) % 2 === 0) g.put(x, y, "█")
+        ctx.native = { id: "matrix", opacity: fade(t, this.rainAt, 2.5) }
+        title(ctx, t, "", "", "#4dff6a", 0, 99)
+    }
+}
+
 // ================================================================== GIF scenes
 // Pre-rendered from screensaver/gifs by screensaver/gif2ascii.py; the engine
 // loads the converted frames into ctx.gif before init(). Each palette colour
@@ -469,7 +830,7 @@ const gifScenes = [
 ]
 
 // hand-drawn scenes
-const scenes = [halfLife, osScene, naruto, deathNote].concat(gifScenes)
+const scenes = [halfLife, osScene, naruto, deathNote, gentoo, matrix].concat(gifScenes)
 
 function list() { return scenes.map(s => s.id) }
 function get(id) { return scenes.find(s => s.id === id) || scenes[0] }

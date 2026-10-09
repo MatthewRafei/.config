@@ -168,6 +168,10 @@ Scope {
             // a picture on the grid (ctx.image): { src (relative to this file), x, y, w, h
             // (cells), reveal (0..1, wiped in left to right) }
             property var image: null
+            property string bg: ""             // backdrop colour a scene asks for (ctx.bg)
+            property var floor: null           // and below a row (ctx.floor: { row, color })
+            property string nativeId: ""       // QML renderer under the grid (ctx.native)
+            property real nativeOpacity: 0
             property bool loading: false
             property string tTitle: ""
             property string tSub: ""
@@ -328,6 +332,10 @@ Scope {
                 const tk = ctx.texts ? JSON.stringify(ctx.texts) : ""
                 if (tk !== textsKey) { textsKey = tk; texts = ctx.texts || [] }
                 image = ctx.image || null
+                bg = ctx.bg || ""
+                floor = ctx.floor || null
+                nativeId = ctx.native ? ctx.native.id : ""
+                nativeOpacity = ctx.native ? ctx.native.opacity : 0
                 if (sceneTime > sceneLength) loadScene(pickScene(""))
             }
 
@@ -343,7 +351,8 @@ Scope {
             Rectangle {
                 id: backdrop
                 anchors.fill: parent
-                color: "#050506"
+                color: win.bg !== "" ? win.bg : "#050506"
+                Behavior on color { ColorAnimation { duration: 900; easing.type: Easing.InOutQuad } }
                 opacity: root.active ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 700; easing.type: Easing.InOutQuad } }
 
@@ -381,6 +390,16 @@ Scope {
                     renderType: Text.NativeRendering
                 }
 
+                // backdrop below a scene's floor row (its ground runs out to the screen edge)
+                Rectangle {
+                    visible: win.floor !== null
+                    y: win.floor ? grid.y + win.floor.row * grid.ch : 0
+                    width: parent.width
+                    height: parent.height - y
+                    color: win.floor ? win.floor.color : "transparent"
+                    opacity: sceneLayer.opacity
+                }
+
                 Item {
                     id: grid
                     readonly property real cw: Math.max(1, probe.implicitWidth / 40)
@@ -406,6 +425,19 @@ Scope {
                             id: sceneFade
                             from: 0; to: 1; duration: 900
                             easing.type: Easing.OutCubic
+                        }
+
+                        // native renderers (ctx.native), full-screen under the grid text
+                        Loader {
+                            x: -grid.x
+                            y: -grid.y
+                            width: backdrop.width
+                            height: backdrop.height
+                            active: win.nativeId === "matrix"
+                            source: Qt.resolvedUrl("screensaver/MatrixRain.qml")
+                            opacity: win.nativeOpacity
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                            onLoaded: item.playing = Qt.binding(() => root.active && !root.locked)
                         }
 
                         Repeater {
