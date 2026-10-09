@@ -181,8 +181,12 @@ PanelWindow {
     PerspectivePanel {
         id: card
         anchors.centerIn: parent
-        width: Math.min(1240, root.width - 80)
-        height: Math.min(760, root.height - 80)
+        // 70% of the monitor; the contents zoom with the monitor's size
+        // (1.0 at 1920x1080, 1.33 at 2560x1440, 2.0 at 4K), so the layout is
+        // the same on every screen
+        width: Math.round(root.width * 0.7)
+        height: Math.round(root.height * 0.7)
+        zoom: Math.max(0.75, Math.min(root.width / 1920, root.height / 1080))
         open: root.showing
 
         MouseArea { anchors.fill: parent }

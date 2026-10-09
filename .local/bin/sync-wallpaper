@@ -1,0 +1,27 @@
+#!/bin/sh
+SDDM_THEME_DIR="/usr/share/sddm/themes/voodoo"
+CACHE="$HOME/.cache/swww/DP-1"
+
+if [ ! -f "$CACHE" ]; then
+    echo "No swww cache found"
+    exit 1
+fi
+
+# Extract path — strip everything before the first /
+WALLPAPER=$(strings "$CACHE" | grep "^/")
+
+if [ ! -f "$WALLPAPER" ]; then
+    echo "Wallpaper file not found: $WALLPAPER"
+    exit 1
+fi
+
+EXT="${WALLPAPER##*.}"
+cp "$WALLPAPER" "$SDDM_THEME_DIR/background.$EXT"
+sed -i "s|^background=.*|background=$SDDM_THEME_DIR/background.$EXT|" "$SDDM_THEME_DIR/theme.conf"
+
+# Set swaylock wallpaper
+cp "$WALLPAPER" "$HOME/.config/swaylock/background.jpg"
+
+# 
+echo "SDDM/Swaylock background updated: $WALLPAPER"
+

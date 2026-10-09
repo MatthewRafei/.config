@@ -88,10 +88,15 @@ PanelWindow {
     property var navItems: [
         { name: "System",     icon: "󰒓", page: "SystemPage" },
         { name: "Sound",      icon: "\uf028", page: "SoundPage" },
+        { name: "Audio FX",   icon: "󰍬", page: "AudioFxPage" },
         { name: "Monitors",   icon: "\uf108", page: "MonitorsPage" },
         { name: "Screensaver", icon: "󰍹", page: "ScreensaverPage" },
+        { name: "Lens",       icon: "󰈈", page: "LensPage" },
+        { name: "Mouse",      icon: "󰍽", page: "MousePage" },
+        { name: "Keyboard",   icon: "󰌌", page: "KeyboardPage" },
         { name: "Network",    icon: Net.mode === "wired" ? "󰈀" : "\uf1eb", page: "NetworkPage" },
-        { name: "Bluetooth",  icon: "󰂯", page: "BluetoothPage" }
+        { name: "Bluetooth",  icon: "󰂯", page: "BluetoothPage" },
+        { name: "Disks",      icon: "󰋊", page: "DisksPage" }
     ].concat(Power.available || Power.hasBattery ? [{ name: "Power", icon: "󰂄", page: "PowerPage" }] : [])
      .concat(Fingerprint.available ? [{ name: "Fingerprint", icon: "󰈷", page: "FingerprintPage" }] : [])
 
@@ -103,8 +108,12 @@ PanelWindow {
     PerspectivePanel {
         id: card
         anchors.centerIn: parent
-        width: Math.min(980, root.width - 80)
-        height: Math.min(640, root.height - 80)
+        // 70% of the monitor; the contents zoom with the monitor's size
+        // (1.0 at 1920x1080, 1.33 at 2560x1440, 2.0 at 4K), so the layout is
+        // the same on every screen
+        width: Math.round(root.width * 0.7)
+        height: Math.round(root.height * 0.7)
+        zoom: Math.max(0.75, Math.min(root.width / 1920, root.height / 1080))
         open: root.showing
 
         MouseArea {

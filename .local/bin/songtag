@@ -46,6 +46,7 @@ import json
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -58,7 +59,7 @@ RESULTS = os.path.join(CACHE, "results.json")
 APPLIED = os.path.join(CACHE, "applied.jsonl")
 EXTS = {".mp3", ".m4a", ".flac", ".ogg", ".opus", ".wma", ".aac", ".wav"}
 COVER_OK = {".mp3", ".m4a", ".flac"}
-APP = "re.fossplant.songrec"
+APP = "re.fossplant.songrec"   # the Flatpak, used when songrec isn't installed natively
 
 
 # ------------------------------------------------------------------ helpers
@@ -172,9 +173,15 @@ def flag(args, name):
 
 
 # ------------------------------------------------------------------ scan
+def songrec_cmd(root):
+    """songrec from PATH, else the Flatpak (allowed to read the music folder)."""
+    if shutil.which("songrec"):
+        return ["songrec"]
+    return ["flatpak", "run", "--filesystem=%s:ro" % root, "--command=songrec", APP]
+
+
 def recognise(path, root):
-    r = subprocess.run(["flatpak", "run", "--filesystem=%s:ro" % root, "--command=songrec", APP,
-                        "audio-file-to-recognized-song", path],
+    r = subprocess.run(songrec_cmd(root) + ["audio-file-to-recognized-song", path],
                        capture_output=True, text=True, timeout=180)
     if r.returncode != 0:
         return {"status": "error", "error": (r.stderr.strip().splitlines() or ["failed"])[-1][:300]}
@@ -412,9 +419,12 @@ def main():
         args.pop(0)
     if not os.path.isdir(root):
         die("no such folder: " + root)
-    for tool in ("ffmpeg", "ffprobe", "flatpak"):
-        if subprocess.run(["sh", "-c", "command -v " + tool], capture_output=True).returncode:
+    for tool in ("ffmpeg", "ffprobe"):
+        if not shutil.which(tool):
             die(tool + " is needed")
+    # only scan talks to Shazam
+    if cmd == "scan" and not shutil.which("songrec") and not shutil.which("flatpak"):
+        die("songrec is needed (installed, or the %s Flatpak)" % APP)
     {"scan": scan, "review": review, "apply": apply, "status": status}.get(cmd, lambda *a: die("unknown command " + cmd))(root, args)
 
 

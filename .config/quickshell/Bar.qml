@@ -1736,6 +1736,32 @@ PanelWindow {
             }
         }
 
+        // removable drives (Drives.qml): only while one is plugged in. red with
+        // the write rate while data is still going out (not safe to pull yet).
+        // click = Settings > Disks, right-click = eject all, middle = open the first mounted one
+        Chip {
+            id: drivesChip
+            visible: Drives.present
+            icon: "󰕓"
+            value: Drives.writing ? Drives.fmtRate(Drives.writeRate)
+                 : Drives.drives.length > 1 ? String(Drives.drives.length) : ""
+            accent: Drives.writing ? Theme.danger
+                  : Drives.mounted.length > 0 ? Theme.accent
+                  : Theme.text
+            SequentialAnimation on opacity {
+                running: Drives.writing
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.45; duration: 600; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1; duration: 600; easing.type: Easing.InOutSine }
+                onRunningChanged: if (!running) drivesChip.opacity = 1
+            }
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton) Drives.ejectAll()
+                else if (mouse.button === Qt.MiddleButton) { if (Drives.mounted.length) Drives.open(Drives.mounted[0].mountpoint) }
+                else Quickshell.execDetached(["qs", "ipc", "call", "settings", "page", "Disks"])
+            }
+        }
+
         // network: wifi when connected, else ethernet when wired, else disconnected
         // click = quick dropdown (QuickPanel.qml), right-click = settings
         Chip {
@@ -1810,6 +1836,33 @@ PanelWindow {
             }
         }
 
+        // claude code (Agents.qml): how many are working, red with how many
+        // need you, dim when none run. click = sessions dropdown,
+        // right-click = open the one that needs you
+        Chip {
+            id: agentsChip
+            visible: Agents.available
+            icon: "󰚩"
+            value: Agents.waiting.length > 0 ? String(Agents.waiting.length)
+                 : Agents.busy.length > 0 ? String(Agents.busy.length) : ""
+            accent: Agents.waiting.length > 0 ? Theme.danger
+                  : Agents.busy.length > 0 ? Theme.accent
+                  : Agents.sessions.length > 0 ? Theme.text
+                  : Theme.textFaint
+            // breathes while an agent works
+            SequentialAnimation on opacity {
+                running: Agents.busy.length > 0 && Agents.waiting.length === 0
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.45; duration: 900; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
+                onRunningChanged: if (!running) agentsChip.opacity = 1
+            }
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton) Agents.next()
+                else Quickshell.execDetached(["qs", "ipc", "call", "quick", "agents"])
+            }
+        }
+
         // screen recorder (wf-recorder): dim when idle, countdown, then red with
         // the running time. click = recorder panel (or stop while recording),
         // right-click = start / stop with the last settings
@@ -1827,6 +1880,19 @@ PanelWindow {
                     Recorder.toggle()
                 else
                     Quickshell.execDetached(["qs", "ipc", "call", "quick", "rec"])
+            }
+        }
+
+        // music EQ (AudioFx.qml): lit while on. click = EQ widget (bottom left),
+        // right-click = EQ on / off. Hidden while the feature is off (Settings > Audio FX)
+        Chip {
+            visible: AudioFx.enabled && AudioFx.available
+            icon: "󰺢"
+            value: AudioFx.eqOn && AudioFx.preset !== "Flat" ? (AudioFx.preset || "custom").toUpperCase() : ""
+            accent: !AudioFx.eqOn ? Theme.textFaint : AudioFx.eeRunning ? Theme.accent : Theme.danger
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton) AudioFx.setOn(!AudioFx.eqOn)
+                else AudioFx.panelOpen = !AudioFx.panelOpen
             }
         }
 

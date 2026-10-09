@@ -25,6 +25,7 @@ What lives where:
   Bar.qml                      top bar (workspaces, quote/face, clock, media, stats, tray, power)
   Notifs.qml + Notification*.qml   notification daemon + popups + center (Mod+N)
   SettingsWindow.qml + SettingsPages/  settings (Mod+S): system, sound, monitors, screensaver (preview scenes), network + VPN, bluetooth, power
+                               (keyboard page: typing test, passages in typing/, CC0 from leomoon-studios/omarchy-typing-test)
   Calendar*.qml, CalendarLib.js, EventForm.qml, TimeField.qml   calendar dropdown + big calendar window (Mod+C); events in ~/.calendar/*.ics (Syncthing-friendly)
   Lock.qml, LockSurface.qml, pam/   lock screen (Mod+Shift+L, after 5 min idle, before suspend); password or fingerprint
   Fingerprint.qml, FingerprintIcon.qml, fingerprint/fpctl.py   Settings > Fingerprint: enroll/test/delete via fprintd (D-Bus helper)
@@ -39,6 +40,14 @@ What lives where:
   Caffeine.qml                 keep awake: bar coffee chip blocks screensaver, idle lock and idle suspend
   Recorder.qml                 screen recording (wf-recorder): bar chip, quick-panel page, area picker
   Syncthing.qml, syncthing/    Syncthing bar chip (REST API status; hidden without syncthing)
+  AudioFx.qml, EqPanel.qml     music EQ: bar chip + bottom-left widget, genre presets; drives a headless
+                               EasyEffects (dconf), which plays into the default output (the speaker calibration when installed)
+  MicFx.qml, micfx/, SettingsPages/AudioFxPage.qml   Settings > Audio FX: NoiseTorch noise suppression + mic effects rack.
+                               Needs ~/.local/lib/noisetorch/rnnoise_ladspa.so (make -C c/ladspa in a NoiseTorch-ng checkout)
+                               and ~/.local/lib/mic-effects/mic-effects-server (make -C daemon in WhoIsCalebBrown/mic-effects).
+                               Quickshell starts and restarts EasyEffects, the filter and the daemon (they need the session D-Bus).
+                               All three are optional and OFF on a new machine (switches in Settings > Audio FX, state in
+                               ~/.local/share/quickshell): off, nothing runs or is polled.
   PhonePush.qml                phone pushes via ntfy while locked/idle: notifications, battery, charger, Tailscale
   QuickPanel.qml, VolumeOsd.qml, PerspectivePanel.qml, Hud*.qml, Slider.qml   shared UI bits
   hyprquickpaper/              wallpaper picker, a separate qs config (Mod+Shift+W)
@@ -187,7 +196,10 @@ skipping the screensaver on battery, the scene-name label, and which scenes are 
 The screen also locks before suspend. `qs ipc call screensaver status` prints the timings in use.
 
 Screensaver scenes are in `ScreensaverScenes.js`. Hand-drawn scenes: Half-Life, your OS (logo
-from fastfetch: Chimera, Gentoo, ...), Naruto, Death Note. Logos can be pasted in as braille art
+from fastfetch: Chimera, Gentoo, ...), Naruto, Death Note, The Matrix. The Matrix rain is a
+fragment shader (`screensaver/MatrixRain.qml`, `screensaver/matrix-rain.frag`, adapted from
+nzkritik/omarchy-matrix-lock); after editing the `.frag`, rebuild the `.qsb` with the `qsb`
+command at the top of it (qt6-shadertools). Logos can be pasted in as braille art
 (see `brailleDots()`); they are redrawn with quarter blocks. GIF scenes come from
 `screensaver/gifs/` and are converted to coloured block characters by `screensaver/gif2ascii.py`.
 The converted frames are cached in `~/.cache/screensaver/` per screen size. To add one, drop a GIF

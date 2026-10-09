@@ -22,11 +22,14 @@ import QtQuick
 //   recorder   screen recording (Recorder.qml): monitor or a dragged-out
 //              area, audio source, start/stop, recent recordings
 //
-//   qs ipc call quick net | bt | vpn | audio | rec | close
+//   agents     Claude Code sessions (Agents.qml): open / stop them, start a
+//              kept one (survives closing its terminal), resume a recent one
+//
+//   qs ipc call quick net | bt | vpn | audio | rec | agents | close
 PanelWindow {
     id: root
 
-    property string mode: ""          // "", "net", "bt", "vpn", "audio" or "rec"
+    property string mode: ""          // "", "net", "bt", "vpn", "audio", "rec" or "agents"
     readonly property bool open: mode !== ""
 
     function toggle(m) {
@@ -34,9 +37,11 @@ PanelWindow {
         if (mode === "net") net.refresh()
         if (mode === "vpn") Vpn.refresh()
         if (mode === "rec") Recorder.refreshRecent()
+        if (mode === "agents") Agents.refreshMore()
     }
 
     Binding { target: Vpn; property: "fast"; value: root.mode === "vpn" }
+    Binding { target: Agents; property: "fast"; value: root.mode === "agents" }
 
     IpcHandler {
         target: "quick"
@@ -45,6 +50,7 @@ PanelWindow {
         function vpn(): void { root.toggle("vpn") }
         function audio(): void { root.toggle("audio") }
         function rec(): void { root.toggle("rec") }
+        function agents(): void { root.toggle("agents") }
         function close(): void { root.mode = "" }
     }
 
@@ -219,6 +225,7 @@ PanelWindow {
         property string title
         property bool on: true
         property bool showRescan: false
+        property bool showToggle: true
         signal toggled()
         signal rescan()
 
@@ -240,7 +247,7 @@ PanelWindow {
             spacing: 6
 
             Rectangle {
-                visible: head.showRescan && head.on
+                visible: head.showRescan && (head.on || !head.showToggle)
                 width: 26; height: 22
                 radius: Theme.radius
                 color: rescanMouse.containsMouse ? Theme.bgCard : "transparent"
@@ -262,6 +269,7 @@ PanelWindow {
             }
 
             Rectangle {
+                visible: head.showToggle
                 width: 44; height: 22
                 radius: Theme.radius
                 color: head.on ? Theme.alpha(Theme.accent, 0.15) : "transparent"
@@ -502,6 +510,125 @@ PanelWindow {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: row.clicked()
+        }
+    }
+
+    // a Claude Code session: status, title, folder · age, kept or not, stop
+    component AgentRow: Rectangle {
+        id: ar
+        property var s
+        property bool armed: false
+        readonly property color tint: s.status === "waiting" ? Theme.danger
+            : s.status === "busy" ? Theme.accent : s.status === "new" ? Theme.text : Theme.textDim
+
+        width: parent ? parent.width : 0
+        height: 40
+        radius: Theme.radius
+        color: arMouse.containsMouse ? Theme.bgCard : "transparent"
+
+        Rectangle {
+            width: 2
+            height: parent.height - 12
+            anchors.verticalCenter: parent.verticalCenter
+            color: ar.tint
+            visible: ar.s.status === "waiting" || ar.s.status === "busy"
+        }
+
+        // status dot, pulsing while it works
+        Rectangle {
+            id: dot
+            x: 14
+            anchors.verticalCenter: parent.verticalCenter
+            width: 8; height: 8; radius: 4
+            color: ar.tint
+            SequentialAnimation on opacity {
+                running: ar.s.status === "busy"
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.25; duration: 700; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutSine }
+                onRunningChanged: if (!running) dot.opacity = 1
+            }
+        }
+
+        Column {
+            x: 32
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - x - tags.width - 16
+            spacing: 2
+            Text {
+                width: parent.width
+                elide: Text.ElideRight
+                text: ar.s.title
+                color: ar.s.status === "waiting" ? Theme.danger : Theme.text
+                font.family: Theme.fontFamily
+                font.pixelSize: 11
+            }
+            Text {
+                width: parent.width
+                elide: Text.ElideMiddle
+                text: (ar.s.status === "waiting" ? "NEEDS YOU" : ar.s.status === "busy" ? "WORKING"
+                       : ar.s.status === "new" ? "NEW" : "IDLE")
+                    + " " + Agents.ago(ar.s.since) + "  ·  " + Agents.pretty(ar.s.cwd || "")
+                color: Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: 8
+                font.letterSpacing: 1
+            }
+        }
+
+        Row {
+            id: tags
+            anchors.right: parent.right
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 4
+
+            // kept sessions survive their terminal; the others end with it
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: ar.s.tmux !== "" ? (ar.s.attached > 0 ? "KEPT" : "KEPT · BG") : "TERMINAL"
+                color: ar.s.tmux !== "" ? Theme.accent : Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: 8
+                font.letterSpacing: 1
+            }
+            Rectangle {
+                visible: ar.s.tmux !== ""
+                width: ar.armed ? stopText.implicitWidth + 12 : 22
+                height: 22
+                radius: Theme.radius
+                color: ar.armed ? Theme.alpha(Theme.danger, 0.15) : "transparent"
+                border.color: ar.armed || stopMouse.containsMouse ? Theme.danger : Theme.border
+                Text {
+                    id: stopText
+                    anchors.centerIn: parent
+                    text: ar.armed ? "STOP?" : "󰅖"
+                    color: ar.armed || stopMouse.containsMouse ? Theme.danger : Theme.textDim
+                    font.family: ar.armed ? Theme.fontFamily : Theme.iconFont
+                    font.pixelSize: ar.armed ? 8 : 12
+                    font.bold: ar.armed
+                }
+                MouseArea {
+                    id: stopMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (ar.armed) { ar.armed = false; Agents.stop(ar.s) }
+                        else { ar.armed = true; disarm.restart() }
+                    }
+                }
+                Timer { id: disarm; interval: 3000; onTriggered: ar.armed = false }
+            }
+        }
+
+        MouseArea {
+            id: arMouse
+            anchors.fill: parent
+            z: -1
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: { root.mode = ""; Agents.open(ar.s) }
         }
     }
 
@@ -1024,6 +1151,79 @@ PanelWindow {
                                 sub: modelData.properties["media.name"] || ""
                             }
                         }
+                    }
+                }
+            }
+
+            // ------------------------------------------------ claude code
+            Column {
+                visible: root.mode === "agents"
+                width: parent.width
+                spacing: 4
+
+                Head {
+                    title: "// CLAUDE CODE  ·  " + Agents.sessions.length + " RUNNING"
+                    showToggle: false
+                    showRescan: true
+                    onRescan: Agents.refreshMore()
+                }
+
+                Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+                Text {
+                    visible: Agents.sessions.length === 0
+                    text: "NOTHING RUNNING"
+                    color: Theme.textFaint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 9
+                    font.letterSpacing: 2
+                    topPadding: 6
+                }
+
+                Label2 { visible: Agents.waiting.length > 0; text: "NEEDS YOU"; color: Theme.danger }
+                Repeater { model: Agents.waiting; AgentRow { required property var modelData; s: modelData } }
+                Label2 { visible: Agents.busy.length > 0; text: "WORKING" }
+                Repeater { model: Agents.busy; AgentRow { required property var modelData; s: modelData } }
+                Label2 { visible: Agents.idle.length > 0; text: "IDLE" }
+                Repeater { model: Agents.idle; AgentRow { required property var modelData; s: modelData } }
+
+                Label2 { text: "NEW KEPT SESSION  ·  SURVIVES CLOSING" }
+                Repeater {
+                    // home, the folders Claude knows, and wherever sessions run now
+                    model: [Agents.home].concat(Agents.projects)
+                        .concat(Agents.sessions.map(x => x.cwd))
+                        .filter((d, i, a) => d && a.indexOf(d) === i)
+                    Row2 {
+                        required property string modelData
+                        height: 30
+                        icon: "󰐕"
+                        label: Agents.pretty(modelData)
+                        onClicked: { root.mode = ""; Agents.newSession(modelData, "") }
+                    }
+                }
+                HudField {
+                    id: agentDir
+                    width: parent.width
+                    placeholder: "other folder…  (enter to start)"
+                    onAccepted: {
+                        let d = text.trim().replace(/^~(?=\/|$)/, Agents.home)
+                        if (d === "") return
+                        text = ""
+                        root.mode = ""
+                        Agents.newSession(d, "")
+                    }
+                }
+
+                Label2 { visible: Agents.recent.length > 0; text: "RESUME AS KEPT" }
+                Repeater {
+                    model: Agents.recent.slice(0, 5)
+                    Row2 {
+                        required property var modelData
+                        height: 30
+                        icon: "󰑐"
+                        label: modelData.title
+                        detail: Agents.ago(modelData.mtime)
+                        onClicked: { root.mode = ""; Agents.newSession(modelData.cwd, modelData.sid) }
                     }
                 }
             }

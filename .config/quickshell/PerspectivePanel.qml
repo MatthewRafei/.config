@@ -17,6 +17,9 @@ Item {
     default property alias content: contentContainer.data
     property bool open: false
     property real tiltStrength: 5   // degrees of hover parallax
+    // content is laid out at (size / zoom) and scaled up by zoom, so a card
+    // sized to the screen looks the same on any monitor
+    property real zoom: 1
 
     property real parallaxX: 0
     property real parallaxY: 0
@@ -73,6 +76,9 @@ Item {
 
     Item {
         id: contentContainer
-        anchors.fill: parent
+        width: root.width / root.zoom
+        height: root.height / root.zoom
+        scale: root.zoom
+        transformOrigin: Item.TopLeft
     }
 }
