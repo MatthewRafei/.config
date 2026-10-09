@@ -1138,10 +1138,14 @@ PanelWindow {
         }
 
         // fingerprints: enrolling / testing in Settings, and unlocking with a finger
+        // the fingerprint module, when it's on
         Connections {
-            target: Fingerprint
+            id: fpWatch
+            readonly property var fp: Modules.service("fingerprint")
+            target: fp
+            ignoreUnknownSignals: true
             function onEvent(kind, finger) {
-                const f = finger && finger !== "all" ? Fingerprint.label(finger).toLowerCase() : ""
+                const f = finger && finger !== "all" ? fpWatch.fp.label(finger).toLowerCase() : ""
                 if (kind === "unlock") {
                     // beats the generic "welcome back", which would fire right after
                     quote.lastFired["welcome"] = Date.now()
@@ -1715,7 +1719,7 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 id: chipLoader
                 Component.onCompleted: setSource(modelData.url, { service: Modules.service(modelData.id), bar: bar })
-                Binding { target: chipLoader.item; property: "service"; value: Modules.service(chipLoader.modelData.id); when: chipLoader.item !== null }
+                Binding { target: chipLoader.item; property: "service"; value: Modules.service(chipLoader.modelData.id); when: chipLoader.item !== null && Modules.service(chipLoader.modelData.id) !== null }
             }
         }
 

@@ -1,13 +1,13 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Fingerprints via fprintd, for Settings > Fingerprint. All the D-Bus work is
-// in fingerprint/fpctl.py; this keeps the state, so an enroll keeps going if
+// in fpctl.py; this keeps the state, so an enroll keeps going if
 // you flip to another settings page and back.
 // Enrolling and deleting ask for your password (polkit, see Auth.qml).
-Singleton {
+Scope {
     id: root
 
     readonly property var fingerIds: [
@@ -118,7 +118,7 @@ Singleton {
             target = args.length ? args[0] : ""
             result = ""
         }
-        proc.command = ["python3", "-I", Quickshell.shellPath("fingerprint/fpctl.py"), cmd].concat(args)
+        proc.command = ["python3", "-I", Quickshell.shellPath("modules/fingerprint/fpctl.py"), cmd].concat(args)
         proc.running = true
     }
 
@@ -204,7 +204,7 @@ Singleton {
     property bool othersFailed: false
     Process {
         id: othersProc
-        command: ["python3", "-I", Quickshell.shellPath("fingerprint/fpctl.py"), "others"]
+        command: ["python3", "-I", Quickshell.shellPath("modules/fingerprint/fpctl.py"), "others"]
         stdout: SplitParser {
             onRead: line => {
                 try {

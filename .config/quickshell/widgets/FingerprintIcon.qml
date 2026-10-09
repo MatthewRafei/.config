@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 
 // A simple fingerprint icon: a few bold rounded strokes. With `progress`
 // 0 -> 1 the strokes fill in with colour, centre first (enroll stages).

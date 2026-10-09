@@ -29,7 +29,9 @@ Scope {
 
     // the lock screen's fingerprint icon shows only with a reader and an
     // enrolled finger, and hides again once the reader keeps giving up
-    readonly property bool fingerReady: Fingerprint.available && Fingerprint.fingers.length > 0
+    // (the fingerprint module, when it's on)
+    readonly property var fp: Modules.service("fingerprint")
+    readonly property bool fingerReady: !!fp && fp.available && fp.fingers.length > 0
                                         && fingerGiveUps < 3
 
     // retries after a scan that didn't match; stops after a few quick
@@ -111,7 +113,7 @@ Scope {
         onCompleted: result => {
             if (result === PamResult.Success) {
                 root.unlocked()
-                Fingerprint.event("unlock", "")   // the bar does a little skit
+                if (root.fp) root.fp.event("unlock", "")   // the bar does a little skit
                 return
             }
             if (!root.locked) return

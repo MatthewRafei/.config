@@ -1,40 +1,42 @@
 import QtQuick
 import Quickshell
-import "../"
+import qs
+import qs.widgets
 
 // Settings > Fingerprint: pick a finger from the list, enroll it (the icon
 // fills in as the reader takes each scan), test it, delete it.
-// State and fprintd talk live in Fingerprint.qml.
+// State and fprintd talk live in page.service.qml.
 Item {
     id: page
+    property var service
 
     property int contentRightMargin: 48
-    property string selected: Fingerprint.fingers.length ? Fingerprint.fingers[0] : "right-index-finger"
+    property string selected: page.service.fingers.length ? page.service.fingers[0] : "right-index-finger"
 
-    readonly property bool enrolling: Fingerprint.mode === "enroll"
-    readonly property bool waiting: enrolling || Fingerprint.mode === "verify"
+    readonly property bool enrolling: page.service.mode === "enroll"
+    readonly property bool waiting: enrolling || page.service.mode === "verify"
     // the big icon shows the selected finger: full if enrolled, filling while enrolling
-    readonly property real iconProgress: enrolling || Fingerprint.result === "done" ? Fingerprint.progress
-        : Fingerprint.has(selected) ? 1 : 0
+    readonly property real iconProgress: enrolling || page.service.result === "done" ? page.service.progress
+        : page.service.has(selected) ? 1 : 0
     readonly property bool done: !enrolling && iconProgress >= 1
     // the selected finger is on the reader for someone else (e.g. root)
-    readonly property string owner: Fingerprint.owner(selected)
+    readonly property string owner: page.service.owner(selected)
 
     // last scan feedback for the disc: "" | "ok" | "retry" | "match" | "nomatch"
     property string scanKind: ""
     Timer { id: scanReset; interval: 700; onTriggered: page.scanKind = "" }
     Connections {
-        target: Fingerprint
+        target: page.service
         function onScan(kind) { page.scanKind = kind; scanReset.restart() }
     }
 
-    Component.onCompleted: Fingerprint.refresh()
+    Component.onCompleted: page.service.refresh()
 
     function pick(f) {
-        if (Fingerprint.busy) return
+        if (page.service.busy) return
         selected = f
-        Fingerprint.say("", false)
-        Fingerprint.result = ""
+        page.service.say("", false)
+        page.service.result = ""
     }
 
     Column {
@@ -58,9 +60,9 @@ Item {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: !Fingerprint.loaded ? "SCANNING…"
-                    : !Fingerprint.available ? "NO READER"
-                    : Fingerprint.deviceName.toUpperCase() + "  ·  " + Fingerprint.fingers.length + " ENROLLED"
+                text: !page.service.loaded ? "SCANNING…"
+                    : !page.service.available ? "NO READER"
+                    : page.service.deviceName.toUpperCase() + "  ·  " + page.service.fingers.length + " ENROLLED"
                 color: Theme.textDim
                 font.family: Theme.fontFamily
                 font.pixelSize: 11
@@ -71,7 +73,7 @@ Item {
         Rectangle { width: parent.width; height: 1; color: Theme.border }
 
         Text {
-            visible: Fingerprint.loaded && !Fingerprint.available
+            visible: page.service.loaded && !page.service.available
             width: parent.width
             wrapMode: Text.Wrap
             text: "No fingerprint reader found. Is fprintd installed (apk add fprintd libfprint-udev)?"
@@ -81,7 +83,7 @@ Item {
         }
 
         Row {
-            visible: Fingerprint.available
+            visible: page.service.available
             width: parent.width
             height: parent.height - y
             spacing: 24
@@ -94,8 +96,8 @@ Item {
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: (page.enrolling ? "ENROLLING " : Fingerprint.mode === "verify" ? "TESTING " : "")
-                        + Fingerprint.label(page.enrolling ? Fingerprint.target : page.selected)
+                    text: (page.enrolling ? "ENROLLING " : page.service.mode === "verify" ? "TESTING " : "")
+                        + page.service.label(page.enrolling ? page.service.target : page.selected)
                     color: Theme.text
                     font.family: Theme.fontFamily
                     font.pixelSize: 12
@@ -132,13 +134,13 @@ Item {
                 Row {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: 5
-                    visible: Fingerprint.stages > 0
+                    visible: page.service.stages > 0
                     Repeater {
-                        model: Fingerprint.stages
+                        model: page.service.stages
                         Rectangle {
                             required property int index
-                            readonly property bool lit: page.enrolling || Fingerprint.result === "done"
-                                ? index < Fingerprint.stage : Fingerprint.has(page.selected)
+                            readonly property bool lit: page.enrolling || page.service.result === "done"
+                                ? index < page.service.stage : page.service.has(page.selected)
                             width: 16
                             height: 4
                             radius: 2
@@ -153,11 +155,11 @@ Item {
                     height: 30
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
-                    text: Fingerprint.message !== "" ? Fingerprint.message
-                        : Fingerprint.has(page.selected) ? "Enrolled. Test it, or re-enroll to replace it."
+                    text: page.service.message !== "" ? page.service.message
+                        : page.service.has(page.selected) ? "Enrolled. Test it, or re-enroll to replace it."
                         : page.owner !== "" ? "Enrolled for " + page.owner + ", not you. Remove that print to enroll this finger."
                         : "Not enrolled yet."
-                    color: Fingerprint.messageBad ? Theme.danger : Theme.textDim
+                    color: page.service.messageBad ? Theme.danger : Theme.textDim
                     font.family: Theme.fontFamily
                     font.pixelSize: 10
                 }
@@ -166,32 +168,32 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: 6
                     HudButton {
-                        visible: !Fingerprint.busy && page.owner !== ""
+                        visible: !page.service.busy && page.owner !== ""
                         label: "REMOVE " + page.owner.toUpperCase() + "'S PRINT"
                         danger: true
-                        onClicked: Fingerprint.remove(page.selected, page.owner)
+                        onClicked: page.service.remove(page.selected, page.owner)
                     }
                     HudButton {
-                        visible: !Fingerprint.busy && page.owner === ""
-                        label: Fingerprint.has(page.selected) ? "RE-ENROLL" : "ENROLL"
-                        on: !Fingerprint.has(page.selected)
-                        onClicked: Fingerprint.enroll(page.selected)
+                        visible: !page.service.busy && page.owner === ""
+                        label: page.service.has(page.selected) ? "RE-ENROLL" : "ENROLL"
+                        on: !page.service.has(page.selected)
+                        onClicked: page.service.enroll(page.selected)
                     }
                     HudButton {
-                        visible: !Fingerprint.busy && Fingerprint.has(page.selected)
+                        visible: !page.service.busy && page.service.has(page.selected)
                         label: "TEST"
-                        onClicked: Fingerprint.verify(page.selected)
+                        onClicked: page.service.verify(page.selected)
                     }
                     HudButton {
-                        visible: !Fingerprint.busy && Fingerprint.has(page.selected)
+                        visible: !page.service.busy && page.service.has(page.selected)
                         label: "DELETE"
                         danger: true
-                        onClicked: Fingerprint.remove(page.selected)
+                        onClicked: page.service.remove(page.selected)
                     }
                     HudButton {
-                        visible: Fingerprint.busy
+                        visible: page.service.busy
                         label: "CANCEL"
-                        onClicked: Fingerprint.cancel()
+                        onClicked: page.service.cancel()
                     }
                 }
             }
@@ -231,10 +233,10 @@ Item {
                                     id: row
                                     required property string modelData
                                     readonly property string finger: handCol.modelData + "-" + modelData
-                                    readonly property bool enrolled: Fingerprint.has(finger)
-                                    readonly property string owner: Fingerprint.owner(finger)
+                                    readonly property bool enrolled: page.service.has(finger)
+                                    readonly property string owner: page.service.owner(finger)
                                     readonly property bool sel: page.selected === finger
-                                    readonly property bool active: Fingerprint.busy && Fingerprint.target === finger
+                                    readonly property bool active: page.service.busy && page.service.target === finger
 
                                     width: handCol.width
                                     height: 32
@@ -242,7 +244,7 @@ Item {
                                     color: sel ? Theme.alpha(Theme.accent, 0.12)
                                         : rowMouse.containsMouse ? Theme.bgCard : "transparent"
                                     border.color: sel ? Theme.accent : Theme.border
-                                    opacity: Fingerprint.busy && !active ? 0.5 : 1
+                                    opacity: page.service.busy && !active ? 0.5 : 1
 
                                     FingerprintIcon {
                                         id: mini
@@ -250,7 +252,7 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: 20
                                         height: 20
-                                        progress: row.active && page.enrolling ? Fingerprint.progress : row.enrolled || row.owner !== "" ? 1 : 0
+                                        progress: row.active && page.enrolling ? page.service.progress : row.enrolled || row.owner !== "" ? 1 : 0
                                         baseColor: Theme.alpha(Theme.textDim, 0.5)
                                         litColor: row.enrolled || row.active ? Theme.accent : Theme.textDim
                                     }
@@ -282,7 +284,7 @@ Item {
                                         id: rowMouse
                                         anchors.fill: parent
                                         hoverEnabled: true
-                                        cursorShape: Fingerprint.busy ? Qt.ArrowCursor : Qt.PointingHandCursor
+                                        cursorShape: page.service.busy ? Qt.ArrowCursor : Qt.PointingHandCursor
                                         onClicked: page.pick(row.finger)
                                     }
                                 }
@@ -295,22 +297,22 @@ Item {
                     width: parent.width
                     spacing: 8
                     topPadding: 4
-                    visible: !Fingerprint.busy
+                    visible: !page.service.busy
                     HudButton {
-                        visible: !Fingerprint.othersChecked
-                        label: Fingerprint.checkingOthers ? "CHECKING…" : "CHECK OTHER USERS"
-                        onClicked: Fingerprint.checkOthers()
+                        visible: !page.service.othersChecked
+                        label: page.service.checkingOthers ? "CHECKING…" : "CHECK OTHER USERS"
+                        onClicked: page.service.checkOthers()
                     }
                     HudButton {
-                        visible: Fingerprint.fingers.length > 0
+                        visible: page.service.fingers.length > 0
                         label: "TEST ANY FINGER"
-                        onClicked: Fingerprint.verify("")
+                        onClicked: page.service.verify("")
                     }
                     HudButton {
-                        visible: Fingerprint.fingers.length > 0
+                        visible: page.service.fingers.length > 0
                         label: "DELETE ALL"
                         danger: true
-                        onClicked: Fingerprint.remove("")
+                        onClicked: page.service.remove("")
                     }
                 }
 

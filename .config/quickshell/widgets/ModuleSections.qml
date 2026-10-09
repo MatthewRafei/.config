@@ -16,7 +16,7 @@ Column {
             required property var modelData
             width: host.width
             Component.onCompleted: setSource(modelData.url, { service: Modules.service(modelData.id) })
-            Binding { target: sec.item; property: "service"; value: Modules.service(sec.modelData.id); when: sec.item !== null }
+            Binding { target: sec.item; property: "service"; value: Modules.service(sec.modelData.id); when: sec.item !== null && Modules.service(sec.modelData.id) !== null }
         }
     }
 }

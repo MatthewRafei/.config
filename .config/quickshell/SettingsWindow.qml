@@ -98,7 +98,6 @@ PanelWindow {
         { name: "Network",    icon: Net.mode === "wired" ? "󰈀" : "\uf1eb", page: "NetworkPage" },
         { name: "Bluetooth",  icon: "󰂯", page: "BluetoothPage" },
     ].concat(Power.available || Power.hasBattery ? [{ name: "Power", icon: "󰂄", page: "PowerPage" }] : [])
-     .concat(Fingerprint.available ? [{ name: "Fingerprint", icon: "󰈷", page: "FingerprintPage" }] : [])
      .concat([{ name: "Modules", icon: "󰏗", page: "ModulesPage" }])
     readonly property var navItems: {
         const out = corePages.slice()
@@ -277,7 +276,7 @@ PanelWindow {
                             else setSource("SettingsPages/" + item_.page + ".qml")
                         }
                         onKeyChanged: load()
-                        Binding { target: pageLoader.item; property: "service"; value: Modules.service(pageLoader.item_.id); when: pageLoader.item !== null && !!pageLoader.item_.url }
+                        Binding { target: pageLoader.item; property: "service"; value: Modules.service(pageLoader.item_.id); when: pageLoader.item !== null && !!pageLoader.item_.url && Modules.service(pageLoader.item_.id) !== null }
 
                         opacity: 0
                         Component.onCompleted: { load(); opacity = 1 }

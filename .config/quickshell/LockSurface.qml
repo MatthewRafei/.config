@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.widgets
 import QtQuick.Effects
 
 // What the lock screen looks like (one per monitor). State lives in Lock.qml.

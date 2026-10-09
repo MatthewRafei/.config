@@ -1,0 +1,9 @@
+{
+    "name": "Fingerprint",
+    "description": "Settings > Fingerprint: enroll, test and delete fingers (fprintd); the lock screen accepts a finger alongside the password",
+    "icon": "󰈷",
+    "default": true,
+    "requires": { "commands": ["fprintd-list", "python3"] },
+    "service": "Service.qml",
+    "page": { "file": "Page.qml", "title": "Fingerprint", "icon": "󰈷", "after": "Power" }
+}
