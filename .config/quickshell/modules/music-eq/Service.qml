@@ -14,6 +14,11 @@ import qs
 //              written live to EasyEffects' dconf keys; an automatic preamp
 //              keeps boosts from clipping. Bar chip + EqPanel.qml.
 //
+// EasyEffects 8 (Qt) dropped dconf/gsettings: there the preset lives in
+// ~/.local/share/easyeffects/output, every change rewrites it and reloads
+// it (`easyeffects -l`), the on/off switch is `easyeffects -b`, and the
+// check asks for the loaded preset (`easyeffects -a output`).
+//
 // The helpers need the graphical session's D-Bus, so instead of OpenRC
 // services this singleton starts them (detached: a shell reload doesn't stop
 // them) and restarts them if they die.
@@ -30,6 +35,8 @@ Scope {
     // (the module being on is the switch: Settings > Modules)
     readonly property bool enabled: true
     property bool available: true          // easyeffects installed
+    property int eeMajor: 0                // EasyEffects major version (8+: no dconf)
+    readonly property bool ee8: eeMajor >= 8
     property bool eqOn: true
     property var gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     property string preset: "Flat"         // "" once the sliders are moved by hand
@@ -108,9 +115,13 @@ Scope {
         pushSoon.stop()
         if (!eeRunning) return
         if (pushProc.running) { pushAgain = true; return }
-        pushProc.command = ["sh", "-c",
-            "printf '%s' \"$1\" | dconf load \"$2\" && gsettings set com.github.wwmm.easyeffects bypass \"$3\"",
-            "sh", keyfile(), eqPath, eqOn ? "false" : "true"]
+        pushProc.command = ee8
+            // 8: rewrite the preset and reload it; bypass 1 = effects off, 2 = on
+            ? ["sh", "-c", "printf '%s' \"$1\" > \"$2\" && easyeffects -l quickshell-eq && easyeffects -b \"$3\"",
+               "sh", presetJson(), eePreset, eqOn ? "2" : "1"]
+            : ["sh", "-c",
+               "printf '%s' \"$1\" | dconf load \"$2\" && gsettings set com.github.wwmm.easyeffects bypass \"$3\"",
+               "sh", keyfile(), eqPath, eqOn ? "false" : "true"]
         pushProc.running = true
         save()
     }
@@ -119,8 +130,8 @@ Scope {
         id: pushProc
         onExited: if (root.pushAgain) { root.pushAgain = false; root.push() }
     }
-    // slider drags: at most ~15 writes a second
-    Timer { id: pushSoon; interval: 60; onTriggered: root.push() }
+    // slider drags: at most ~15 writes a second (8 reloads the whole preset: ~6)
+    Timer { id: pushSoon; interval: root.ee8 ? 150 : 60; onTriggered: root.push() }
 
     // ---------------------------------------------------------------- saved state
     readonly property string stateDir: Quickshell.env("HOME") + "/.local/share/quickshell"
@@ -149,7 +160,9 @@ Scope {
 
     // ---------------------------------------------------------------- EasyEffects
     property bool eeRunning: false
-    readonly property string eePreset: Quickshell.env("HOME") + "/.config/easyeffects/output/quickshell-eq.json"
+    readonly property string eePreset: ee8
+        ? (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/easyeffects/output/quickshell-eq.json"
+        : Quickshell.env("HOME") + "/.config/easyeffects/output/quickshell-eq.json"
 
     // the preset EasyEffects loads at start: the equalizer, gains from this file
     function presetJson() {
@@ -167,7 +180,7 @@ Scope {
     Timer {
         interval: 10000
         repeat: true
-        running: root.loaded && root.enabled && root.available
+        running: root.loaded && root.enabled && root.available && root.eeMajor > 0
         triggeredOnStart: true
         onTriggered: if (!check.running) check.running = true
     }
@@ -175,9 +188,11 @@ Scope {
         id: check
         command: ["sh", "-c",
             "pgrep -x pipewire >/dev/null || { echo nopw; exit; }; "
-            + "pgrep -x easyeffects >/dev/null && echo ee; "
-            + "pactl list short sinks | grep -q easyeffects_sink && echo sink; "
-            + "gsettings get com.github.wwmm.easyeffects.streamoutputs plugins"]
+            + "pgrep -x easyeffects >/dev/null || exit; echo ee; "
+            + "pactl list short sinks | grep -q easyeffects_sink || exit; echo sink; "
+            // (8 is only asked once its sink is up: a CLI call with no service running opens the app)
+            + (root.ee8 ? "[ \"$(easyeffects -a output 2>/dev/null)\" = quickshell-eq ] && echo preset"
+                        : "gsettings get com.github.wwmm.easyeffects.streamoutputs plugins | grep -q 'equalizer#0' && echo preset")]
         stdout: StdioCollector {
             onStreamFinished: {
                 const t = text
@@ -189,7 +204,7 @@ Scope {
                     return
                 }
                 root.lost = 0
-                if (t.indexOf("equalizer#0") < 0) { root.loadEePreset(); return }
+                if (t.indexOf("preset\n") < 0) { root.loadEePreset(); return }
                 if (!root.eeRunning) { root.eeRunning = true; root.push() }
                 if (!reclaim.running) reclaim.running = true
             }
@@ -222,7 +237,13 @@ for st in json.loads(run('-f', 'json', 'list', 'sink-inputs') or '[]') if ee els
     }
     Process {
         running: true
-        command: ["sh", "-c", "command -v easyeffects >/dev/null"]
+        command: ["sh", "-c", "command -v easyeffects >/dev/null && easyeffects --version"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const m = text.match(/(\d+)\.\d+/)
+                root.eeMajor = m ? parseInt(m[1]) : 7
+            }
+        }
         onExited: code => root.available = code === 0
     }
 
@@ -236,8 +257,10 @@ for st in json.loads(run('-f', 'json', 'list', 'sink-inputs') or '[]') if ee els
             + "gsettings set com.github.wwmm.easyeffects.streamoutputs use-default-output-device true; "
             + "gsettings set com.github.wwmm.easyeffects.streaminputs plugins '[]'; "
             + "mkdir -p \"$(dirname \"$2\")\" && printf '%s' \"$1\" > \"$2\"; "
-            + "setsid -f easyeffects --gapplication-service >/dev/null 2>&1; "
-            + "for i in 1 2 3 4 5 6 7 8 9 10; do sleep 0.5; easyeffects -l quickshell-eq 2>/dev/null && break; done",
+            + "setsid -f easyeffects " + (ee8 ? "--service-mode" : "--gapplication-service") + " >/dev/null 2>&1; "
+            // wait for its sink before loading: a CLI call that beats the service opens the app
+            + "for i in 1 2 3 4 5 6 7 8 9 10; do sleep 0.5; pactl list short sinks | grep -q easyeffects_sink || continue; "
+            + "easyeffects -l quickshell-eq 2>/dev/null && break; done",
             "sh", presetJson(), eePreset]
         eeStart.running = true
     }

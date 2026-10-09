@@ -11,6 +11,10 @@ Item {
 
     property int rightMargin: 36
 
+    // re-read manifests and requirements each time the page opens, so
+    // something installed since the shell started is picked up
+    Component.onCompleted: Modules.rescan()
+
     Flickable {
         anchors.fill: parent
         contentWidth: width
@@ -35,7 +39,28 @@ Item {
                     font.bold: true
                     font.letterSpacing: 3
                 }
+                // re-check requirements without leaving the page
                 Text {
+                    id: recheck
+                    anchors.right: count.left
+                    anchors.rightMargin: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Modules.checking ? "CHECKING…" : "⟳ RECHECK"
+                    color: recheckMouse.containsMouse ? Theme.accent : Theme.textDim
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
+                    font.letterSpacing: 2
+                    MouseArea {
+                        id: recheckMouse
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Modules.rescan()
+                    }
+                }
+                Text {
+                    id: count
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: Modules.list.filter(m => m.active).length + " OF " + Modules.list.length + " ON"

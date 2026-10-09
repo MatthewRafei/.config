@@ -112,6 +112,7 @@ Singleton {
 
     // ---------------------------------------------------------------- scanning
     function rescan() { if (!scan.running) scan.running = true }
+    readonly property bool checking: scan.running || req.running
     Process {
         id: scan
         running: true
@@ -141,8 +142,9 @@ Singleton {
             for (const c of r.commands || []) cmds[c] = true
             for (const f of r.files || []) files[f] = true
         }
+        // the compositor's PATH often lacks ~/.local/bin, where user installs (claude, ...) live
         req.command = ["sh", "-c",
-            "for c in $1; do command -v \"$c\" >/dev/null 2>&1 || echo \"cmd $c\"; done; "
+            "PATH=\"$PATH:$HOME/.local/bin\"; for c in $1; do command -v \"$c\" >/dev/null 2>&1 || echo \"cmd $c\"; done; "
             + "shift; for f in \"$@\"; do case $f in \"~\"/*) f=\"$HOME${f#\\~}\" ;; esac; [ -e \"$f\" ] || echo \"file $f\"; done; "
             + "ls /sys/class/power_supply/ 2>/dev/null | grep -q '^BAT' || echo nobattery",
             "sh", Object.keys(cmds).join(" ")].concat(Object.keys(files))
