@@ -52,3 +52,7 @@ if [[ $- == *i* && -n $ALACRITTY_WINDOW_ID && -n $HYPRLAND_INSTANCE_SIGNATURE &&
     set -m
     unset _settle
 fi
+
+# Claude Code: `claude` starts a kept session that survives closing the
+# terminal (quickshell agents module; `command claude` for a plain one)
+[ -r ~/.config/quickshell/modules/agents/claude.bash ] && . ~/.config/quickshell/modules/agents/claude.bash

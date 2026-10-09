@@ -1,6 +1,6 @@
 {
     "name": "Claude Code agents",
-    "description": "Bar chip with how many sessions are working or need you; a quick panel to open, stop, start or resume them (kept sessions survive closing their terminal)",
+    "description": "Bar chip with how many sessions are working or need you; a quick panel to open, stop, start or resume them (kept sessions, including `claude` typed in a terminal, survive closing it)",
     "icon": "󰚩",
     "default": true,
     "cost": "reads Claude Code's session files every few seconds",

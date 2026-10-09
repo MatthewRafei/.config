@@ -6,8 +6,10 @@ import qs
 // Claude Code sessions, for the bar's agents chip and its dropdown
 // (QuickPanel.qml, "agents"). Sessions started from here run in a private
 // tmux server (tmux.conf), so closing their terminal only detaches
-// them: Claude keeps working, and the dropdown opens it again. Sessions
-// started in a plain terminal are listed too (they end with their terminal).
+// them: Claude keeps working, and the dropdown opens it again. `claude`
+// typed in a terminal does the same through claude.bash (sourced from
+// ~/.bashrc); sessions run some other way are listed too but end with
+// their terminal.
 //
 // State comes from agents.py, which reads Claude Code's own session
 // files: no hooks, nothing to set up.

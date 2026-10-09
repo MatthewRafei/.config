@@ -214,8 +214,9 @@ before the laptop suspends.
 - **Syncthing:** a bar chip. Click opens the web UI, starting Syncthing first if needed (dinit,
   OpenRC user services, or no service manager); right-click starts or stops it.
 - **Claude Code agents:** a bar chip that counts working sessions and turns red when one needs
-  you; its panel opens, stops, starts or resumes them, and kept sessions survive closing their
-  terminal.
+  you; its panel opens, stops, starts or resumes them. Sessions are kept: `claude` in a terminal
+  runs in a private tmux server, so closing the terminal (busy or idle) only detaches it and the
+  panel opens it again (`command claude` for a throwaway one).
 - **Caffeine:** keeps the machine awake.
 - **Phone pushes** through [ntfy](https://ntfy.sh): while the screen is locked or you've been
   idle for 2 minutes, notifications, low battery, the charger and Tailscale dropping go to your

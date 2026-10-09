@@ -15,7 +15,7 @@ there are no symlinks and no install script that copies files.
 What lives where:
 
 ```
-.bashrc                        prompt (starship), PATH, the `dots` alias
+.bashrc                        prompt (starship), PATH, the `dots` alias, kept `claude` sessions
 .config/niri/config.kdl        compositor: startup programs, keybinds, layout, colours
 .config/hypr/hyprland.lua      the same for Hyprland (Lua config); loads machine.lua + colors.lua
 .config/quickshell/            the shell (started by niri / Hyprland as `qs`); core + modules, see MODULES.md
