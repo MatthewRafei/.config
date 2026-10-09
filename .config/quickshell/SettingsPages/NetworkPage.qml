@@ -6,6 +6,7 @@ Item {
     id: page
 
     property bool wifiEnabled: true
+
     property var networks: []
     // the connected network first, then the rest (headed separately in the list)
     // the list runs: connected, saved and in range, saved but not in range
@@ -727,6 +728,126 @@ Item {
 
                     width: parent.width
                     spacing: 6
+
+                    // ------------------------------------------------------
+                    // Speed test (SpeedTest.qml)
+                    // ------------------------------------------------------
+
+                    Text {
+                        text: "// SPEED TEST"
+                        color: Theme.textDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        font.letterSpacing: 3
+                    }
+
+                    Rectangle {
+                        width: list.width
+                        height: speedCol.height + 24
+                        radius: Theme.radius
+                        color: Theme.bgCard
+                        border.width: 1
+                        border.color: Theme.border
+
+                        Column {
+                            id: speedCol
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 12
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 14
+                            spacing: 10
+
+                            Item {
+                                width: parent.width
+                                height: 44
+
+                                Row {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 32
+
+                                    Repeater {
+                                        model: [
+                                            { k: "DOWNLOAD", icon: "󰇚", v: SpeedTest.mbps(SpeedTest.down), live: SpeedTest.phase === "down" },
+                                            { k: "UPLOAD", icon: "󰕒", v: SpeedTest.mbps(SpeedTest.up), live: SpeedTest.phase === "up" },
+                                            { k: "PING", icon: "󰓅", v: SpeedTest.ping >= 0 ? Math.round(SpeedTest.ping) + " ms" : "--", live: SpeedTest.phase === "ping" }
+                                        ]
+                                        delegate: Column {
+                                            required property var modelData
+                                            spacing: 4
+                                            Text {
+                                                text: modelData.k
+                                                color: modelData.live ? Theme.accent : Theme.textFaint
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                                font.letterSpacing: 1
+                                            }
+                                            Row {
+                                                spacing: 6
+                                                Text {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: modelData.icon
+                                                    color: Theme.accent
+                                                    font.family: Theme.iconFont
+                                                    font.pixelSize: 15
+                                                }
+                                                Text {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: modelData.live ? "testing…" : modelData.v
+                                                    color: modelData.live ? Theme.textDim : Theme.text
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: 17
+                                                    font.bold: !modelData.live
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: runText.implicitWidth + 24
+                                    height: 28
+                                    radius: Theme.radius
+                                    color: SpeedTest.running ? "transparent"
+                                         : Theme.alpha(Theme.accent, runMouse.containsMouse ? 0.25 : 0.15)
+                                    border.color: SpeedTest.running ? Theme.border : Theme.accent
+                                    Text {
+                                        id: runText
+                                        anchors.centerIn: parent
+                                        text: SpeedTest.running ? "TESTING…" : "󰑐  RUN TEST"
+                                        color: SpeedTest.running ? Theme.textDim : Theme.accent
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                        font.letterSpacing: 1
+                                    }
+                                    MouseArea {
+                                        id: runMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: SpeedTest.running ? Qt.ArrowCursor : Qt.PointingHandCursor
+                                        onClicked: SpeedTest.run()
+                                    }
+                                }
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: SpeedTest.error !== "" ? SpeedTest.error
+                                    : SpeedTest.running ? "About 15 seconds. Uses a few hundred MB."
+                                    : "Last tested " + SpeedTest.ago() + "  ·  speed.cloudflare.com"
+                                color: SpeedTest.error !== "" ? Theme.danger : Theme.textFaint
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 10
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                    }
+
+                    Item { width: 1; height: 14 }
 
                     // ------------------------------------------------------
                     // VPN
