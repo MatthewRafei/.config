@@ -28,6 +28,13 @@ Item {
     opacity: open ? 1 : 0
     visible: opacity > 0.01
 
+    // draw the contents flat first, then tilt the finished image: clipping
+    // (scrolling pages) is worked out without the 3D tilt, so with the
+    // tilt applied straight to the items a clip edge stayed upright and cut
+    // off whatever sat near it (the calibration ON switch)
+    layer.enabled: visible
+    layer.smooth: true
+
     Behavior on opacity {
         NumberAnimation { duration: Theme.animMed; easing.type: Easing.OutCubic }
     }
