@@ -1,8 +1,9 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import qs
 
-// Lens overlay (state in Lens.qml). One window per monitor, each over a
+// Lens overlay (state in win.service.qml). One window per monitor, each over a
 // frozen screenshot of its monitor, for the whole flow:
 //   select   drag a box round some text, on any monitor
 //   reading  a scan line sweeps the box while tesseract reads it
@@ -14,7 +15,7 @@ import QtQuick
 // dragged rectangle (one column of a table, say).
 // No overlay grabs the keyboard exclusively: Hyprland would then send the
 // pointer only to that one and the other monitors would be dead. Keys reach
-// whichever overlay has focus and are passed on (Lens.keyAction) to the one
+// whichever overlay has focus and are passed on (win.service.keyAction) to the one
 // with the box.
 //
 // Ctrl+A select all   Ctrl+C / Enter copy   right click clear   Esc close
@@ -22,6 +23,7 @@ PanelWindow {
     id: win
 
     required property var modelData
+    property var service
     screen: modelData
     anchors { top: true; left: true; right: true; bottom: true }
     color: "transparent"
@@ -29,16 +31,16 @@ PanelWindow {
     visible: img.status === Image.Ready
 
     // the monitor the box is on
-    readonly property bool active: Lens.screen !== null && Lens.screen.name === modelData.name
+    readonly property bool active: win.service.screen !== null && win.service.screen.name === modelData.name
     // the overlay the pointer is over (draws the crosshair)
-    readonly property bool keyboard: Lens.kbScreen !== null && Lens.kbScreen.name === modelData.name
+    readonly property bool keyboard: win.service.kbScreen !== null && win.service.kbScreen.name === modelData.name
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "quickshell-lens"
 
-    readonly property string phase: Lens.phase
-    readonly property var words: active ? Lens.words : []
+    readonly property string phase: win.service.phase
+    readonly property var words: active ? win.service.words : []
     readonly property color hl: Theme.accent
     readonly property color dim: Theme.alpha(Theme.bgPanel, 0.62)
 
@@ -53,16 +55,16 @@ PanelWindow {
     property bool has: false               // a region is drawn
     readonly property bool boxed: active && (has || phase === "reading" || phase === "result")
 
-    readonly property real rx: dragging || phase === "select" ? Math.min(sx, ex) : Lens.rect.x
-    readonly property real ry: dragging || phase === "select" ? Math.min(sy, ey) : Lens.rect.y
-    readonly property real rw: dragging || phase === "select" ? Math.abs(ex - sx) : Lens.rect.width
-    readonly property real rh: dragging || phase === "select" ? Math.abs(ey - sy) : Lens.rect.height
+    readonly property real rx: dragging || phase === "select" ? Math.min(sx, ex) : win.service.rect.x
+    readonly property real ry: dragging || phase === "select" ? Math.min(sy, ey) : win.service.rect.y
+    readonly property real rw: dragging || phase === "select" ? Math.abs(ex - sx) : win.service.rect.width
+    readonly property real rh: dragging || phase === "select" ? Math.abs(ey - sy) : win.service.rect.height
 
     // ---------------- selection ----------------
     property int anchorIdx: -1
     property point pressAt: Qt.point(0, 0)  // where a word drag started, relative to the region
     property bool rectMode: false          // Ctrl+drag: words inside the rectangle
-    // word indices in on-screen order (Lens.visualOrder)
+    // word indices in on-screen order (win.service.visualOrder)
     readonly property var vorder: {
         const a = []
         for (let i = 0; i < words.length; i++) a[words[i].vpos] = i
@@ -114,7 +116,7 @@ PanelWindow {
         if (rs.length) {
             let l = 1e9, t = 1e9, r = -1e9, b = -1e9
             for (const q of rs) { l = Math.min(l, q.l); t = Math.min(t, q.t); r = Math.max(r, q.r); b = Math.max(b, q.b) }
-            selBox = Qt.rect(Lens.rect.x + l, Lens.rect.y + t, r - l, b - t)
+            selBox = Qt.rect(win.service.rect.x + l, win.service.rect.y + t, r - l, b - t)
         }
     }
 
@@ -145,7 +147,7 @@ PanelWindow {
             // a space within a line (or an on-screen row), a paragraph's lines
             // joined when that's on, otherwise a line break
             if (prev) out += w.line === prev.line || (w.row === prev.row && w.vpos === prev.vpos + 1)
-                || (w.par === prev.par && Lens.joinLines) ? " " : "\n"
+                || (w.par === prev.par && win.service.joinLines) ? " " : "\n"
             out += w.t
             prev = w
         }
@@ -155,9 +157,9 @@ PanelWindow {
     function doCopy() {
         if (!words.length) return
         if (!sel.length) selectAll()
-        Lens.copy(textFor(sel))
+        win.service.copy(textFor(sel))
         copied = true
-        if (Lens.closeAfterCopy) closeTimer.restart()
+        if (win.service.closeAfterCopy) closeTimer.restart()
     }
 
     function hit(px, py) {
@@ -180,10 +182,10 @@ PanelWindow {
         return bd < 2500 ? best : -1
     }
 
-    Timer { id: closeTimer; interval: 600; onTriggered: Lens.cancel() }
+    Timer { id: closeTimer; interval: 600; onTriggered: win.service.cancel() }
 
     Connections {
-        target: Lens
+        target: win.service
         function onKeyAction(what) {
             if (!win.active) return
             if (what === "all") win.selectAll()
@@ -202,7 +204,7 @@ PanelWindow {
         setSel([])
         hoverIdx = -1
         flash.restart()
-        if (Lens.autoCopy && words.length) { selectAll(); doCopy() }
+        if (win.service.autoCopy && words.length) { selectAll(); doCopy() }
     }
 
     // small HUD pill button for the toolbar
@@ -261,16 +263,16 @@ PanelWindow {
 
         HoverHandler {
             onHoveredChanged: {
-                if (hovered) Lens.kbScreen = win.modelData
-                else if (win.keyboard) Lens.kbScreen = null
+                if (hovered) win.service.kbScreen = win.modelData
+                else if (win.keyboard) win.service.kbScreen = null
             }
         }
         Keys.onPressed: ev => {
             const ctrl = ev.modifiers & Qt.ControlModifier
-            if (ev.key === Qt.Key_Escape) Lens.cancel()
-            else if (Lens.phase !== "result") return
-            else if (ev.key === Qt.Key_A && ctrl) Lens.keyAction("all")
-            else if ((ev.key === Qt.Key_C && ctrl) || ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter) Lens.keyAction("copy")
+            if (ev.key === Qt.Key_Escape) win.service.cancel()
+            else if (win.service.phase !== "result") return
+            else if (ev.key === Qt.Key_A && ctrl) win.service.keyAction("all")
+            else if ((ev.key === Qt.Key_C && ctrl) || ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter) win.service.keyAction("copy")
             else return
             ev.accepted = true
         }
@@ -279,7 +281,7 @@ PanelWindow {
         Image {
             id: img
             anchors.fill: parent
-            source: Lens.shots[win.modelData.name] ? "file://" + Lens.shots[win.modelData.name] : ""
+            source: win.service.shots[win.modelData.name] ? "file://" + win.service.shots[win.modelData.name] : ""
             fillMode: Image.Stretch
             cache: false
             smooth: false
@@ -407,7 +409,7 @@ PanelWindow {
         // ---------------- result: words ----------------
         Item {
             visible: win.active && win.phase === "result"
-            x: Lens.rect.x; y: Lens.rect.y; width: Lens.rect.width; height: Lens.rect.height
+            x: win.service.rect.x; y: win.service.rect.y; width: win.service.rect.width; height: win.service.rect.height
 
             // brief flash of every word found
             Item {
@@ -478,18 +480,18 @@ PanelWindow {
                 x: 4; y: 4
                 LensButton { icon: "󰆏"; label: win.copied ? "COPIED" : "COPY"; done: win.copied; onActivated: win.doCopy() }
                 LensButton { visible: !win.copied; icon: "󰒆"; label: "ALL"; onActivated: win.selectAll() }
-                LensButton { visible: !win.copied && win.link !== ""; icon: "󰖟"; label: "OPEN"; onActivated: { Lens.openUrl(win.link); Lens.cancel() } }
-                LensButton { visible: !win.copied && win.link === ""; icon: "󰍉"; label: "SEARCH"; onActivated: { Lens.search(win.selText); Lens.cancel() } }
+                LensButton { visible: !win.copied && win.link !== ""; icon: "󰖟"; label: "OPEN"; onActivated: { win.service.openUrl(win.link); win.service.cancel() } }
+                LensButton { visible: !win.copied && win.link === ""; icon: "󰍉"; label: "SEARCH"; onActivated: { win.service.search(win.selText); win.service.cancel() } }
                 // to the phone, as a QR code (Beam.qml)
-                LensButton { visible: !win.copied; icon: "󰐲"; label: "BEAM"; onActivated: { const t = win.selText; Lens.cancel(); Lens.beamRequested(t) } }
+                LensButton { visible: !win.copied; icon: "󰐲"; label: "BEAM"; onActivated: { const t = win.selText; win.service.cancel(); win.service.beamRequested(t) } }
             }
         }
 
         // status under the region
         Pill {
             visible: win.active && win.phase === "result" && !bar.visible && !win.dragging
-            x: Math.max(12, Math.min(Lens.rect.x, parent.width - width - 12))
-            y: Lens.rect.y + Lens.rect.height + 10 + height > parent.height ? Math.max(12, Lens.rect.y - height - 10) : Lens.rect.y + Lens.rect.height + 10
+            x: Math.max(12, Math.min(win.service.rect.x, parent.width - width - 12))
+            y: win.service.rect.y + win.service.rect.height + 10 + height > parent.height ? Math.max(12, win.service.rect.y - height - 10) : win.service.rect.y + win.service.rect.height + 10
             width: statusRow.implicitWidth + 24
             height: 28
             Row {
@@ -498,8 +500,8 @@ PanelWindow {
                 spacing: 14
                 Text {
                     text: win.words.length === 0 ? "NO TEXT FOUND"
-                        : win.words.length + " WORDS · " + Lens.conf + "%" + (Lens.conf < Lens.minConf ? " · UNSURE" : "")
-                    color: win.words.length === 0 || Lens.conf < Lens.minConf ? Theme.danger : win.hl
+                        : win.words.length + " WORDS · " + win.service.conf + "%" + (win.service.conf < win.service.minConf ? " · UNSURE" : "")
+                    color: win.words.length === 0 || win.service.conf < win.service.minConf ? Theme.danger : win.hl
                     font.family: Theme.fontFamily
                     font.pixelSize: 10
                     font.bold: true
@@ -526,12 +528,12 @@ PanelWindow {
                 ? (win.hoverIdx >= 0 ? Qt.IBeamCursor : Qt.ArrowCursor) : Qt.CrossCursor
 
             function inRegion(x, y) {
-                const r = Lens.rect
+                const r = win.service.rect
                 return x >= r.x && y >= r.y && x <= r.x + r.width && y <= r.y + r.height
             }
 
             onPressed: mouse => {
-                Lens.kbScreen = win.modelData
+                win.service.kbScreen = win.modelData
                 if (win.phase === "capturing" || (win.phase === "reading" && win.active)) return
                 if (mouse.button === Qt.RightButton) {
                     if (win.phase === "result") win.setSel([])
@@ -539,7 +541,7 @@ PanelWindow {
                     return
                 }
                 if (win.active && win.phase === "result" && inRegion(mouse.x, mouse.y)) {
-                    const lx = mouse.x - Lens.rect.x, ly = mouse.y - Lens.rect.y
+                    const lx = mouse.x - win.service.rect.x, ly = mouse.y - win.service.rect.y
                     const i = win.hit(lx, ly)
                     if (i >= 0) {
                         win.anchorIdx = i
@@ -551,7 +553,7 @@ PanelWindow {
                     return
                 }
                 // outside the region, or on another monitor: drag out a new one
-                if (!win.active || win.phase !== "select") Lens.reselect(win.modelData)
+                if (!win.active || win.phase !== "select") win.service.reselect(win.modelData)
                 win.setSel([])
                 win.sx = win.ex = mouse.x
                 win.sy = win.ey = mouse.y
@@ -563,7 +565,7 @@ PanelWindow {
                 win.my = mouse.y
                 if (win.dragging) { win.ex = mouse.x; win.ey = mouse.y; return }
                 if (win.phase !== "result" || !win.active) return
-                const lx = mouse.x - Lens.rect.x, ly = mouse.y - Lens.rect.y
+                const lx = mouse.x - win.service.rect.x, ly = mouse.y - win.service.rect.y
                 win.hoverIdx = win.hit(lx, ly)
                 if (win.wordDrag) {
                     const j = win.nearest(lx, ly)
@@ -575,7 +577,7 @@ PanelWindow {
                 if (mouse.button !== Qt.LeftButton || !win.dragging) return
                 win.dragging = false
                 if (win.rw > 8 && win.rh > 8)
-                    Lens.read(win.rx, win.ry, win.rw, win.rh, img.sourceSize.width / win.width)
+                    win.service.read(win.rx, win.ry, win.rw, win.rh, img.sourceSize.width / win.width)
                 else
                     win.has = false
             }

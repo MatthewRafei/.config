@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Disk space for Settings > Disks (SettingsPages/DiskSpace.qml), after
 // mtolhuys/omarchy-disk-lens: what's using the space, as a treemap or a list.

@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Removable drives (USB sticks, SD cards, external disks), after
 // Wian47/omarchy-removable-drives. For the bar's drive chip (shown only while

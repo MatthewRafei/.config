@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Services.Pipewire
 import Quickshell.Wayland
 import QtQuick
+import qs
 
 // Screen recording with wf-recorder, for the bar's REC chip and the recorder
 // page of the quick panel (QuickPanel.qml). A whole monitor or a region you

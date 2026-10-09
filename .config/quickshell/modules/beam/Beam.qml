@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
+import qs
 
 // Beam: anything you copied, as a QR code your phone can scan (after
 // TouchWorkStation/Omarchy-Beam-). Fully local: the text goes monitor ->
@@ -18,6 +19,7 @@ import QtQuick
 //   beam [TEXT]                   the same from a terminal (~/.local/bin/beam)
 PanelWindow {
     id: root
+    property var service
 
     property bool showing: false
     property var qr: null              // beam.py output for what's shown
@@ -27,7 +29,7 @@ PanelWindow {
     property bool fromClipboard: true
     property bool loading: false
 
-    readonly property string script: Quickshell.shellPath("beam/beam.py")
+    readonly property string script: Quickshell.shellPath("modules/beam/beam.py")
 
     function openClipboard() {
         fromClipboard = true
@@ -85,7 +87,9 @@ PanelWindow {
     function close() { showing = false }
 
     Connections {
-        target: Lens
+        // the Lens module's BEAM button
+        target: Modules.service("lens")
+        ignoreUnknownSignals: true
         function onBeamRequested(text) { root.openText(text) }
     }
 

@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Syncthing module: state for the bar chip from its local REST API
 // (status.sh). Started and stopped through the user's service manager

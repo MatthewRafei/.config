@@ -93,7 +93,6 @@ PanelWindow {
         { name: "Audio FX",   icon: "󰍬", page: "AudioFxPage" },
         { name: "Monitors",   icon: "\uf108", page: "MonitorsPage" },
         { name: "Screensaver", icon: "󰍹", page: "ScreensaverPage" },
-        { name: "Lens",       icon: "󰈈", page: "LensPage" },
         { name: "Mouse",      icon: "󰍽", page: "MousePage" },
         { name: "Keyboard",   icon: "󰌌", page: "KeyboardPage" },
         { name: "Network",    icon: Net.mode === "wired" ? "󰈀" : "\uf1eb", page: "NetworkPage" },

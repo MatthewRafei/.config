@@ -1,11 +1,11 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Lens: select and copy text from anywhere on screen, Google Lens style.
 // Freezes every monitor, you drag a box round some text on any of them, tesseract
-// reads it (lens/ocr.py), and the words become selectable right where they
+// reads it (ocr.py), and the words become selectable right where they
 // are. The overlay is LensOverlay.qml; settings are in Settings > Lens, kept
 // per machine in ~/.cache/quickshell/lens.json.
 // Adapted from scribe (github.com/lunanoir21/scribe, MIT).
@@ -17,7 +17,7 @@ import QtQuick
 //
 // Needs grim, wl-copy, tesseract and python3 with Pillow. Reading languages
 // are whatever tesseract has installed (Gentoo: L10N for app-text/tessdata_fast).
-Singleton {
+Scope {
     id: root
 
     // idle -> capturing -> select -> reading -> result
@@ -57,7 +57,7 @@ Singleton {
     }
 
     readonly property string dir: (Quickshell.env("XDG_RUNTIME_DIR") || "") + "/lens"
-    readonly property string ocr: Quickshell.shellPath("lens/ocr.py")
+    readonly property string ocr: Quickshell.shellPath("modules/lens/ocr.py")
 
     function notify(msg) {
         Quickshell.execDetached(["notify-send", "-a", "Lens", "Lens", msg])

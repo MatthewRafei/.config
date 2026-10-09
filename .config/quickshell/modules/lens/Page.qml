@@ -1,26 +1,28 @@
 import QtQuick
 import Quickshell
-import "../"
+import qs
+import qs.widgets
 
-// Settings > Lens: options for reading text off the screen (Lens.qml) and the
+// Settings > Lens: options for reading text off the screen (page.service.qml) and the
 // languages tesseract reads with.
 Item {
     id: page
+    property var service
 
     property int contentRightMargin: 48
 
     readonly property var rows: [
         { k: "LINES", opts: [{ l: "JOIN PARAGRAPHS", v: true }, { l: "KEEP BREAKS", v: false }],
-          get: () => Lens.joinLines, set: v => Lens.joinLines = v },
+          get: () => page.service.joinLines, set: v => page.service.joinLines = v },
         { k: "AFTER COPY", opts: [{ l: "CLOSE", v: true }, { l: "STAY OPEN", v: false }],
-          get: () => Lens.closeAfterCopy, set: v => Lens.closeAfterCopy = v },
+          get: () => page.service.closeAfterCopy, set: v => page.service.closeAfterCopy = v },
         { k: "WHEN READ", opts: [{ l: "WAIT FOR ME", v: false }, { l: "COPY ALL", v: true }],
-          get: () => Lens.autoCopy, set: v => Lens.autoCopy = v },
+          get: () => page.service.autoCopy, set: v => page.service.autoCopy = v },
         { k: "UNSURE BELOW", opts: [40, 50, 60, 70, 80].map(n => ({ l: n + "%", v: n })),
-          get: () => Lens.minConf, set: v => Lens.minConf = v }
+          get: () => page.service.minConf, set: v => page.service.minConf = v }
     ]
 
-    Component.onCompleted: Lens.refresh()
+    Component.onCompleted: page.service.refresh()
 
     function tryIt() {
         // close Settings first so it isn't in the frozen picture
@@ -69,7 +71,7 @@ Item {
 
         // tesseract missing
         Rectangle {
-            visible: !Lens.available
+            visible: !page.service.available
             width: parent.width
             height: missCol.implicitHeight + 24
             radius: Theme.radius
@@ -98,7 +100,7 @@ Item {
                     font.pixelSize: 10
                     lineHeight: 1.3
                 }
-                HudButton { label: "CHECK AGAIN"; onClicked: Lens.refresh() }
+                HudButton { label: "CHECK AGAIN"; onClicked: page.service.refresh() }
             }
         }
 
@@ -142,7 +144,7 @@ Item {
 
                 // reading languages: what tesseract has installed
                 Row {
-                    visible: Lens.available
+                    visible: page.service.available
                     width: setCol.width
                     spacing: 12
                     Label { text: "LANGUAGES" }
@@ -150,22 +152,22 @@ Item {
                         width: parent.width - 112
                         spacing: 4
                         Repeater {
-                            model: Lens.installed
+                            model: page.service.installed
                             HudButton {
                                 required property string modelData
                                 label: modelData.toUpperCase()
-                                on: Lens.langList.indexOf(modelData) >= 0
-                                onClicked: Lens.setLang(modelData, !on)
+                                on: page.service.langList.indexOf(modelData) >= 0
+                                onClicked: page.service.setLang(modelData, !on)
                             }
                         }
                     }
                 }
                 Text {
-                    visible: Lens.available
+                    visible: page.service.available
                     width: parent.width
                     wrapMode: Text.Wrap
                     topPadding: 2
-                    text: "Reading with " + Lens.langs.split("+").join(" + ").toUpperCase()
+                    text: "Reading with " + page.service.langs.split("+").join(" + ").toUpperCase()
                         + ". More languages: L10N + app-text/tessdata_fast on Gentoo, the tesseract data packages on Chimera."
                     color: Theme.textFaint
                     font.family: Theme.fontFamily

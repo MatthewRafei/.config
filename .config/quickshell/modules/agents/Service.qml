@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Claude Code sessions, for the bar's agents chip and its dropdown
 // (QuickPanel.qml, "agents"). Sessions started from here run in a private

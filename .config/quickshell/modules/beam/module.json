@@ -1,0 +1,9 @@
+{
+    "name": "Beam",
+    "description": "The clipboard as a QR code (Mod+Shift+Q, or `beam TEXT`), to get a link or a bit of text onto a phone",
+    "icon": "󰐲",
+    "default": true,
+    "credit": "https://github.com/heuer/segno",
+    "requires": { "commands": ["python3", "wl-paste"] },
+    "windows": ["Beam.qml"]
+}

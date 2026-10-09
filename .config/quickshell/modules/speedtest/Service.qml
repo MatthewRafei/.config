@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Internet speed test for Settings > Network (speedtest.py, curl
 // against speed.cloudflare.com). Only runs when asked: it moves a few hundred

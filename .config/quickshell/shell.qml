@@ -37,13 +37,4 @@ ShellRoot {
     CalendarPanel {}
     CalendarWindow {}
     EqPanel {}
-    Beam {}
-    // Lens (text from anywhere on screen): only exists while it's in use
-    LazyLoader {
-        active: Lens.phase !== "idle"
-        Variants {
-            model: Quickshell.screens
-            LensOverlay {}
-        }
-    }
 }

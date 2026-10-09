@@ -1,0 +1,11 @@
+{
+    "name": "Lens",
+    "description": "Copy text off the screen (Mod+Shift+T): drag over anything on any monitor, the words become selectable where they are; BEAM sends them to the QR overlay",
+    "icon": "󰈈",
+    "default": true,
+    "credit": "https://github.com/tesseract-ocr/tesseract",
+    "requires": { "commands": ["grim", "python3"] },
+    "service": "Service.qml",
+    "windows": ["Overlays.qml"],
+    "page": { "file": "Page.qml", "title": "Lens", "icon": "󰈈", "after": "Screensaver" }
+}

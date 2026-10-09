@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Tailscale state for the bar chip and the VPN dropdown (QuickPanel.qml).
 // Polls `tailscale status --json`; faster while the dropdown is open.
