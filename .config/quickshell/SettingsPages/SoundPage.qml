@@ -880,6 +880,16 @@ Item {
                 leftPadding: 4
             }
         }
+
+        // =========================
+        // SPEAKER CALIBRATION
+        // =========================
+
+        Item { width: 1; height: 18 }
+
+        SpeakerCalibration {
+            width: parent.width
+        }
     }
     }
 }
