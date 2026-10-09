@@ -7,6 +7,7 @@ import qs
 //   clicked(mouse)   left / right / middle (check mouse.button)
 //   wheel(wheel)
 //   shown            false hides it; use this rather than `visible` in module chips
+//   pulse            ms per breath while > 0 (stepped opacity, cheap); 0 = still
 Item {
     id: chip
     property string label
@@ -17,6 +18,19 @@ Item {
     // hide the chip (and, in the bar's module slot, the space it takes)
     property bool shown: true
     visible: shown
+    // breathe while > 0 (ms per breath). Stepped, a few frames a second:
+    // a smooth opacity loop keeps the bar redrawing at 60 fps.
+    property int pulse: 0
+    property int _step: 0
+    readonly property var _steps: [1, 0.85, 0.65, 0.5, 0.65, 0.85]
+    opacity: pulse > 0 ? _steps[_step] : 1
+    Timer {
+        interval: Math.max(100, chip.pulse / 6)
+        repeat: true
+        running: chip.pulse > 0 && chip.visible
+        onTriggered: chip._step = (chip._step + 1) % 6
+        onRunningChanged: chip._step = 0
+    }
     signal clicked(var mouse)
     signal wheel(var wheel)
 

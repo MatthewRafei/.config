@@ -20,13 +20,7 @@ BarChip {
           : service.sessions.length > 0 ? Theme.text
           : Theme.textFaint
     // breathes while an agent works
-    SequentialAnimation on opacity {
-        running: service.busy.length > 0 && service.waiting.length === 0
-        loops: Animation.Infinite
-        NumberAnimation { to: 0.45; duration: 900; easing.type: Easing.InOutSine }
-        NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
-        onRunningChanged: if (!running) agentsChip.opacity = 1
-    }
+    pulse: service.busy.length > 0 && service.waiting.length === 0 ? 1800 : 0
     onClicked: mouse => {
         if (mouse.button === Qt.RightButton) service.next()
         else Quickshell.execDetached(["qs", "ipc", "call", "quick", "agents"])

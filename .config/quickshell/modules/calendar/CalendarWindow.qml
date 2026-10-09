@@ -31,7 +31,8 @@ PanelWindow {
     WlrLayershell.keyboardFocus: showing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     visible: showing || card.visible
 
-    SystemClock { id: clock; precision: SystemClock.Seconds }
+    // nothing here shows seconds; and nothing needs to tick while hidden
+    SystemClock { id: clock; precision: SystemClock.Minutes; enabled: root.visible }
 
     // ---------------- state ----------------
     property string view: "month"          // month | week | agenda

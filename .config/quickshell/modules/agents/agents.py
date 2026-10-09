@@ -2,6 +2,8 @@
 """Claude Code sessions for the bar's agents chip (Agents.qml).
 
   agents.py scan          JSON list of running sessions on stdout
+  agents.py serve         stay up: a "scan" line on stdin answers with one JSON line
+                          (what the bar uses; exits when stdin closes, i.e. with qs)
   agents.py recent        JSON list of recent sessions that aren't running (to resume)
   agents.py focus PID     focus the terminal window that PID runs in (Hyprland or niri)
   agents.py attached NAME focus a terminal attached to kept session NAME (exit 1: none)
@@ -58,30 +60,51 @@ def proc_start(pid):
         return None
 
 
+_titles = {}                     # transcript path -> (size searched up to, title found), for serve
+
+
 def title(cwd, sid):
     """The newest ai-title / custom title in the session's transcript."""
     proj = re.sub(r"[^A-Za-z0-9]", "-", cwd)
     path = os.path.join(CLAUDE, "projects", proj, f"{sid}.jsonl")
+    seen, found = _titles.get(path, (0, ""))
     try:
         with open(path, "rb") as f:
             f.seek(0, 2)
             size = f.tell()
-            f.seek(max(0, size - TITLE_TAIL))
+            if size == seen:
+                return _decode(found)
+            if size < seen:                              # rewritten: start over
+                seen, found = 0, ""
+            # only what was appended since the last look (a little overlap
+            # for a record cut in half last time), else the tail
+            f.seek(max(0, size - TITLE_TAIL, seen - 4096))
             tail = f.read().decode("utf-8", "replace")
     except OSError:
         return ""
-    found = ""
     for m in re.finditer(r'"(?:customTitle|aiTitle)"\s*:\s*"((?:[^"\\]|\\.)*)"', tail):
         found = m.group(1)
+    _titles[path] = (size, found)
+    return _decode(found)
+
+
+def _decode(found):
     try:
         return json.loads(f'"{found}"') if found else ""
     except ValueError:
         return found
 
 
+def tmux_socket():
+    base = os.environ.get("TMUX_TMPDIR") or "/tmp"
+    return os.path.join(base, f"tmux-{os.getuid()}", "claude")
+
+
 def tmux_panes():
     """pane pid -> {session, attached, created}"""
     panes = {}
+    if not os.path.exists(tmux_socket()):
+        return panes                                     # no kept sessions: skip the fork
     fmt = "#{pane_pid}\t#{session_name}\t#{session_attached}\t#{session_created}\t#{pane_current_path}"
     for line in run(TMUX + ["list-panes", "-a", "-F", fmt]).splitlines():
         f = line.split("\t")
@@ -91,6 +114,7 @@ def tmux_panes():
 
 
 def scan():
+    """Running sessions, as a list of dicts."""
     panes = tmux_panes()
     out = []
     reg = os.path.join(CLAUDE, "sessions")
@@ -139,7 +163,13 @@ def scan():
                         "since": p["created"] * 1000, "started": p["created"] * 1000,
                         "tmux": p["session"], "attached": p["attached"]})
     out.sort(key=lambda x: x["started"])
-    print(json.dumps(out))
+    return out
+
+
+def serve():
+    for line in sys.stdin:
+        if line.strip() == "scan":
+            print(json.dumps(scan()), flush=True)
 
 
 def recent(limit=8):
@@ -236,7 +266,10 @@ def focus(pid):
 
 def main():
     if len(sys.argv) >= 2 and sys.argv[1] == "scan":
-        scan()
+        print(json.dumps(scan()))
+        return 0
+    if len(sys.argv) >= 2 and sys.argv[1] == "serve":
+        serve()
         return 0
     if len(sys.argv) >= 2 and sys.argv[1] == "recent":
         recent()

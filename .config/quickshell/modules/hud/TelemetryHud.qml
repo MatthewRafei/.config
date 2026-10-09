@@ -58,8 +58,10 @@ PanelWindow {
     property int lastMinute: -1
     readonly property int minute: clock.date.getMinutes()
     onMinuteChanged: {
-        if (lastMinute >= 0)
+        if (lastMinute >= 0 && visible) {
             glitchAnim.restart()
+            sweepAnim.restart()
+        }
         lastMinute = minute
     }
 
@@ -86,17 +88,26 @@ PanelWindow {
     property var cpuHist: []
     property var memHist: []
 
-    property real cpu: 0
-    property real mem: 0
-    property real memUsedGb: 0
-    property real memTotalGb: 0
-    property real temp: -1
-    property int bat: -1
-    property string batStatus: ""
-    property real uptime: 0
+    // samples come from SysStats.qml (no shell forks); ask it for 1 s
+    // samples while the HUD is up
+    readonly property real cpu: SysStats.cpu
+    readonly property real mem: SysStats.mem
+    readonly property real memUsedGb: SysStats.memUsedGb
+    readonly property real memTotalGb: SysStats.memTotalGb
+    readonly property real temp: SysStats.temp
+    readonly property int bat: SysStats.bat
+    readonly property string batStatus: SysStats.batStatus
+    readonly property real uptime: SysStats.uptime
 
-    property real _lastBusy: -1
-    property real _lastIdle: -1
+    property bool _holdsFast: false
+    function _syncFast() {
+        if (visible === _holdsFast) return
+        SysStats.fastUsers += visible ? 1 : -1
+        _holdsFast = visible
+    }
+    onVisibleChanged: _syncFast()
+    Component.onCompleted: _syncFast()
+    Component.onDestruction: if (_holdsFast) SysStats.fastUsers--
 
     function pushHist(arr, v) {
         var a = arr.slice()
@@ -106,72 +117,14 @@ PanelWindow {
         return a
     }
 
-    function ingest(text) {
-        var lines = text.split("\n")
-        for (var i = 0; i < lines.length; i++) {
-            var p = lines[i].trim().split(/\s+/)
-            switch (p[0]) {
-            case "cpu":
-                var busy = +p[1], idle = +p[2]
-                if (_lastBusy >= 0) {
-                    var db = busy - _lastBusy, di = idle - _lastIdle
-                    cpu = (db + di) > 0 ? db / (db + di) : 0
-                }
-                _lastBusy = busy
-                _lastIdle = idle
-                break
-            case "mem":
-                var total = +p[1], avail = +p[2]
-                mem = total > 0 ? (total - avail) / total : 0
-                memUsedGb = (total - avail) / 1048576
-                memTotalGb = total / 1048576
-                break
-            case "temp":
-                temp = +p[1] / 1000
-                break
-            case "bat":
-                bat = +p[1]
-                batStatus = p[2] || ""
-                break
-            case "up":
-                uptime = +p[1]
-                break
-            }
+    Connections {
+        target: SysStats
+        enabled: root.visible
+        function onSampled() {
+            root.cpuHist = root.pushHist(root.cpuHist, SysStats.cpu)
+            root.memHist = root.pushHist(root.memHist, SysStats.mem)
+            spark.requestPaint()
         }
-        cpuHist = pushHist(cpuHist, cpu)
-        memHist = pushHist(memHist, mem)
-        spark.requestPaint()
-    }
-
-    Process {
-        id: statProc
-
-        command: [
-            "sh",
-            "-c",
-            "read -r _ u n s i w q sq st _ < /proc/stat; " +
-            "echo cpu $((u+n+s+q+sq+st)) $((i+w)); " +
-            "awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{print \"mem\", t, a}' /proc/meminfo; " +
-            "for h in /sys/class/hwmon/hwmon*; do " +
-            "  [ \"$(cat $h/name 2>/dev/null)\" = coretemp ] && { echo temp $(cat $h/temp1_input); break; }; " +
-            "done; " +
-            "for b in /sys/class/power_supply/BAT*; do " +
-            "  [ -r $b/capacity ] && { echo bat $(cat $b/capacity) $(cat $b/status); break; }; " +
-            "done; " +
-            "read -r up _ < /proc/uptime; echo up ${up%.*}"
-        ]
-
-        stdout: StdioCollector {
-            onStreamFinished: root.ingest(text)
-        }
-    }
-
-    Timer {
-        interval: 1000
-        repeat: true
-        running: root.visible
-        triggeredOnStart: true
-        onTriggered: if (!statProc.running) statProc.running = true
     }
 
     // -------------------------
@@ -334,21 +287,23 @@ PanelWindow {
                 onHeightChanged: requestPaint()
             }
 
-            // slow sweeping highlight
+            // slow sweeping highlight, one pass per minute roll-over (a
+            // looping sweep kept the HUD rendering 60 fps around the clock)
             Rectangle {
                 width: parent.width
                 height: 60
+                y: -60
                 gradient: Gradient {
                     GradientStop { position: 0; color: "transparent" }
                     GradientStop { position: 0.5; color: Theme.alpha(Theme.text, 0.035) }
                     GradientStop { position: 1; color: "transparent" }
                 }
                 NumberAnimation on y {
+                    id: sweepAnim
                     from: -60
                     to: card.height
                     duration: 5000
-                    loops: Animation.Infinite
-                    running: root.visible
+                    running: false
                 }
             }
         }
@@ -376,12 +331,9 @@ PanelWindow {
                         width: 6; height: 6; radius: 3
                         anchors.verticalCenter: parent.verticalCenter
                         color: Theme.ok
-                        SequentialAnimation on opacity {
-                            loops: Animation.Infinite
-                            running: root.visible
-                            NumberAnimation { to: 0.2; duration: 900; easing.type: Easing.InOutSine }
-                            NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
-                        }
+                        // blinks with the clock's seconds: one frame a second,
+                        // which the seconds strip redraws anyway
+                        opacity: clock.date.getSeconds() % 2 ? 0.25 : 1
                     }
                     Text {
                         text: "// TELEMETRY"

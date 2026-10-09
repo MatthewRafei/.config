@@ -18,13 +18,7 @@ BarChip {
     accent: service.drives.writing ? Theme.danger
           : service.drives.mounted.length > 0 ? Theme.accent
           : Theme.text
-    SequentialAnimation on opacity {
-        running: service.drives.writing
-        loops: Animation.Infinite
-        NumberAnimation { to: 0.45; duration: 600; easing.type: Easing.InOutSine }
-        NumberAnimation { to: 1; duration: 600; easing.type: Easing.InOutSine }
-        onRunningChanged: if (!running) drivesChip.opacity = 1
-    }
+    pulse: service.drives.writing ? 1200 : 0
     onClicked: mouse => {
         if (mouse.button === Qt.RightButton) service.drives.ejectAll()
         else if (mouse.button === Qt.MiddleButton) { if (service.drives.mounted.length) service.drives.open(service.drives.mounted[0].mountpoint) }

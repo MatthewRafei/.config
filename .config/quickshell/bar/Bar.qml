@@ -40,58 +40,13 @@ PanelWindow {
     // -------------------------
     // Stats (cpu / mem / battery / wifi)
     // -------------------------
-    property real cpu: 0
-    property real mem: 0
-    property int bat: -1
-    property string batStatus: ""
+    // SysStats.qml reads /proc and /sys without forking
+    readonly property real cpu: SysStats.cpu
+    readonly property real mem: SysStats.mem
+    readonly property int bat: SysStats.bat
+    readonly property string batStatus: SysStats.batStatus
     readonly property string ssid: Net.ssid       // Net.qml
     readonly property int signal: Net.signal
-    property real _lastBusy: -1
-    property real _lastIdle: -1
-
-    Process {
-        id: statProc
-        command: [
-            "sh",
-            "-c",
-            "read -r _ u n s i w q sq st _ < /proc/stat; " +
-            "echo cpu $((u+n+s+q+sq+st)) $((i+w)); " +
-            "awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{print \"mem\", t, a}' /proc/meminfo; " +
-            "for b in /sys/class/power_supply/BAT*; do " +
-            "  [ -r $b/capacity ] && { echo bat $(cat $b/capacity) $(cat $b/status); break; }; " +
-            "done"
-        ]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var lines = text.split("\n")
-                for (var i = 0; i < lines.length; i++) {
-                    var p = lines[i].trim().split(/\s+/)
-                    if (p[0] === "cpu") {
-                        var busy = +p[1], idle = +p[2]
-                        if (bar._lastBusy >= 0) {
-                            var db = busy - bar._lastBusy, di = idle - bar._lastIdle
-                            bar.cpu = (db + di) > 0 ? db / (db + di) : 0
-                        }
-                        bar._lastBusy = busy
-                        bar._lastIdle = idle
-                    } else if (p[0] === "mem") {
-                        bar.mem = +p[1] > 0 ? (+p[1] - +p[2]) / +p[1] : 0
-                    } else if (p[0] === "bat") {
-                        bar.bat = +p[1]
-                        bar.batStatus = p[2] || ""
-                    }
-                }
-            }
-        }
-    }
-
-    Timer {
-        interval: 2000
-        repeat: true
-        running: true
-        triggeredOnStart: true
-        onTriggered: if (!statProc.running) statProc.running = true
-    }
 
     readonly property string ethIface: Net.ethIface
 
@@ -368,9 +323,19 @@ PanelWindow {
             spacing: 8
 
             Row {
+                id: eqBars
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 2
                 height: 12
+                // stepped ~7 frames a second rather than a 60 fps animation
+                readonly property bool playing: bar.player !== null && bar.player.isPlaying
+                property int frame: 0
+                Timer {
+                    interval: 140
+                    repeat: true
+                    running: eqBars.playing && eqBars.visible
+                    onTriggered: eqBars.frame++
+                }
                 Repeater {
                     model: 4
                     Rectangle {
@@ -378,13 +343,9 @@ PanelWindow {
                         width: 2
                         anchors.bottom: parent.bottom
                         color: Theme.accent
-                        height: 3
-                        SequentialAnimation on height {
-                            running: bar.player !== null && bar.player.isPlaying
-                            loops: Animation.Infinite
-                            NumberAnimation { to: 12; duration: 260 + index * 70; easing.type: Easing.InOutSine }
-                            NumberAnimation { to: 3; duration: 260 + index * 70; easing.type: Easing.InOutSine }
-                        }
+                        height: eqBars.playing
+                            ? 3 + Math.round(9 * Math.abs(Math.sin(eqBars.frame * (0.55 + index * 0.17) + index)))
+                            : 3
                     }
                 }
             }

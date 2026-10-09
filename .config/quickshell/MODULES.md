@@ -132,3 +132,22 @@ Module state of its own (presets, settings) goes in
    sections / windows, each declaring `property var service`.
 3. Restart the shell (`pkill -x qs; qs &`): live reload doesn't always
    notice new files. It appears in Settings > Modules.
+
+## Keeping it light
+
+The shell runs all day, so anything that ticks costs battery:
+
+* No `loops: Animation.Infinite` on something that stays on screen: every
+  frame of it redraws the whole window at 60 fps. A chip that should
+  "breathe" sets `BarChip.pulse` (stepped, a few frames a second); one-off
+  animations on an event are fine.
+* Prefer events over polling (`nmcli monitor`, `niri msg event-stream`,
+  `udevadm monitor`, FileView `watchChanges`), and when polling, read
+  `/proc` / `/sys` with `FileView` and HTTP APIs with `XMLHttpRequest`
+  rather than forking a shell. A helper script that answers often should
+  stay up and take requests on stdin (see `agents.py serve`), exiting when
+  stdin closes.
+* Stop timers and clocks while their window is hidden (`running: visible`,
+  `SystemClock { enabled: visible }`).
+* `SysStats` (core) already samples CPU / memory / temperature / battery /
+  uptime; read it instead of sampling again.

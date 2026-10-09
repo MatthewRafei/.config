@@ -10,8 +10,10 @@ import QtQuick
 // Workspaces are in niri's shape for both:
 //   { idx, output, is_active, is_urgent, active_window_id }
 // For Hyprland, idx is the workspace id and is_active means "shown on its
-// monitor". Any compositor event triggers a debounced re-query, which is
-// simpler and more robust than tracking every event type by hand.
+// monitor". niri's event stream carries the full state on connect and
+// deltas after, so it is applied as it comes (re-querying spawned two
+// `niri msg` per event, and a terminal's spinner title fires one a second).
+// Hyprland events trigger a debounced re-query.
 Singleton {
     id: comp
 
@@ -65,7 +67,7 @@ Singleton {
         command: ["niri", "msg", "--json", "event-stream"]
         running: comp.niri
         stdout: SplitParser {
-            onRead: debounce.restart()
+            onRead: line => comp.niriEvent(line)
         }
         // niri restarted / socket dropped: reconnect
         onRunningChanged: if (!running && comp.niri) niriRetry.start()
@@ -110,31 +112,81 @@ Singleton {
 
     Process {
         id: query
-        command: comp.hyprland
-            ? ["sh", "-c", "hyprctl -j workspaces; echo @@; hyprctl -j monitors; echo @@; hyprctl -j activewindow"]
-            : ["sh", "-c", "niri msg --json workspaces; echo; niri msg --json focused-window"]
+        command: ["sh", "-c", "hyprctl -j workspaces; echo @@; hyprctl -j monitors; echo @@; hyprctl -j activewindow"]
         stdout: StdioCollector {
-            onStreamFinished: comp.hyprland ? comp.parseHyprland(text) : comp.parseNiri(text)
+            onStreamFinished: comp.parseHyprland(text)
         }
     }
 
-    function parseNiri(text) {
-        var parts = text.split("\n").filter(function (l) { return l.trim() !== "" })
-        try {
-            var ws = JSON.parse(parts[0])
-            ws.sort(function (a, b) { return a.idx - b.idx })
-            comp.workspaces = ws
-            var f = ws.find(function (w) { return w.is_focused })
-            if (f) comp.focusedOutput = f.output || ""
-        } catch (e) {}
-        try {
-            var win = JSON.parse(parts[1] || "null")
-            comp.windowTitle = win ? (win.title || "") : ""
-            comp.windowApp = win ? (win.app_id || "") : ""
-        } catch (e) {
-            comp.windowTitle = ""
-            comp.windowApp = ""
+    // niri state, from the event stream
+    property var _nWs: []                  // workspaces as niri sends them
+    property var _nWins: ({})              // window id -> window
+
+    function niriEvent(line) {
+        let ev
+        try { ev = JSON.parse(line) } catch (e) { return }
+        const k = Object.keys(ev)[0], d = ev[k]
+        switch (k) {
+        case "WorkspacesChanged":
+            _nWs = d.workspaces
+            _niriWorkspaces()
+            break
+        case "WorkspaceActivated": {
+            const t = _nWs.find(w => w.id === d.id)
+            if (!t) return
+            for (const w of _nWs) {
+                if (w.output === t.output) w.is_active = w.id === d.id
+                if (d.focused) w.is_focused = w.id === d.id
+            }
+            _niriWorkspaces()
+            break
         }
+        case "WorkspaceActiveWindowChanged": {
+            const t = _nWs.find(w => w.id === d.workspace_id)
+            if (t) { t.active_window_id = d.active_window_id; _niriWorkspaces() }
+            break
+        }
+        case "WorkspaceUrgencyChanged": {
+            const t = _nWs.find(w => w.id === d.id)
+            if (t) { t.is_urgent = d.urgent; _niriWorkspaces() }
+            break
+        }
+        case "WindowsChanged": {
+            const m = {}
+            for (const w of d.windows) m[w.id] = w
+            _nWins = m
+            _niriWindow()
+            break
+        }
+        case "WindowOpenedOrChanged":
+            if (d.window.is_focused)
+                for (const id in _nWins) _nWins[id].is_focused = false
+            _nWins[d.window.id] = d.window
+            _niriWindow()
+            break
+        case "WindowClosed":
+            delete _nWins[d.id]
+            _niriWindow()
+            break
+        case "WindowFocusChanged":
+            for (const id in _nWins) _nWins[id].is_focused = +id === d.id
+            _niriWindow()
+            break
+        }
+    }
+
+    function _niriWorkspaces() {
+        const ws = _nWs.slice().sort((a, b) => a.idx - b.idx)
+        comp.workspaces = ws
+        const f = ws.find(w => w.is_focused)
+        if (f) comp.focusedOutput = f.output || ""
+    }
+
+    function _niriWindow() {
+        let win = null
+        for (const id in _nWins) if (_nWins[id].is_focused) { win = _nWins[id]; break }
+        comp.windowTitle = win ? (win.title || "") : ""
+        comp.windowApp = win ? (win.app_id || "") : ""
     }
 
     function parseHyprland(text) {

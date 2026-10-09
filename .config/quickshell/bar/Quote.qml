@@ -12,7 +12,7 @@ import qs.widgets
 
 // quote: types out a short fortune left of the clock, ticker-scrolling
 // as it goes if it doesn't fit, then eases back to the start and from
-// there scrolls on repeat like a news ticker (pauses under the mouse). New quote
+// there scrolls a few passes like a news ticker (pauses under the mouse). New quote
 // every 5 minutes; click = next, hover = full quote in a popup.
 // Now and then (1 in 3 changes, or `qs ipc call bar peek`) a little skit
 // decodes in instead: a face peeking left and right, dozing off, flipping
@@ -1085,8 +1085,12 @@ Item {
         from: 0
         to: -tickerRow.width / 2
         duration: tickerRow.width / 2 / 45 * 1000
-        loops: Animation.Infinite
+        // a few passes, then rest on the start: an endless scroll kept the
+        // bar redrawing at 60 fps until the next quote. Hover still shows
+        // the whole quote; moving off it scrolls a few more passes.
+        loops: 3
         paused: running && quoteMouse.containsMouse
+        onFinished: quote.tickX = 0
     }
 
     Row {
@@ -1182,6 +1186,7 @@ Item {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: if (!quote.peeking) quote.next()
+        onExited: if (quote.ticker && !tickerLoop.running) tickerLoop.restart()
     }
 
     // full quote on hover

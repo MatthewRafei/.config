@@ -69,8 +69,21 @@ Singleton {
         }
     }
 
+    // NetworkManager tells us when something changes (`nmcli monitor`
+    // prints a line per event), so the timer only needs to catch Wi-Fi
+    // signal drift. Without nmcli it falls back to a 5 s poll.
+    Process {
+        id: monitor
+        command: ["nmcli", "monitor"]
+        running: true
+        stdout: SplitParser { onRead: settle.restart() }
+        onRunningChanged: if (!running) monitorRetry.start()
+    }
+    Timer { id: monitorRetry; interval: 30000; onTriggered: monitor.running = true }
+    Timer { id: settle; interval: 400; onTriggered: net.refresh() }
+
     Timer {
-        interval: 5000
+        interval: monitor.running ? 20000 : 5000
         repeat: true
         running: true
         triggeredOnStart: true

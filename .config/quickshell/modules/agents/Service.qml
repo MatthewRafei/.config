@@ -84,8 +84,11 @@ Scope {
         if (pick) open(pick)
     }
 
+    // agents.py stays up (`serve`) and answers a "scan" line, instead of a
+    // python start every few seconds
     function refresh() {
-        if (!scan.running) scan.running = true
+        if (scan.running) scan.write("scan\n")
+        else if (root.available) scan.running = true
     }
     function refreshMore() {
         refresh()
@@ -102,7 +105,7 @@ Scope {
 
     Process {
         running: true
-        command: ["sh", "-c", "command -v claude"]
+        command: ["sh", "-c", "PATH=\"$PATH:$HOME/.local/bin\"; command -v claude"]
         stdout: StdioCollector {
             onStreamFinished: {
                 root.claudeBin = text.trim()
@@ -122,10 +125,12 @@ Scope {
 
     Process {
         id: scan
-        command: ["python3", "-I", root.script, "scan"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try { root.sessions = JSON.parse(text) } catch (e) {}
+        command: ["python3", "-I", root.script, "serve"]
+        stdinEnabled: true
+        onStarted: write("scan\n")
+        stdout: SplitParser {
+            onRead: line => {
+                try { root.sessions = JSON.parse(line) } catch (e) {}
             }
         }
     }
