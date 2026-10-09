@@ -166,7 +166,7 @@ environment {
 // ── Cursor ────────────────────────────────────────────────────────────────────
 
 cursor {
-    xcursor-theme "Adwaita"
+    xcursor-theme "Accent-b"
     xcursor-size 24
 }
 
@@ -180,6 +180,8 @@ binds {
     Mod+Shift+L  	hotkey-overlay-title="Lock screen"       		{ spawn "qs" "ipc" "call" "lock" "lock";	   }
     Mod+N        	hotkey-overlay-title="Notifications"     		{ spawn "qs" "ipc" "call" "notifs" "toggle";	   }
     Mod+C        	hotkey-overlay-title="Calendar"          		{ spawn "qs" "ipc" "call" "calendar" "open";	   }
+    Mod+Shift+T  	hotkey-overlay-title="Copy text off the screen" 	{ spawn "qs" "ipc" "call" "lens" "start";	   }
+    Mod+Shift+Q  	hotkey-overlay-title="Beam the clipboard as a QR code" 	{ spawn "qs" "ipc" "call" "beam" "toggle";	   }
     Mod+W	  	hotkey-overlay-title="Browser: Chromium"       		{ spawn-sh "~/.local/bin/chromium";					   }	
     Super+Alt+S  	allow-when-locked=true hotkey-overlay-title=null 	{ spawn-sh "pkill orca || exec orca";			   }
     Mod+Shift+W				       					{ spawn-sh "qs -n -p ~/.config/quickshell/hyprquickpaper"; }

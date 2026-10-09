@@ -6,6 +6,9 @@
 --   ~/.config/hypr/colors.lua   border colours, written by ~/.config/theme/wallpaper-theme
 --   ~/.config/hypr/machine.lua  this machine: monitors, workspace pins, extra programs and
 --                               binds (hl.unbind a key here first to rebind it)
+--   ~/.config/hypr/cursor.lua    cursor theme, written by ~/.config/theme/cursor/cursor-accent
+--   ~/.config/hypr/settings.lua  mouse / keyboard options, written by Settings
+--   ~/.config/hypr/keybinds.lua  moved or disabled binds, written by Settings > Keyboard
 --
 -- hyprctl dispatch takes Lua here: hyprctl dispatch 'hl.dsp.focus({ workspace = "2" })'
 
@@ -107,74 +110,122 @@ hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 
 -- ── Keybinds (same layout as niri, see ~/.github/README.md) ──────────────────
 
+-- Settings > Keyboard moves or switches off binds without editing this file:
+-- it writes keybinds.lua, returning { ["SUPER + Q"] = "SUPER + X", ["SUPER + W"] = false }.
+-- hl.bind is wrapped so each bind below (and in machine.lua) is looked up there.
+do
+    local file = loadfile(os.getenv("HOME") .. "/.config/hypr/keybinds.lua")
+    local ok, remap = pcall(file or function() return {} end)
+    if ok and type(remap) == "table" and next(remap) then
+        local aliases = { MOD4 = "SUPER", WIN = "SUPER", LOGO = "SUPER", META = "SUPER",
+                          CONTROL = "CTRL", MOD1 = "ALT" }
+        local order = { SUPER = 1, CTRL = 2, ALT = 3, SHIFT = 4 }
+        -- "super+shift + d" -> "SUPER + SHIFT + d" (modifiers in a fixed order, key lowercased)
+        local function norm(keys)
+            local mods, key = {}, ""
+            for part in tostring(keys):gmatch("[^+]+") do
+                part = part:match("^%s*(.-)%s*$")
+                local up = aliases[part:upper()] or part:upper()
+                if order[up] then mods[#mods + 1] = up elseif part ~= "" then key = part:lower() end
+            end
+            table.sort(mods, function(a, b) return order[a] < order[b] end)
+            mods[#mods + 1] = key
+            return table.concat(mods, " + ")
+        end
+        local map = {}
+        for from, to in pairs(remap) do map[norm(from)] = to end
+        local bind = hl.bind
+        hl.bind = function(keys, ...)
+            local to = map[norm(keys)]
+            if to == false then return end
+            return bind(to or keys, ...)
+        end
+        -- machine.lua unbinds a key to bind it again: follow the move there too
+        local unbind = hl.unbind
+        hl.unbind = function(keys)
+            local to = map[norm(keys)]
+            if to == false then return end
+            return unbind(to or keys)
+        end
+    end
+end
+
+-- Settings > Keyboard records a new shortcut in this submap, where no other bind
+-- fires. It returns by itself; Super+Ctrl+Alt+Escape gets out by hand.
+hl.define_submap("capture", function()
+    hl.bind("SUPER + CTRL + ALT + Escape", hl.dsp.submap("reset"), { description = "Leave shortcut recording" })
+end)
+
 -- Apps and shell
-hl.bind(mainMod .. " + Return",      exec("alacritty"))
-hl.bind(mainMod .. " + D",           exec("fuzzel"))
-hl.bind(mainMod .. " + SHIFT + D",   exec("nautilus"))
-hl.bind(mainMod .. " + W",           exec(bin .. "chromium"))
-hl.bind(mainMod .. " + SHIFT + L",   exec("qs ipc call lock lock"))
-hl.bind(mainMod .. " + N",           exec("qs ipc call notifs toggle"))
-hl.bind(mainMod .. " + C",           exec("qs ipc call calendar open"))
-hl.bind(mainMod .. " + H",           exec("qs ipc call hud toggle || qs -d"))
-hl.bind(mainMod .. " + S",           exec("qs ipc call settings toggle || qs -d"))
-hl.bind(mainMod .. " + SHIFT + E",   exec("qs ipc call power toggle"))
-hl.bind(mainMod .. " + SHIFT + W",   exec("qs -n -p ~/.config/quickshell/hyprquickpaper"))
-hl.bind(mainMod .. " + V",           exec(bin .. "cliphist-menu"))
-hl.bind(mainMod .. " + ALT + S",     exec("pkill orca || exec orca"), { locked = true })
+hl.bind(mainMod .. " + Return",      exec("alacritty"), { description = "Terminal" })
+hl.bind(mainMod .. " + D",           exec("fuzzel"), { description = "App launcher" })
+hl.bind(mainMod .. " + SHIFT + D",   exec("nautilus"), { description = "File manager" })
+hl.bind(mainMod .. " + W",           exec(bin .. "chromium"), { description = "Browser" })
+hl.bind(mainMod .. " + SHIFT + L",   exec("qs ipc call lock lock"), { description = "Lock screen" })
+hl.bind(mainMod .. " + N",           exec("qs ipc call notifs toggle"), { description = "Notifications" })
+hl.bind(mainMod .. " + C",           exec("qs ipc call calendar open"), { description = "Calendar" })
+hl.bind(mainMod .. " + H",           exec("qs ipc call hud toggle || qs -d"), { description = "System HUD" })
+hl.bind(mainMod .. " + S",           exec("qs ipc call settings toggle || qs -d"), { description = "Settings" })
+hl.bind(mainMod .. " + SHIFT + E",   exec("qs ipc call power toggle"), { description = "Power menu" })
+hl.bind(mainMod .. " + SHIFT + T",   exec("qs ipc call lens start"), { description = "Copy text off the screen" })
+hl.bind(mainMod .. " + SHIFT + Q",   exec("qs ipc call beam toggle"), { description = "Beam the clipboard as a QR code" })
+hl.bind(mainMod .. " + SHIFT + W",   exec("qs -n -p ~/.config/quickshell/hyprquickpaper"), { description = "Wallpaper picker" })
+hl.bind(mainMod .. " + V",           exec(bin .. "cliphist-menu"), { description = "Clipboard history" })
+hl.bind(mainMod .. " + ALT + S",     exec("pkill orca || exec orca"), { locked = true, description = "Screen reader" })
 
 -- Windows
-hl.bind(mainMod .. " + Q",           hl.dsp.window.close())
-hl.bind(mainMod .. " + F",           hl.dsp.window.fullscreen({ mode = "maximized" }))
-hl.bind(mainMod .. " + SHIFT + F",   hl.dsp.window.fullscreen({ mode = "fullscreen" }))
-hl.bind(mainMod .. " + ALT + V",     hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + Q",           hl.dsp.window.close(), { description = "Close window" })
+hl.bind(mainMod .. " + F",           hl.dsp.window.fullscreen({ mode = "maximized" }), { description = "Maximize window" })
+hl.bind(mainMod .. " + SHIFT + F",   hl.dsp.window.fullscreen({ mode = "fullscreen" }), { description = "Fullscreen window" })
+hl.bind(mainMod .. " + ALT + V",     hl.dsp.window.float({ action = "toggle" }), { description = "Float / tile window" })
 
 -- Focus / move — Mod(+Shift)+Arrow
 for key, dir in pairs({ left = "l", right = "r", up = "u", down = "d" }) do
-    hl.bind(mainMod .. " + " .. key,                  hl.dsp.focus({ direction = dir }))
-    hl.bind(mainMod .. " + SHIFT + " .. key,          hl.dsp.window.move({ direction = dir }))
-    hl.bind(mainMod .. " + CTRL + " .. key,           hl.dsp.focus({ monitor = dir }))
-    hl.bind(mainMod .. " + CTRL + SHIFT + " .. key,   hl.dsp.window.move({ monitor = dir }))
+    hl.bind(mainMod .. " + " .. key,                  hl.dsp.focus({ direction = dir }),      { description = "Focus " .. key })
+    hl.bind(mainMod .. " + SHIFT + " .. key,          hl.dsp.window.move({ direction = dir }), { description = "Move window " .. key })
+    hl.bind(mainMod .. " + CTRL + " .. key,           hl.dsp.focus({ monitor = dir }),        { description = "Focus monitor " .. key })
+    hl.bind(mainMod .. " + CTRL + SHIFT + " .. key,   hl.dsp.window.move({ monitor = dir }),  { description = "Move window to monitor " .. key })
 end
 
 -- Workspaces — Mod(+Shift)+Number
 for i = 1, 9 do
-    hl.bind(mainMod .. " + " .. i,         hl.dsp.focus({ workspace = tostring(i) }))
-    hl.bind(mainMod .. " + SHIFT + " .. i, hl.dsp.window.move({ workspace = tostring(i) }))
+    hl.bind(mainMod .. " + " .. i,         hl.dsp.focus({ workspace = tostring(i) }),       { description = "Workspace " .. i })
+    hl.bind(mainMod .. " + SHIFT + " .. i, hl.dsp.window.move({ workspace = tostring(i) }), { description = "Move window to workspace " .. i })
 end
 
 -- Previous / next workspace on this monitor
-hl.bind(mainMod .. " + Page_Up",     hl.dsp.focus({ workspace = "m-1" }))
-hl.bind(mainMod .. " + Page_Down",   hl.dsp.focus({ workspace = "m+1" }))
-hl.bind(mainMod .. " + I",           hl.dsp.focus({ workspace = "m-1" }))
-hl.bind(mainMod .. " + U",           hl.dsp.focus({ workspace = "m+1" }))
-hl.bind(mainMod .. " + mouse_up",    hl.dsp.focus({ workspace = "e-1" }))
-hl.bind(mainMod .. " + mouse_down",  hl.dsp.focus({ workspace = "e+1" }))
+hl.bind(mainMod .. " + Page_Up",     hl.dsp.focus({ workspace = "m-1" }), { description = "Previous workspace" })
+hl.bind(mainMod .. " + Page_Down",   hl.dsp.focus({ workspace = "m+1" }), { description = "Next workspace" })
+hl.bind(mainMod .. " + I",           hl.dsp.focus({ workspace = "m-1" }), { description = "Previous workspace" })
+hl.bind(mainMod .. " + U",           hl.dsp.focus({ workspace = "m+1" }), { description = "Next workspace" })
+hl.bind(mainMod .. " + mouse_up",    hl.dsp.focus({ workspace = "e-1" }), { description = "Previous workspace (scroll)" })
+hl.bind(mainMod .. " + mouse_down",  hl.dsp.focus({ workspace = "e+1" }), { description = "Next workspace (scroll)" })
 
 -- Screenshots (hyprshot), saved like niri's
 local shots = "hyprshot -o ~/Pictures/Screenshots -m "
-hl.bind(mainMod .. " + P",           exec(shots .. "region"))
-hl.bind(mainMod .. " + CTRL + P",    exec(shots .. "output"))
-hl.bind(mainMod .. " + ALT + P",     exec(shots .. "window"))
+hl.bind(mainMod .. " + P",           exec(shots .. "region"), { description = "Screenshot an area" })
+hl.bind(mainMod .. " + CTRL + P",    exec(shots .. "output"), { description = "Screenshot a monitor" })
+hl.bind(mainMod .. " + ALT + P",     exec(shots .. "window"), { description = "Screenshot a window" })
 
 -- Volume
-hl.bind("XF86AudioRaiseVolume", exec("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", exec("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"),        { locked = true, repeating = true })
-hl.bind("XF86AudioMute",        exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),        { locked = true })
-hl.bind("XF86AudioMicMute",     exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),      { locked = true })
+hl.bind("XF86AudioRaiseVolume", exec("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"), { locked = true, repeating = true, description = "Volume up" })
+hl.bind("XF86AudioLowerVolume", exec("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"),        { locked = true, repeating = true, description = "Volume down" })
+hl.bind("XF86AudioMute",        exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),        { locked = true, description = "Mute" })
+hl.bind("XF86AudioMicMute",     exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),      { locked = true, description = "Mute microphone" })
 
 -- Media
-hl.bind("XF86AudioPlay", exec("playerctl play-pause"), { locked = true })
-hl.bind("XF86AudioStop", exec("playerctl stop"),       { locked = true })
-hl.bind("XF86AudioPrev", exec("playerctl previous"),   { locked = true })
-hl.bind("XF86AudioNext", exec("playerctl next"),       { locked = true })
+hl.bind("XF86AudioPlay", exec("playerctl play-pause"), { locked = true, description = "Play / pause" })
+hl.bind("XF86AudioStop", exec("playerctl stop"),       { locked = true, description = "Stop playback" })
+hl.bind("XF86AudioPrev", exec("playerctl previous"),   { locked = true, description = "Previous track" })
+hl.bind("XF86AudioNext", exec("playerctl next"),       { locked = true, description = "Next track" })
 
 -- Brightness (laptops; does nothing without a backlight)
-hl.bind("XF86MonBrightnessUp",   exec("brillo -A 2.5 || brightnessctl -q set 3%+"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", exec("brillo -U 2.5 || brightnessctl -q set 3%-"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessUp",   exec("brillo -A 2.5 || brightnessctl -q set 3%+"), { locked = true, repeating = true, description = "Brightness up" })
+hl.bind("XF86MonBrightnessDown", exec("brillo -U 2.5 || brightnessctl -q set 3%-"), { locked = true, repeating = true, description = "Brightness down" })
 
 -- Move / resize floating windows with the mouse
-hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
-hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
+hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true, description = "Move window (drag)" })
+hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Resize window (drag)" })
 
 -- ── Generated colours and this machine's extras ──────────────────────────────
 
@@ -182,4 +233,9 @@ pcall(require, "colors")
 local ok, err = pcall(require, "machine")
 if not ok and not tostring(err):find("module 'machine' not found", 1, true) then
     error(err)
+end
+-- written by Settings: cursor theme (Mouse), input options (Mouse / Keyboard)
+for _, name in ipairs({ "cursor", "settings" }) do
+    local file = loadfile(os.getenv("HOME") .. "/.config/hypr/" .. name .. ".lua")
+    if file then pcall(file) end
 end

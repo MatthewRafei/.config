@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""One cursor everywhere, coloured from the wallpaper.
+
+    cursor-accent apply              rebuild from the saved settings and apply
+    cursor-accent set KEY VALUE ...  change settings, then apply
+    cursor-accent status             print the settings as JSON
+
+Adapted from SmoothPixels/cursor-accent: recolours a vendored Bibata cursor
+(src/, svg/, config/ from rtgiskard/bibata_cursor, see NOTICE.md) and builds it
+both as a hyprcursor theme and as an XCursor theme (bin/xcursorgen stands in
+for x11-apps/xcursorgen), installed as one theme. Builds alternate between
+~/.local/share/icons/Accent-a and Accent-b (apps only reload a cursor theme
+whose name changed); ~/.local/share/icons/Accent links to the current one.
+Then every toolkit is pointed at it, so the pointer is the same in Hyprland,
+GTK, Qt, Electron and XWayland apps:
+
+    hyprctl setcursor + ~/.config/hypr/cursor.lua (HYPRCURSOR_/XCURSOR_ env)
+    ~/.config/gtk-{3,4}.0/settings.ini, gsettings (GTK, libadwaita, portals)
+    ~/.icons/default/index.theme (X11 fallback), niri config.kdl cursor block
+    the D-Bus activation environment (apps started through portals / D-Bus)
+
+Settings (~/.local/state/cursor-accent/config.json):
+    mode   wallpaper | fixed | off   colour source (off = plain Adwaita)
+    color  #rrggbb                   used when mode is fixed
+    style  outline | filled          dark body + accent edge, or the reverse
+    shape  modern | original         Bibata rounded or sharp
+    hand   right | left              left mirrors the pointer
+    size   24 | 32 | 48 | 64
+
+~/.config/theme/wallpaper-theme runs `cursor-accent apply` after each wallpaper.
+"""
+
+import fcntl
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+HOME = Path.home()
+STATE = HOME / ".local/state/cursor-accent"
+CONFIG = STATE / "config.json"
+PALETTE = HOME / ".cache/theme/palette.json"
+NAME = "Accent"
+ICONS = HOME / ".local/share/icons"
+# Apps and Hyprland only re-read a cursor theme when its *name* changes, so
+# each build goes to the other of two names and everything is pointed at it;
+# ~/.local/share/icons/Accent links to whichever is current.
+SLOTS = ("Accent-a", "Accent-b")
+LINK = ICONS / NAME
+INSTALL = LINK  # rebound to the slot being built, see next_slot()
+
+
+def current_slot():
+    try:
+        return LINK.resolve().name if LINK.is_symlink() else None
+    except OSError:
+        return None
+
+
+def next_slot():
+    cur = current_slot()
+    return SLOTS[1] if cur == SLOTS[0] else SLOTS[0]
+
+
+def publish(slot):
+    """Point ~/.local/share/icons/Accent at the slot just built (one rename)."""
+    tmp = ICONS / ".Accent.link"
+    tmp.unlink(missing_ok=True)
+    tmp.symlink_to(slot)
+    if LINK.exists() and not LINK.is_symlink():
+        shutil.rmtree(LINK)          # the single-directory layout from before
+    tmp.rename(LINK)
+DEFAULTS = {"mode": "wallpaper", "color": "#f25623", "style": "outline",
+            "shape": "modern", "hand": "right", "size": 24}
+CHOICES = {"mode": ("wallpaper", "fixed", "off"), "style": ("outline", "filled"),
+           "shape": ("modern", "original"), "hand": ("right", "left"), "size": (24, 32, 48, 64)}
+HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def load():
+    try:
+        return {**DEFAULTS, **json.loads(CONFIG.read_text())}
+    except (OSError, ValueError):
+        return dict(DEFAULTS)
+
+
+def save(cfg):
+    STATE.mkdir(parents=True, exist_ok=True)
+    CONFIG.write_text(json.dumps(cfg, indent=2) + "\n")
+
+
+def colours(cfg):
+    """(body, edge, watch-background) for the render."""
+    dark, accent = "#111111", cfg["color"]
+    if cfg["mode"] == "wallpaper":
+        try:
+            p = json.loads(PALETTE.read_text())
+            dark, accent = p.get("bgPanel", dark), p.get("accent", accent)
+        except (OSError, ValueError):
+            pass
+    if cfg["style"] == "filled":
+        return accent, dark, dark
+    return dark, accent, dark
+
+
+def swap_in(src, names):
+    """Replace INSTALL/<name> for each name with src/<name>, one rename each."""
+    INSTALL.mkdir(parents=True, exist_ok=True)
+    for name in names:
+        new, cur, old = INSTALL / f".{name}.new", INSTALL / name, INSTALL / f".{name}.old"
+        for junk in (new, old):
+            shutil.rmtree(junk, ignore_errors=True) if junk.is_dir() else junk.unlink(missing_ok=True)
+        (shutil.copytree(src / name, new, symlinks=True) if (src / name).is_dir() else shutil.copy2(src / name, new))
+        if cur.exists() or cur.is_symlink():
+            cur.rename(old)
+        new.rename(cur)
+        shutil.rmtree(old, ignore_errors=True) if old.is_dir() else old.unlink(missing_ok=True)
+
+
+def build(cfg, hyprland_ready=None):
+    global INSTALL
+    """Build and install the theme in two steps: the hyprcursor half first
+    (SVG, ~0.2 s) so Hyprland can switch at once, then the XCursor half
+    (rendered PNGs, ~2 s) for GTK / Qt / XWayland."""
+    target = ("Bibata-Modern-Classic" if cfg["shape"] == "modern" else "Bibata-Original-Classic") \
+        + ("-Right" if cfg["hand"] == "left" else "")
+    body, edge, watch = colours(cfg)
+    work = STATE / "build"
+    shutil.rmtree(work, ignore_errors=True)
+    (work / "config").mkdir(parents=True)
+    (work / "src").symlink_to(HERE / "src")
+    (work / "svg").symlink_to(HERE / "svg")
+    for name in ("build.toml", "build.right.toml"):
+        (work / "config" / name).symlink_to(HERE / "config" / name)
+    render = json.loads((HERE / "config/render.json").read_text())
+    for slot, value in zip(render[target]["colors"], (body, edge, watch)):
+        slot["replace"] = value
+    (work / "config/render.json").write_text(json.dumps(render))
+
+    # cursor_utils resolves paths against cwd: keep --out-dir relative
+    env = dict(os.environ, PATH=f"{HERE / 'bin'}:{os.environ.get('PATH', '')}")
+
+    def step(fmt, out, check):
+        subprocess.run(["python3", "-I", "./src/cursor_utils.py", f"--{fmt}", "--theme", target,
+                        "--out-dir", out, "--log-level", "error"], cwd=work, env=env, check=True)
+        built = work / out / target
+        if not (built / check).exists():
+            raise SystemExit("cursor-accent: the build produced no cursor")
+        return built
+
+    slot = next_slot()
+    INSTALL = ICONS / slot
+    shutil.rmtree(INSTALL, ignore_errors=True)
+    hypr = step("hypr", "out-hypr", "manifest.hl")
+    swap_in(hypr, ["hyprcursors", "manifest.hl"])
+    (INSTALL / "index.theme").write_text(
+        f"[Icon Theme]\nName={slot}\nComment=Bibata, recoloured by cursor-accent ({edge if cfg['style'] == 'outline' else body})\n"
+        "Inherits=Adwaita\n")
+    if hyprland_ready:
+        hyprland_ready(slot)
+    x11 = step("x11", "out-x11", "cursors/left_ptr")
+    swap_in(x11, ["cursors"])
+    publish(slot)
+    shutil.rmtree(work, ignore_errors=True)
+    return body, edge, slot
+
+
+def set_ini(path, key_values):
+    """Set keys under [Settings] in a GTK settings.ini, adding what's missing."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = path.read_text().splitlines() if path.exists() else []
+    if not any(l.strip() == "[Settings]" for l in lines):
+        lines = ["[Settings]"] + lines
+    for key, value in key_values.items():
+        for i, line in enumerate(lines):
+            if line.split("=", 1)[0].strip() == key:
+                lines[i] = f"{key}={value}"
+                break
+        else:
+            at = next(i for i, l in enumerate(lines) if l.strip() == "[Settings]") + 1
+            lines.insert(at, f"{key}={value}")
+    path.write_text("\n".join(lines) + "\n")
+
+
+def set_hyprland(theme, size):
+    """Hyprland's own pointer (a new name, so it really re-reads it)."""
+    if not (os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") and shutil.which("hyprctl")):
+        return
+    subprocess.run(["hyprctl", "setcursor", theme, str(size)], capture_output=True)
+
+
+def point_everything(theme, size):
+    run = lambda *a: subprocess.run(a, capture_output=True)
+    if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") and shutil.which("hyprctl"):
+        for k, v in (("XCURSOR_THEME", theme), ("XCURSOR_SIZE", size),
+                     ("HYPRCURSOR_THEME", theme), ("HYPRCURSOR_SIZE", size)):
+            run("hyprctl", "eval", f'hl.env("{k}", "{v}")')
+    hypr = HOME / ".config/hypr"
+    if hypr.is_dir():
+        (hypr / "cursor.lua").write_text(
+            "-- Generated by ~/.config/theme/cursor/cursor-accent (Settings > Mouse); do not edit.\n"
+            f'hl.env("XCURSOR_THEME",    "{theme}")\nhl.env("XCURSOR_SIZE",     "{size}")\n'
+            f'hl.env("HYPRCURSOR_THEME", "{theme}")\nhl.env("HYPRCURSOR_SIZE",  "{size}")\n')
+    for gtk in ("gtk-3.0", "gtk-4.0"):
+        set_ini(HOME / ".config" / gtk / "settings.ini",
+                {"gtk-cursor-theme-name": theme, "gtk-cursor-theme-size": size})
+    if shutil.which("gsettings"):
+        run("gsettings", "set", "org.gnome.desktop.interface", "cursor-theme", theme)
+        run("gsettings", "set", "org.gnome.desktop.interface", "cursor-size", str(size))
+    default = HOME / ".icons/default"
+    default.mkdir(parents=True, exist_ok=True)
+    (default / "index.theme").write_text(f"[Icon Theme]\nName=Default\nInherits={theme}\n")
+    niri = HOME / ".config/niri/config.kdl"
+    if niri.exists():
+        text = niri.read_text()
+        new = re.sub(r'(xcursor-theme\s+)"[^"]*"', rf'\1"{theme}"', text)
+        new = re.sub(r"(xcursor-size\s+)\d+", rf"\g<1>{size}", new)
+        if new != text:
+            niri.write_text(new)
+    if shutil.which("dbus-update-activation-environment"):
+        run("dbus-update-activation-environment", f"XCURSOR_THEME={theme}", f"XCURSOR_SIZE={size}")
+
+
+def apply(cfg):
+    STATE.mkdir(parents=True, exist_ok=True)
+    with (STATE / ".lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if cfg["mode"] == "off":
+            set_hyprland("Adwaita", cfg["size"])
+            point_everything("Adwaita", cfg["size"])
+            print("cursor-accent: off, Adwaita everywhere")
+            return
+        body, edge, slot = build(cfg, hyprland_ready=lambda name: set_hyprland(name, cfg["size"]))
+        point_everything(slot, cfg["size"])
+        print(f"cursor-accent: {cfg['shape']} {cfg['style']} body {body} edge {edge}, size {cfg['size']}")
+
+
+def main():
+    args = sys.argv[1:]
+    cfg = load()
+    if not args or args[0] == "status":
+        print(json.dumps({**cfg, "installed": (INSTALL / "cursors/left_ptr").exists()}))
+        return
+    if args[0] == "set":
+        pairs = args[1:]
+        if len(pairs) % 2:
+            raise SystemExit("cursor-accent set KEY VALUE [KEY VALUE ...]")
+        for key, value in zip(pairs[::2], pairs[1::2]):
+            if key == "size":
+                value = int(value)
+            if key == "color":
+                if not HEX.match(value):
+                    raise SystemExit(f"cursor-accent: colour must be #rrggbb, not {value}")
+            elif key not in CHOICES or value not in CHOICES[key]:
+                raise SystemExit(f"cursor-accent: {key} can't be {value}")
+            cfg[key] = value
+        save(cfg)
+    elif args[0] != "apply":
+        raise SystemExit(__doc__)
+    apply(cfg)
+
+
+if __name__ == "__main__":
+    main()

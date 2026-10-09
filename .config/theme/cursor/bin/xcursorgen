@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Minimal stand-in for xcursorgen (x11-apps/xcursorgen), used by cursor_utils.py.
+
+    xcursorgen [-p PREFIX] CONFIG OUT
+
+CONFIG lines: "SIZE XHOT YHOT FILE.png [DELAY_MS]". Writes an Xcursor file:
+header, table of contents, then one image chunk per line (ARGB32,
+premultiplied, little endian).
+"""
+import struct
+import sys
+from pathlib import Path
+
+from PIL import Image
+
+args = sys.argv[1:]
+prefix = Path(".")
+if args[:1] == ["-p"]:
+    prefix, args = Path(args[1]), args[2:]
+config, out = args[0], args[1]
+
+images = []
+for line in Path(config).read_text().splitlines():
+    parts = line.split()
+    if len(parts) < 4:
+        continue
+    size, xhot, yhot = (int(x) for x in parts[:3])
+    delay = int(parts[4]) if len(parts) > 4 else 0
+    im = Image.open(prefix / parts[3]).convert("RGBA")
+    # premultiplied ARGB, stored little endian as B G R A
+    pixels = im.convert("RGBa").tobytes("raw", "BGRa")
+    images.append((size, im.width, im.height, min(xhot, im.width - 1), min(yhot, im.height - 1), delay, pixels))
+
+IMAGE = 0xFFFD0002
+header = 16
+toc = 12 * len(images)
+pos = header + toc
+chunks, entries = b"", b""
+for size, w, h, xh, yh, delay, px in images:
+    entries += struct.pack("<III", IMAGE, size, pos + len(chunks))
+    chunks += struct.pack("<IIIIIIIII", 36, IMAGE, size, 1, w, h, xh, yh, delay) + px
+Path(out).write_bytes(struct.pack("<4sIII", b"Xcur", header, 0x10000, len(images)) + entries + chunks)
