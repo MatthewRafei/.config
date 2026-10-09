@@ -1,11 +1,10 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
 
 // Removable drives (USB sticks, SD cards, external disks), after
 // Wian47/omarchy-removable-drives. For the bar's drive chip (shown only while
-// one is plugged in) and Settings > Disks. disks/drives.py does the work
+// one is plugged in) and Settings > Disks. drives.py does the work
 // through udisks, so nothing needs a password.
 //
 // Watches udev, so drives appear and vanish at once. Tracks the kernel's
@@ -14,10 +13,10 @@ import QtQuick
 // meanwhile waits until the drive goes quiet.
 //
 //   qs ipc call drives ejectAll | open | list
-Singleton {
+Scope {
     id: root
 
-    readonly property string script: Quickshell.shellPath("disks/drives.py")
+    readonly property string script: Quickshell.shellPath("modules/disks/drives.py")
 
     property var drives: []                 // drives.py list
     property var rates: ({})                // drive name -> bytes/s written

@@ -1,17 +1,16 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
 
 // Disk space for Settings > Disks (SettingsPages/DiskSpace.qml), after
 // mtolhuys/omarchy-disk-lens: what's using the space, as a treemap or a list.
-// disks/disklens.py scans (one filesystem, hardlinks once, allocated size)
+// disklens.py scans (one filesystem, hardlinks once, allocated size)
 // and returns the whole tree, so drilling in is instant. Nothing scans in the
 // background; the last result is kept in ~/.cache/quickshell/disklens.json.
-Singleton {
+Scope {
     id: root
 
-    readonly property string script: Quickshell.shellPath("disks/disklens.py")
+    readonly property string script: Quickshell.shellPath("modules/disks/disklens.py")
 
     property var mounts: []
     property var result: null         // { root, tree, files, dirs, errors, seconds, at }

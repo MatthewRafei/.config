@@ -98,7 +98,6 @@ PanelWindow {
         { name: "Keyboard",   icon: "󰌌", page: "KeyboardPage" },
         { name: "Network",    icon: Net.mode === "wired" ? "󰈀" : "\uf1eb", page: "NetworkPage" },
         { name: "Bluetooth",  icon: "󰂯", page: "BluetoothPage" },
-        { name: "Disks",      icon: "󰋊", page: "DisksPage" }
     ].concat(Power.available || Power.hasBattery ? [{ name: "Power", icon: "󰂄", page: "PowerPage" }] : [])
      .concat(Fingerprint.available ? [{ name: "Fingerprint", icon: "󰈷", page: "FingerprintPage" }] : [])
      .concat([{ name: "Modules", icon: "󰏗", page: "ModulesPage" }])

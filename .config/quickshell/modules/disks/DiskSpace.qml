@@ -1,15 +1,17 @@
 import QtQuick
 import Quickshell
-import "../"
+import qs
+import qs.widgets
 
 // Settings > Disks > SPACE: how full each filesystem is, and what's filling
-// it (../DiskLens.qml). Scan a folder, then read it as a treemap (each box is
+// it (../root.lens.qml). Scan a folder, then read it as a treemap (each box is
 // as big as what it holds, folders show their own contents inside) or as a
 // ranked list. Click to select, double-click a folder to go in, right-click
 // to open it in the file manager. Nothing is deleted: Trash is one item at a
 // time, after a second click.
 Column {
     id: root
+    property var lens
     width: parent ? parent.width : 0
     spacing: 12
 
@@ -19,14 +21,14 @@ Column {
     property bool armTrash: false
     Timer { id: disarm; interval: 4000; onTriggered: root.armTrash = false }
 
-    Component.onCompleted: DiskLens.refreshMounts()
+    Component.onCompleted: root.lens.refreshMounts()
     Connections {
-        target: DiskLens
+        target: root.lens
         function onNodeChanged() { root.selected = ""; root.armTrash = false; map.requestPaint() }
         function onResultChanged() { map.requestPaint() }
     }
 
-    readonly property var node: DiskLens.node
+    readonly property var node: root.lens.node
     // the folder's entries, biggest first, with the rest as one entry
     readonly property var items: {
         const n = node
@@ -171,7 +173,7 @@ Column {
 
     // each filesystem: how full, click to scan it
     Repeater {
-        model: DiskLens.mounts
+        model: root.lens.mounts
         delegate: Item {
             id: mrow
             required property var modelData
@@ -183,7 +185,7 @@ Column {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: DiskLens.scan(mrow.modelData.mount)
+                onClicked: root.lens.scan(mrow.modelData.mount)
             }
             Text {
                 id: mName
@@ -217,7 +219,7 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 190
                 horizontalAlignment: Text.AlignRight
-                text: DiskLens.fmt(mrow.modelData.free) + " free of " + DiskLens.fmt(mrow.modelData.total)
+                text: root.lens.fmt(mrow.modelData.free) + " free of " + root.lens.fmt(mrow.modelData.total)
                 color: Theme.textDim
                 font.family: Theme.fontFamily
                 font.pixelSize: 10
@@ -239,23 +241,23 @@ Column {
         }
         Chip {
             label: "HOME"
-            current: DiskLens.result && DiskLens.result.root === Quickshell.env("HOME")
-            onClicked: DiskLens.scan(Quickshell.env("HOME"))
+            current: root.lens.result && root.lens.result.root === Quickshell.env("HOME")
+            onClicked: root.lens.scan(Quickshell.env("HOME"))
         }
         Repeater {
-            model: DiskLens.mounts.filter(m => m.mount !== "/boot/efi")
+            model: root.lens.mounts.filter(m => m.mount !== "/boot/efi")
             Chip {
                 required property var modelData
                 label: modelData.mount.toUpperCase()
-                current: DiskLens.result && DiskLens.result.root === modelData.mount
-                onClicked: DiskLens.scan(modelData.mount)
+                current: root.lens.result && root.lens.result.root === modelData.mount
+                onClicked: root.lens.scan(modelData.mount)
             }
         }
         HudField {
             width: 200
             height: 26
             placeholder: "or a folder, then ↵"
-            onAccepted: { const t = text.trim(); if (t) { DiskLens.scan(t); text = "" } }
+            onAccepted: { const t = text.trim(); if (t) { root.lens.scan(t); text = "" } }
         }
     }
 
@@ -267,20 +269,20 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - stopChip.width - 10
             elide: Text.ElideMiddle
-            text: DiskLens.scanning
-                ? "SCANNING " + DiskLens.scanTarget + "   ·   " + (DiskLens.progress
-                    ? DiskLens.fmt(DiskLens.progress.bytes) + "  ·  " + DiskLens.progress.files.toLocaleString(Qt.locale(), "f", 0) + " files  ·  " + DiskLens.progress.at
+            text: root.lens.scanning
+                ? "SCANNING " + root.lens.scanTarget + "   ·   " + (root.lens.progress
+                    ? root.lens.fmt(root.lens.progress.bytes) + "  ·  " + root.lens.progress.files.toLocaleString(Qt.locale(), "f", 0) + " files  ·  " + root.lens.progress.at
                     : "starting…")
-                : DiskLens.error !== "" ? DiskLens.error
-                : DiskLens.result ? "Scanned " + DiskLens.result.root + "  ·  " + DiskLens.result.files.toLocaleString(Qt.locale(), "f", 0)
-                    + " files in " + DiskLens.result.seconds + " s  ·  " + Qt.formatDateTime(new Date(DiskLens.result.at * 1000), "d MMM hh:mm")
-                    + (DiskLens.result.errors ? "  ·  " + DiskLens.result.errors + " unreadable (partial)" : "")
+                : root.lens.error !== "" ? root.lens.error
+                : root.lens.result ? "Scanned " + root.lens.result.root + "  ·  " + root.lens.result.files.toLocaleString(Qt.locale(), "f", 0)
+                    + " files in " + root.lens.result.seconds + " s  ·  " + Qt.formatDateTime(new Date(root.lens.result.at * 1000), "d MMM hh:mm")
+                    + (root.lens.result.errors ? "  ·  " + root.lens.result.errors + " unreadable (partial)" : "")
                 : "Pick a filesystem or folder to see what's using the space. Hidden folders are included."
-            color: DiskLens.scanning ? Theme.accent : DiskLens.error !== "" ? Theme.danger : Theme.textFaint
+            color: root.lens.scanning ? Theme.accent : root.lens.error !== "" ? Theme.danger : Theme.textFaint
             font.family: Theme.fontFamily
             font.pixelSize: 10
             SequentialAnimation on opacity {
-                running: DiskLens.scanning
+                running: root.lens.scanning
                 loops: Animation.Infinite
                 NumberAnimation { to: 0.5; duration: 700 }
                 NumberAnimation { to: 1; duration: 700 }
@@ -288,17 +290,17 @@ Column {
         }
         Chip {
             id: stopChip
-            visible: DiskLens.scanning
+            visible: root.lens.scanning
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             label: "CANCEL"
-            onClicked: DiskLens.cancel()
+            onClicked: root.lens.cancel()
         }
     }
 
     // ------------------------------------------------------------ result
     Column {
-        visible: DiskLens.node !== null
+        visible: root.lens.node !== null
         width: root.width
         spacing: 10
 
@@ -310,12 +312,12 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 4
                 Chip {
-                    visible: DiskLens.path.length > 0
+                    visible: root.lens.path.length > 0
                     label: "←"
-                    onClicked: DiskLens.up(1)
+                    onClicked: root.lens.up(1)
                 }
                 Repeater {
-                    model: DiskLens.result ? [DiskLens.result.root].concat(DiskLens.path) : []
+                    model: root.lens.result ? [root.lens.result.root].concat(root.lens.path) : []
                     Row {
                         required property string modelData
                         required property int index
@@ -331,16 +333,16 @@ Column {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: parent.modelData
-                            color: parent.index === DiskLens.path.length ? Theme.text : crumbMouse.containsMouse ? Theme.accent : Theme.textDim
+                            color: parent.index === root.lens.path.length ? Theme.text : crumbMouse.containsMouse ? Theme.accent : Theme.textDim
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
-                            font.bold: parent.index === DiskLens.path.length
+                            font.bold: parent.index === root.lens.path.length
                             MouseArea {
                                 id: crumbMouse
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: DiskLens.goTo(parent.parent.index)
+                                onClicked: root.lens.goTo(parent.parent.index)
                             }
                         }
                     }
@@ -348,7 +350,7 @@ Column {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     leftPadding: 10
-                    text: DiskLens.node ? DiskLens.fmt(DiskLens.node.s) : ""
+                    text: root.lens.node ? root.lens.fmt(root.lens.node.s) : ""
                     color: Theme.accent
                     font.family: Theme.fontFamily
                     font.pixelSize: 11
@@ -398,7 +400,7 @@ Column {
                         // labels where they fit
                         if (b.depth === 0 && b.w > 50 && b.h > 14) {
                             ctx.fillStyle = Theme.css(Theme.text, 0.95)
-                            const label = b.it.n + "  " + DiskLens.fmt(b.it.s)
+                            const label = b.it.n + "  " + root.lens.fmt(b.it.s)
                             ctx.fillText(label.length * 5.6 > b.w - 8 ? b.it.n.slice(0, Math.max(1, Math.floor((b.w - 14) / 5.6))) + "…" : label, b.x + 5, b.y + 4)
                         } else if (b.depth > 0 && b.it.d && b.w > 60 && b.h > 24) {
                             ctx.fillStyle = Theme.css(Theme.text, 0.7)
@@ -423,7 +425,7 @@ Column {
                         if (!b) return
                         const top = b.depth === 0 ? b.it.n : b.parent
                         if (mouse.button === Qt.RightButton) {
-                            DiskLens.open(DiskLens.childPath(top))
+                            root.lens.open(root.lens.childPath(top))
                             return
                         }
                         root.selected = top
@@ -433,8 +435,8 @@ Column {
                     onDoubleClicked: mouse => {
                         const b = root.hit(mouse.x, mouse.y)
                         if (!b) return
-                        const top = b.depth === 0 ? b.it : DiskLens.kid(DiskLens.node, b.parent)
-                        if (top && top.d) DiskLens.enter(top.n)
+                        const top = b.depth === 0 ? b.it : root.lens.kid(root.lens.node, b.parent)
+                        if (top && top.d) root.lens.enter(top.n)
                     }
                 }
             }
@@ -450,7 +452,7 @@ Column {
                 delegate: Rectangle {
                     id: lrow
                     required property var modelData
-                    readonly property real frac: DiskLens.node && DiskLens.node.s > 0 ? modelData.s / DiskLens.node.s : 0
+                    readonly property real frac: root.lens.node && root.lens.node.s > 0 ? modelData.s / root.lens.node.s : 0
                     width: root.width
                     height: 26
                     radius: Theme.radius
@@ -476,7 +478,7 @@ Column {
                         anchors.right: parent.right
                         anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (lrow.frac * 100).toFixed(lrow.frac < 0.1 ? 1 : 0) + "%     " + DiskLens.fmt(lrow.modelData.s)
+                        text: (lrow.frac * 100).toFixed(lrow.frac < 0.1 ? 1 : 0) + "%     " + root.lens.fmt(lrow.modelData.s)
                         color: Theme.textDim
                         font.family: Theme.fontFamily
                         font.pixelSize: 10
@@ -489,10 +491,10 @@ Column {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: mouse => {
                             if (lrow.modelData.rest) return
-                            if (mouse.button === Qt.RightButton) DiskLens.open(DiskLens.childPath(lrow.modelData.n))
+                            if (mouse.button === Qt.RightButton) root.lens.open(root.lens.childPath(lrow.modelData.n))
                             else { root.selected = lrow.modelData.n; root.armTrash = false }
                         }
-                        onDoubleClicked: if (lrow.modelData.d) DiskLens.enter(lrow.modelData.n)
+                        onDoubleClicked: if (lrow.modelData.d) root.lens.enter(lrow.modelData.n)
                     }
                 }
             }
@@ -509,8 +511,8 @@ Column {
                 text: {
                     const s = root.selNode
                     if (!s) return root.hovered !== "" ? root.hovered : "Click to select · double-click a folder to go in · right-click to open it"
-                    const pct = DiskLens.node.s > 0 ? (s.s / DiskLens.node.s * 100).toFixed(1) + "% of this folder" : ""
-                    return s.n + "   " + DiskLens.fmt(s.s) + "   ·   " + pct
+                    const pct = root.lens.node.s > 0 ? (s.s / root.lens.node.s * 100).toFixed(1) + "% of this folder" : ""
+                    return s.n + "   " + root.lens.fmt(s.s) + "   ·   " + pct
                         + (s.d ? "   ·   " + (s.k || 0).toLocaleString(Qt.locale(), "f", 0) + " items" : "")
                         + (s.m ? "   ·   modified " + Qt.formatDate(new Date(s.m * 1000), "d MMM yyyy") : "")
                 }
@@ -527,18 +529,18 @@ Column {
                 Chip {
                     visible: root.selNode !== null && root.selNode.d === true
                     label: "GO IN"
-                    onClicked: DiskLens.enter(root.selected)
+                    onClicked: root.lens.enter(root.selected)
                 }
                 Chip {
                     label: "OPEN"
-                    onClicked: DiskLens.open(root.selNode && root.selNode.d ? DiskLens.childPath(root.selected) : DiskLens.nodePath)
+                    onClicked: root.lens.open(root.selNode && root.selNode.d ? root.lens.childPath(root.selected) : root.lens.nodePath)
                 }
                 Chip {
                     label: root.armTrash ? "MOVE TO TRASH?" : "TRASH"
                     danger: true
                     current: root.armTrash
                     onClicked: {
-                        if (root.armTrash) { root.armTrash = false; DiskLens.trash(root.selected) }
+                        if (root.armTrash) { root.armTrash = false; root.lens.trash(root.selected) }
                         else { root.armTrash = true; disarm.restart() }
                     }
                 }

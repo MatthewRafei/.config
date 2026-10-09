@@ -1660,31 +1660,6 @@ PanelWindow {
             }
         }
 
-        // removable drives (Drives.qml): only while one is plugged in. red with
-        // the write rate while data is still going out (not safe to pull yet).
-        // click = Settings > Disks, right-click = eject all, middle = open the first mounted one
-        Chip {
-            id: drivesChip
-            visible: Drives.present
-            icon: "󰕓"
-            value: Drives.writing ? Drives.fmtRate(Drives.writeRate)
-                 : Drives.drives.length > 1 ? String(Drives.drives.length) : ""
-            accent: Drives.writing ? Theme.danger
-                  : Drives.mounted.length > 0 ? Theme.accent
-                  : Theme.text
-            SequentialAnimation on opacity {
-                running: Drives.writing
-                loops: Animation.Infinite
-                NumberAnimation { to: 0.45; duration: 600; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 1; duration: 600; easing.type: Easing.InOutSine }
-                onRunningChanged: if (!running) drivesChip.opacity = 1
-            }
-            onClicked: mouse => {
-                if (mouse.button === Qt.RightButton) Drives.ejectAll()
-                else if (mouse.button === Qt.MiddleButton) { if (Drives.mounted.length) Drives.open(Drives.mounted[0].mountpoint) }
-                else Quickshell.execDetached(["qs", "ipc", "call", "settings", "page", "Disks"])
-            }
-        }
 
         // network: wifi when connected, else ethernet when wired, else disconnected
         // click = quick dropdown (QuickPanel.qml), right-click = settings

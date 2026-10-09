@@ -3,7 +3,7 @@ import Quickshell
 import qs
 import qs.widgets
 
-// claude code (service.qml): how many are working, red with how many
+// claude code (Service.qml): how many are working, red with how many
 // need you, dim when none run. click = sessions dropdown,
 // right-click = open the one that needs you
 BarChip {

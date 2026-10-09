@@ -1,14 +1,16 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../"
+import qs
+import qs.widgets
 
-// Removable drives first (../Drives.qml: mount, open, safe eject), then the
+// Removable drives first (../page.service.drives.qml: mount, open, safe eject), then the
 // SMART health of every NVMe / SATA drive, read through UDisks2 (no root, no
-// smartctl) by ../disks/status.py, from qadram/omarchy-nvme-health.
+// smartctl) by status.py, from qadram/omarchy-nvme-health.
 // Health refreshes when the page opens and every minute while it's open.
 Item {
     id: page
+    property var service
 
     property var disks: []
     property string message: ""
@@ -21,7 +23,7 @@ Item {
 
     Process {
         id: pStatus
-        command: ["python3", "-I", Quickshell.shellPath("disks/status.py"), "--all"]
+        command: ["python3", "-I", Quickshell.shellPath("modules/disks/status.py"), "--all"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -71,7 +73,7 @@ Item {
         return Theme.text
     }
 
-    Component.onCompleted: Drives.refresh()
+    Component.onCompleted: page.service.drives.refresh()
 
     // small square action button for the removable drive rows
     component ActBtn: Rectangle {
@@ -170,7 +172,7 @@ Item {
                 font.letterSpacing: 3
             }
             Text {
-                visible: !Drives.present
+                visible: !page.service.drives.present
                 text: "Nothing plugged in. USB sticks, SD cards and external disks show up here (and in the bar) the moment you connect them."
                 width: parent.width
                 wrapMode: Text.Wrap
@@ -180,13 +182,13 @@ Item {
             }
 
             Repeater {
-                model: Drives.drives
+                model: page.service.drives.drives
                 delegate: Rectangle {
                     id: rcard
                     required property var modelData
                     readonly property var d: modelData
-                    readonly property bool writing: d.writing > 0 || (Drives.rates[d.name] || 0) > 4096
-                    readonly property bool waiting: Drives.pendingEject[d.path] === true
+                    readonly property bool writing: d.writing > 0 || (page.service.drives.rates[d.name] || 0) > 4096
+                    readonly property bool waiting: page.service.drives.pendingEject[d.path] === true
                     width: col.width
                     height: rcol.height + 28
                     radius: Theme.radius
@@ -226,7 +228,7 @@ Item {
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: rcard.d.name + "  ·  " + (rcard.d.tran || "").toUpperCase() + "  ·  " + Drives.fmtBytes(rcard.d.size)
+                                    text: rcard.d.name + "  ·  " + (rcard.d.tran || "").toUpperCase() + "  ·  " + page.service.drives.fmtBytes(rcard.d.size)
                                     color: Theme.textDim
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 10
@@ -239,7 +241,7 @@ Item {
                                 Text {
                                     visible: rcard.writing
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: "WRITING  " + Drives.fmtRate(Drives.rates[rcard.d.name] || 0)
+                                    text: "WRITING  " + page.service.drives.fmtRate(page.service.drives.rates[rcard.d.name] || 0)
                                     color: Theme.danger
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 9
@@ -255,17 +257,17 @@ Item {
                                 ActBtn {
                                     icon: "󰕔"
                                     label: rcard.waiting ? "EJECTS WHEN DONE" : "EJECT"
-                                    busy: Drives.working[rcard.d.path] === "eject"
-                                    onClicked: rcard.waiting ? Drives.clearPending(rcard.d.path) : Drives.eject(rcard.d)
+                                    busy: page.service.drives.working[rcard.d.path] === "eject"
+                                    onClicked: rcard.waiting ? page.service.drives.clearPending(rcard.d.path) : page.service.drives.eject(rcard.d)
                                 }
                             }
                         }
 
                         Text {
-                            visible: Drives.errorDev === rcard.d.path
+                            visible: page.service.drives.errorDev === rcard.d.path
                             width: parent.width
                             wrapMode: Text.Wrap
-                            text: Drives.error
+                            text: page.service.drives.error
                             color: Theme.danger
                             font.family: Theme.fontFamily
                             font.pixelSize: 10
@@ -285,7 +287,7 @@ Item {
                                 id: vrow
                                 required property var modelData
                                 readonly property var v: modelData
-                                readonly property string busyKind: Drives.working[v.path] || ""
+                                readonly property string busyKind: page.service.drives.working[v.path] || ""
                                 readonly property real used: v.use ? parseInt(v.use) / 100 : -1
                                 width: rcol.width
                                 spacing: 6
@@ -310,8 +312,8 @@ Item {
                                             width: parent.width
                                             elide: Text.ElideMiddle
                                             text: vrow.v.locked ? "locked" : vrow.v.mountpoint
-                                                ? vrow.v.mountpoint + (vrow.v.avail !== null && vrow.v.avail !== undefined ? "   ·   " + Drives.fmtBytes(vrow.v.avail) + " free" : "")
-                                                : "not mounted   ·   " + Drives.fmtBytes(vrow.v.size)
+                                                ? vrow.v.mountpoint + (vrow.v.avail !== null && vrow.v.avail !== undefined ? "   ·   " + page.service.drives.fmtBytes(vrow.v.avail) + " free" : "")
+                                                : "not mounted   ·   " + page.service.drives.fmtBytes(vrow.v.size)
                                             color: Theme.textFaint
                                             font.family: Theme.fontFamily
                                             font.pixelSize: 10
@@ -326,24 +328,24 @@ Item {
                                             visible: !vrow.v.locked && vrow.v.mountpoint === ""
                                             icon: "󰉋"; label: "MOUNT & OPEN"
                                             busy: vrow.busyKind === "mount"
-                                            onClicked: Drives.mount(vrow.v, true)
+                                            onClicked: page.service.drives.mount(vrow.v, true)
                                         }
                                         ActBtn {
                                             visible: vrow.v.mountpoint !== ""
                                             icon: "󰉖"; label: "OPEN"
-                                            onClicked: Drives.open(vrow.v.mountpoint)
+                                            onClicked: page.service.drives.open(vrow.v.mountpoint)
                                         }
                                         ActBtn {
                                             visible: vrow.v.mountpoint !== ""
                                             icon: "󰉒"; label: "UNMOUNT"
                                             busy: vrow.busyKind === "unmount"
-                                            onClicked: Drives.unmount(vrow.v)
+                                            onClicked: page.service.drives.unmount(vrow.v)
                                         }
                                         ActBtn {
                                             visible: vrow.v.crypto && !vrow.v.locked
                                             icon: "󰌾"; label: "LOCK"
                                             busy: vrow.busyKind === "lock"
-                                            onClicked: Drives.lock(vrow.v)
+                                            onClicked: page.service.drives.lock(vrow.v)
                                         }
                                     }
                                 }
@@ -369,19 +371,19 @@ Item {
                                     width: parent.width
                                     placeholder: "passphrase to unlock, then ↵"
                                     input.echoMode: TextInput.Password
-                                    onAccepted: { if (text !== "") Drives.unlock(vrow.v, text); text = "" }
+                                    onAccepted: { if (text !== "") page.service.drives.unlock(vrow.v, text); text = "" }
                                 }
 
                                 // a busy unmount says who's in the way
                                 Row {
-                                    visible: Drives.busyDev === vrow.v.path
+                                    visible: page.service.drives.busyDev === vrow.v.path
                                     width: parent.width
                                     spacing: 10
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - lazyBtn.width - 10
                                         wrapMode: Text.Wrap
-                                        text: "Still in use" + (Drives.busyHolders.length ? " by " + Drives.busyHolders.join(", ") : "")
+                                        text: "Still in use" + (page.service.drives.busyHolders.length ? " by " + page.service.drives.busyHolders.join(", ") : "")
                                             + ". Close it there, or detach now and let it finish when they let go."
                                         color: Theme.danger
                                         font.family: Theme.fontFamily
@@ -390,7 +392,7 @@ Item {
                                     ActBtn {
                                         id: lazyBtn
                                         icon: "󰅙"; label: "DETACH ANYWAY"; danger: true
-                                        onClicked: Drives.unmountLazy(vrow.v)
+                                        onClicked: page.service.drives.unmountLazy(vrow.v)
                                     }
                                 }
                             }
@@ -400,7 +402,7 @@ Item {
             }
 
             Item { width: 1; height: 6 }
-            DiskSpace { width: col.width }
+            DiskSpace { width: col.width; lens: page.service.lens }
 
             Item { width: 1; height: 6 }
             Text {
