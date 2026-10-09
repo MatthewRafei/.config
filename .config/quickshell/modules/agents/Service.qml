@@ -1,21 +1,20 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
 
 // Claude Code sessions, for the bar's agents chip and its dropdown
 // (QuickPanel.qml, "agents"). Sessions started from here run in a private
-// tmux server (agents/tmux.conf), so closing their terminal only detaches
+// tmux server (tmux.conf), so closing their terminal only detaches
 // them: Claude keeps working, and the dropdown opens it again. Sessions
 // started in a plain terminal are listed too (they end with their terminal).
 //
-// State comes from agents/agents.py, which reads Claude Code's own session
+// State comes from agents.py, which reads Claude Code's own session
 // files: no hooks, nothing to set up.
 //
 //   qs ipc call agents panel      open the dropdown
 //   qs ipc call agents next       open the session that needs you (or the newest)
 //   qs ipc call agents start DIR  start a kept session in DIR
-Singleton {
+Scope {
     id: root
 
     property bool available: false        // claude is installed
@@ -29,8 +28,8 @@ Singleton {
     readonly property var busy: sessions.filter(s => s.status === "busy")
     readonly property var idle: sessions.filter(s => s.status !== "waiting" && s.status !== "busy")
 
-    readonly property string script: Quickshell.shellPath("agents/agents.py")
-    readonly property string conf: Quickshell.shellPath("agents/tmux.conf")
+    readonly property string script: Quickshell.shellPath("modules/agents.py")
+    readonly property string conf: Quickshell.shellPath("modules/tmux.conf")
     readonly property string terminal: Quickshell.env("TERMINAL") || "alacritty"
     readonly property string home: Quickshell.env("HOME")
 

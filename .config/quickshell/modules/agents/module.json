@@ -1,0 +1,12 @@
+{
+    "name": "Claude Code agents",
+    "description": "Bar chip with how many sessions are working or need you; a quick panel to open, stop, start or resume them (kept sessions survive closing their terminal)",
+    "icon": "󰚩",
+    "default": true,
+    "cost": "reads Claude Code's session files every few seconds",
+    "credit": "https://github.com/anthropics/claude-code",
+    "requires": { "commands": ["claude", "tmux", "python3"] },
+    "service": "Service.qml",
+    "chip": { "file": "Chip.qml", "order": 30 },
+    "quick": { "id": "agents", "file": "QuickPage.qml" }
+}

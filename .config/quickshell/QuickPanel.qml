@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Bluetooth
 import Quickshell.Services.Pipewire
 import QtQuick
+import qs.widgets
 
 // Quick toggles dropped down from the bar's NET / BT / volume chips.
 //
@@ -31,17 +32,17 @@ PanelWindow {
 
     property string mode: ""          // "", "net", "bt", "vpn", "audio", "rec" or "agents"
     readonly property bool open: mode !== ""
+    readonly property bool corePage: ["net", "bt", "vpn", "audio", "rec"].indexOf(mode) >= 0
+    function close() { mode = "" }
 
     function toggle(m) {
         mode = mode === m ? "" : m
         if (mode === "net") net.refresh()
         if (mode === "vpn") Vpn.refresh()
         if (mode === "rec") Recorder.refreshRecent()
-        if (mode === "agents") Agents.refreshMore()
     }
 
     Binding { target: Vpn; property: "fast"; value: root.mode === "vpn" }
-    Binding { target: Agents; property: "fast"; value: root.mode === "agents" }
 
     IpcHandler {
         target: "quick"
@@ -51,6 +52,8 @@ PanelWindow {
         function audio(): void { root.toggle("audio") }
         function rec(): void { root.toggle("rec") }
         function agents(): void { root.toggle("agents") }
+        // any module's quick page (module.json "quick")
+        function page(id: string): void { root.toggle(id) }
         function close(): void { root.mode = "" }
     }
 
@@ -220,86 +223,10 @@ PanelWindow {
     }
 
     // ================================================================ panel
-    component Head: Item {
-        id: head
-        property string title
-        property bool on: true
-        property bool showRescan: false
-        property bool showToggle: true
-        signal toggled()
-        signal rescan()
-
-        width: parent.width
-        height: 26
-
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: head.title
-            color: Theme.textDim
-            font.family: Theme.fontFamily
-            font.pixelSize: 10
-            font.letterSpacing: 3
-        }
-
-        Row {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 6
-
-            Rectangle {
-                visible: head.showRescan && (head.on || !head.showToggle)
-                width: 26; height: 22
-                radius: Theme.radius
-                color: rescanMouse.containsMouse ? Theme.bgCard : "transparent"
-                border.color: rescanMouse.containsMouse ? Theme.accent : Theme.border
-                Text {
-                    anchors.centerIn: parent
-                    text: "󰑐"
-                    color: rescanMouse.containsMouse ? Theme.accent : Theme.textDim
-                    font.family: Theme.iconFont
-                    font.pixelSize: 13
-                }
-                MouseArea {
-                    id: rescanMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: head.rescan()
-                }
-            }
-
-            Rectangle {
-                visible: head.showToggle
-                width: 44; height: 22
-                radius: Theme.radius
-                color: head.on ? Theme.alpha(Theme.accent, 0.15) : "transparent"
-                border.color: head.on ? Theme.accent : Theme.border
-                Text {
-                    anchors.centerIn: parent
-                    text: head.on ? "ON" : "OFF"
-                    color: head.on ? Theme.accent : Theme.textFaint
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 9
-                    font.bold: true
-                    font.letterSpacing: 1
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: head.toggled()
-                }
-            }
-        }
-    }
+    component Head: QuickHead {}
 
     // small caps label between sections
-    component Label2: Text {
-        color: Theme.textFaint
-        font.family: Theme.fontFamily
-        font.pixelSize: 9
-        font.letterSpacing: 2
-        topPadding: 6
-    }
+    component Label2: QuickLabel {}
 
     // a node's volume: mute button, name, slider (drag or scroll), percent
     component VolRow: Item {
@@ -417,220 +344,8 @@ PanelWindow {
     }
 
     // one row in either list
-    component Row2: Rectangle {
-        id: row
-        property string icon
-        property string label
-        property string detail
-        property string tag
-        property bool active: false
-        property bool busy: false
-        property real level: -1         // 0..1 signal bars, -1 = none
-        signal clicked()
+    component Row2: QuickRow {}
 
-        width: parent ? parent.width : 0
-        height: 36
-        radius: Theme.radius
-        color: active ? Theme.alpha(Theme.accent, 0.10)
-             : rowMouse.containsMouse ? Theme.bgCard : "transparent"
-
-        Rectangle {
-            visible: row.active
-            width: 2
-            height: parent.height - 12
-            anchors.verticalCenter: parent.verticalCenter
-            color: Theme.accent
-        }
-
-        Row {
-            anchors.verticalCenter: parent.verticalCenter
-            x: 12
-            spacing: 10
-
-            // signal bars or an icon
-            Item {
-                width: 18
-                height: 14
-                anchors.verticalCenter: parent.verticalCenter
-
-                Row {
-                    visible: row.level >= 0
-                    anchors.bottom: parent.bottom
-                    spacing: 2
-                    Repeater {
-                        model: 4
-                        Rectangle {
-                            required property int index
-                            width: 3
-                            height: 4 + index * 3
-                            anchors.bottom: parent.bottom
-                            color: row.level * 4 > index ? (row.active ? Theme.accent : Theme.text) : Theme.trackBg
-                        }
-                    }
-                }
-
-                Text {
-                    visible: row.level < 0
-                    anchors.centerIn: parent
-                    text: row.icon
-                    color: row.active ? Theme.accent : Theme.textDim
-                    font.family: Theme.iconFont
-                    font.pixelSize: 14
-                }
-            }
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                // as wide as the tag on the right allows
-                width: row.width - 12 - 18 - 10 - 12 - (tagText.text ? tagText.implicitWidth + 10 : 0)
-                elide: Text.ElideRight
-                text: row.label
-                color: row.active ? Theme.accent : Theme.text
-                font.family: Theme.fontFamily
-                font.pixelSize: 11
-                font.bold: row.active
-            }
-        }
-
-        Text {
-            id: tagText
-            anchors.right: parent.right
-            anchors.rightMargin: 12
-            anchors.verticalCenter: parent.verticalCenter
-            text: row.busy ? "···" : (row.tag || row.detail)
-            color: row.busy || row.tag ? Theme.accent : Theme.textFaint
-            font.family: Theme.fontFamily
-            font.pixelSize: 9
-            font.letterSpacing: 1
-        }
-
-        MouseArea {
-            id: rowMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: row.clicked()
-        }
-    }
-
-    // a Claude Code session: status, title, folder · age, kept or not, stop
-    component AgentRow: Rectangle {
-        id: ar
-        property var s
-        property bool armed: false
-        readonly property color tint: s.status === "waiting" ? Theme.danger
-            : s.status === "busy" ? Theme.accent : s.status === "new" ? Theme.text : Theme.textDim
-
-        width: parent ? parent.width : 0
-        height: 40
-        radius: Theme.radius
-        color: arMouse.containsMouse ? Theme.bgCard : "transparent"
-
-        Rectangle {
-            width: 2
-            height: parent.height - 12
-            anchors.verticalCenter: parent.verticalCenter
-            color: ar.tint
-            visible: ar.s.status === "waiting" || ar.s.status === "busy"
-        }
-
-        // status dot, pulsing while it works
-        Rectangle {
-            id: dot
-            x: 14
-            anchors.verticalCenter: parent.verticalCenter
-            width: 8; height: 8; radius: 4
-            color: ar.tint
-            SequentialAnimation on opacity {
-                running: ar.s.status === "busy"
-                loops: Animation.Infinite
-                NumberAnimation { to: 0.25; duration: 700; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutSine }
-                onRunningChanged: if (!running) dot.opacity = 1
-            }
-        }
-
-        Column {
-            x: 32
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - x - tags.width - 16
-            spacing: 2
-            Text {
-                width: parent.width
-                elide: Text.ElideRight
-                text: ar.s.title
-                color: ar.s.status === "waiting" ? Theme.danger : Theme.text
-                font.family: Theme.fontFamily
-                font.pixelSize: 11
-            }
-            Text {
-                width: parent.width
-                elide: Text.ElideMiddle
-                text: (ar.s.status === "waiting" ? "NEEDS YOU" : ar.s.status === "busy" ? "WORKING"
-                       : ar.s.status === "new" ? "NEW" : "IDLE")
-                    + " " + Agents.ago(ar.s.since) + "  ·  " + Agents.pretty(ar.s.cwd || "")
-                color: Theme.textFaint
-                font.family: Theme.fontFamily
-                font.pixelSize: 8
-                font.letterSpacing: 1
-            }
-        }
-
-        Row {
-            id: tags
-            anchors.right: parent.right
-            anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
-
-            // kept sessions survive their terminal; the others end with it
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: ar.s.tmux !== "" ? (ar.s.attached > 0 ? "KEPT" : "KEPT · BG") : "TERMINAL"
-                color: ar.s.tmux !== "" ? Theme.accent : Theme.textFaint
-                font.family: Theme.fontFamily
-                font.pixelSize: 8
-                font.letterSpacing: 1
-            }
-            Rectangle {
-                visible: ar.s.tmux !== ""
-                width: ar.armed ? stopText.implicitWidth + 12 : 22
-                height: 22
-                radius: Theme.radius
-                color: ar.armed ? Theme.alpha(Theme.danger, 0.15) : "transparent"
-                border.color: ar.armed || stopMouse.containsMouse ? Theme.danger : Theme.border
-                Text {
-                    id: stopText
-                    anchors.centerIn: parent
-                    text: ar.armed ? "STOP?" : "󰅖"
-                    color: ar.armed || stopMouse.containsMouse ? Theme.danger : Theme.textDim
-                    font.family: ar.armed ? Theme.fontFamily : Theme.iconFont
-                    font.pixelSize: ar.armed ? 8 : 12
-                    font.bold: ar.armed
-                }
-                MouseArea {
-                    id: stopMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (ar.armed) { ar.armed = false; Agents.stop(ar.s) }
-                        else { ar.armed = true; disarm.restart() }
-                    }
-                }
-                Timer { id: disarm; interval: 3000; onTriggered: ar.armed = false }
-            }
-        }
-
-        MouseArea {
-            id: arMouse
-            anchors.fill: parent
-            z: -1
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: { root.mode = ""; Agents.open(ar.s) }
-        }
-    }
 
     Rectangle {
         id: panel
@@ -1155,83 +870,27 @@ PanelWindow {
                 }
             }
 
-            // ------------------------------------------------ claude code
-            Column {
-                visible: root.mode === "agents"
-                width: parent.width
-                spacing: 4
 
-                Head {
-                    title: "// CLAUDE CODE  ·  " + Agents.sessions.length + " RUNNING"
-                    showToggle: false
-                    showRescan: true
-                    onRescan: Agents.refreshMore()
-                }
-
-                Rectangle { width: parent.width; height: 1; color: Theme.border }
-
-                Text {
-                    visible: Agents.sessions.length === 0
-                    text: "NOTHING RUNNING"
-                    color: Theme.textFaint
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 9
-                    font.letterSpacing: 2
-                    topPadding: 6
-                }
-
-                Label2 { visible: Agents.waiting.length > 0; text: "NEEDS YOU"; color: Theme.danger }
-                Repeater { model: Agents.waiting; AgentRow { required property var modelData; s: modelData } }
-                Label2 { visible: Agents.busy.length > 0; text: "WORKING" }
-                Repeater { model: Agents.busy; AgentRow { required property var modelData; s: modelData } }
-                Label2 { visible: Agents.idle.length > 0; text: "IDLE" }
-                Repeater { model: Agents.idle; AgentRow { required property var modelData; s: modelData } }
-
-                Label2 { text: "NEW KEPT SESSION  ·  SURVIVES CLOSING" }
-                Repeater {
-                    // home, the folders Claude knows, and wherever sessions run now
-                    model: [Agents.home].concat(Agents.projects)
-                        .concat(Agents.sessions.map(x => x.cwd))
-                        .filter((d, i, a) => d && a.indexOf(d) === i)
-                    Row2 {
-                        required property string modelData
-                        height: 30
-                        icon: "󰐕"
-                        label: Agents.pretty(modelData)
-                        onClicked: { root.mode = ""; Agents.newSession(modelData, "") }
-                    }
-                }
-                HudField {
-                    id: agentDir
-                    width: parent.width
-                    placeholder: "other folder…  (enter to start)"
-                    onAccepted: {
-                        let d = text.trim().replace(/^~(?=\/|$)/, Agents.home)
-                        if (d === "") return
-                        text = ""
-                        root.mode = ""
-                        Agents.newSession(d, "")
-                    }
-                }
-
-                Label2 { visible: Agents.recent.length > 0; text: "RESUME AS KEPT" }
-                Repeater {
-                    model: Agents.recent.slice(0, 5)
-                    Row2 {
-                        required property var modelData
-                        height: 30
-                        icon: "󰑐"
-                        label: modelData.title
-                        detail: Agents.ago(modelData.mtime)
-                        onClicked: { root.mode = ""; Agents.newSession(modelData.cwd, modelData.sid) }
-                    }
+            // ------------------------------------------------ module pages
+            // (Modules.qml quickPages), only loaded while open
+            Repeater {
+                model: Modules.quickPages
+                Loader {
+                    id: qp
+                    required property var modelData
+                    width: content.width
+                    visible: active
+                    active: root.mode === modelData.quick
+                    onActiveChanged: if (active) setSource(modelData.url, { service: Modules.service(modelData.id), panel: root })
+                    Component.onCompleted: if (active) setSource(modelData.url, { service: Modules.service(modelData.id), panel: root })
                 }
             }
 
-            // ------------------------------------------------ footer
-            Rectangle { width: parent.width; height: 1; color: Theme.border }
+            // ------------------------------------------------ footer (core pages)
+            Rectangle { visible: root.corePage; width: parent.width; height: 1; color: Theme.border }
 
             Text {
+                visible: root.corePage
                 text: root.mode === "rec" ? "OPEN RECORDINGS FOLDER  →" : "ALL SETTINGS  →"
                 color: footMouse.containsMouse ? Theme.accent : Theme.textFaint
                 font.family: Theme.fontFamily

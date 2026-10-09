@@ -1748,32 +1748,6 @@ PanelWindow {
             }
         }
 
-        // claude code (Agents.qml): how many are working, red with how many
-        // need you, dim when none run. click = sessions dropdown,
-        // right-click = open the one that needs you
-        Chip {
-            id: agentsChip
-            visible: Agents.available
-            icon: "󰚩"
-            value: Agents.waiting.length > 0 ? String(Agents.waiting.length)
-                 : Agents.busy.length > 0 ? String(Agents.busy.length) : ""
-            accent: Agents.waiting.length > 0 ? Theme.danger
-                  : Agents.busy.length > 0 ? Theme.accent
-                  : Agents.sessions.length > 0 ? Theme.text
-                  : Theme.textFaint
-            // breathes while an agent works
-            SequentialAnimation on opacity {
-                running: Agents.busy.length > 0 && Agents.waiting.length === 0
-                loops: Animation.Infinite
-                NumberAnimation { to: 0.45; duration: 900; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
-                onRunningChanged: if (!running) agentsChip.opacity = 1
-            }
-            onClicked: mouse => {
-                if (mouse.button === Qt.RightButton) Agents.next()
-                else Quickshell.execDetached(["qs", "ipc", "call", "quick", "agents"])
-            }
-        }
 
         // screen recorder (wf-recorder): dim when idle, countdown, then red with
         // the running time. click = recorder panel (or stop while recording),
