@@ -987,11 +987,15 @@ PanelWindow {
         }
 
         // tailscale
+        // the Tailscale module, when it's on
         Connections {
-            target: Vpn
+            id: vpnWatch
+            readonly property var vpn: Modules.service("vpn")
+            target: vpn
+            ignoreUnknownSignals: true
             function onRunningChanged() {
-                if (!Vpn.installed) return
-                if (Vpn.running) quote.react("vpnup", [
+                if (!vpnWatch.vpn.installed) return
+                if (vpnWatch.vpn.running) quote.react("vpnup", [
                     { t: "( •_•)", ms: 450 },
                     { t: "( •_•)>⌐■-■", ms: 500 },
                     { t: "(⌐■_■) tunneled in.", ms: 1600, sparkle: true }
@@ -1733,24 +1737,6 @@ PanelWindow {
             }
         }
 
-        // tailscale: dim when stopped, accent + node name through an exit node.
-        // click = VPN dropdown, right-click = connect / disconnect
-        Chip {
-            visible: Vpn.installed
-            icon: "󰖂"
-            value: Vpn.running && Vpn.exitNode !== ""
-                ? (Vpn.exitNode.length > 12 ? Vpn.exitNode.slice(0, 11) + "…" : Vpn.exitNode)
-                : ""
-            accent: !Vpn.running ? Theme.textFaint
-                  : Vpn.exitNode !== "" ? Theme.accent
-                  : Theme.text
-            onClicked: mouse => {
-                if (mouse.button === Qt.RightButton)
-                    Vpn.toggle()
-                else
-                    Quickshell.execDetached(["qs", "ipc", "call", "quick", "vpn"])
-            }
-        }
 
 
 

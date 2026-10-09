@@ -27,7 +27,10 @@ Item {
     property var dns: []
 
     // ------------------------------------------------------------------
-    // VPNs: Tailscale (Vpn.qml) and NetworkManager VPN / WireGuard profiles
+    // the Tailscale module (modules/vpn), or a stand-in when it's off
+    readonly property var ts: Modules.service("vpn") || ({ installed: false, running: false, state: "", error: "", busy: "", selfIp: "", selfName: "", tailnet: "", exitNode: "", onlineCount: 0, peers: [], refresh() {}, toggle() {}, copy() {}, useExit() {} })
+
+    // VPNs: Tailscale (modules/vpn) and NetworkManager VPN / WireGuard profiles
     // ------------------------------------------------------------------
 
     property var nmVpns: []     // [{ name, type, active }]
@@ -35,7 +38,7 @@ Item {
 
     function refreshVpns() {
         if (!pVpns.running) pVpns.running = true
-        Vpn.refresh()
+        page.ts.refresh()
     }
 
     function setNmVpn(name, on) {
@@ -854,7 +857,7 @@ Item {
                     // ------------------------------------------------------
 
                     Text {
-                        visible: Vpn.installed || page.nmVpns.length > 0
+                        visible: page.ts.installed || page.nmVpns.length > 0
                         text: "// VPN"
                         color: Theme.textDim
                         font.family: Theme.fontFamily
@@ -865,25 +868,25 @@ Item {
                     // Tailscale
                     Rectangle {
                         id: tsCard
-                        visible: Vpn.installed
+                        visible: page.ts.installed
 
                         readonly property var rows: [
-                            { k: "STATUS", v: Vpn.state === "Running" ? "Connected"
-                                            : Vpn.state === "NeedsLogin" ? "Logged out (run: tailscale up)"
-                                            : Vpn.state === "Stopped" ? "Disconnected"
-                                            : Vpn.state.toLowerCase() },
-                            { k: "ADDRESS", v: Vpn.selfIp || "none" },
-                            { k: "DEVICE", v: Vpn.selfName || "none" },
-                            { k: "TAILNET", v: Vpn.tailnet || "none" },
-                            { k: "DEVICES", v: Vpn.onlineCount + " of " + Vpn.peers.length + " online" }
+                            { k: "STATUS", v: page.ts.state === "Running" ? "Connected"
+                                            : page.ts.state === "NeedsLogin" ? "Logged out (run: tailscale up)"
+                                            : page.ts.state === "Stopped" ? "Disconnected"
+                                            : page.ts.state.toLowerCase() },
+                            { k: "ADDRESS", v: page.ts.selfIp || "none" },
+                            { k: "DEVICE", v: page.ts.selfName || "none" },
+                            { k: "TAILNET", v: page.ts.tailnet || "none" },
+                            { k: "DEVICES", v: page.ts.onlineCount + " of " + page.ts.peers.length + " online" }
                         ]
 
                         width: list.width
                         height: tsCol.height + 24
                         radius: Theme.radius
-                        color: Vpn.running ? Theme.alpha(Theme.accent, 0.10) : "#00000000"
+                        color: page.ts.running ? Theme.alpha(Theme.accent, 0.10) : "#00000000"
                         border.width: 1
-                        border.color: Vpn.running ? Theme.accent : Theme.border
+                        border.color: page.ts.running ? Theme.accent : Theme.border
 
                         Column {
                             id: tsCol
@@ -905,7 +908,7 @@ Item {
                                     spacing: 9
                                     Text {
                                         text: "󰖂"
-                                        color: Vpn.running ? Theme.accent : Theme.textDim
+                                        color: page.ts.running ? Theme.accent : Theme.textDim
                                         font.family: Theme.iconFont
                                         font.pixelSize: 14
                                     }
@@ -924,19 +927,19 @@ Item {
                                     spacing: 12
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: Vpn.busy !== "" ? "···"
-                                            : Vpn.running ? (Vpn.exitNode !== "" ? "VIA " + Vpn.exitNode.toUpperCase() : "CONNECTED")
+                                        text: page.ts.busy !== "" ? "···"
+                                            : page.ts.running ? (page.ts.exitNode !== "" ? "VIA " + page.ts.exitNode.toUpperCase() : "CONNECTED")
                                             : "OFF"
-                                        color: Vpn.running ? Theme.ok : Theme.textFaint
+                                        color: page.ts.running ? Theme.ok : Theme.textFaint
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 10
                                         font.letterSpacing: 1
                                     }
                                     Toggle {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        on: Vpn.running
-                                        busy: Vpn.busy === "up" || Vpn.busy === "down"
-                                        onToggled: Vpn.toggle()
+                                        on: page.ts.running
+                                        busy: page.ts.busy === "up" || page.ts.busy === "down"
+                                        onToggled: page.ts.toggle()
                                     }
                                 }
                             }
@@ -944,10 +947,10 @@ Item {
                             Rectangle { width: parent.width; height: 1; color: Theme.border }
 
                             Text {
-                                visible: Vpn.error !== ""
+                                visible: page.ts.error !== ""
                                 width: parent.width
                                 wrapMode: Text.Wrap
-                                text: Vpn.error
+                                text: page.ts.error
                                 color: Theme.danger
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 10
@@ -980,7 +983,7 @@ Item {
 
                             // exit node chips: none + peers that offer it
                             Row {
-                                visible: Vpn.running
+                                visible: page.ts.running
                                 width: tsCol.width
                                 spacing: 12
                                 Text {
@@ -996,8 +999,8 @@ Item {
                                     width: parent.width - 92
                                     spacing: 6
                                     Repeater {
-                                        model: [{ name: "None", ip: "", exit: Vpn.exitNode === "", online: true }]
-                                               .concat(Vpn.peers.filter(p => p.exitOption))
+                                        model: [{ name: "None", ip: "", exit: page.ts.exitNode === "", online: true }]
+                                               .concat(page.ts.peers.filter(p => p.exitOption))
                                         delegate: Rectangle {
                                             required property var modelData
                                             width: exitTxt.implicitWidth + 18
@@ -1019,14 +1022,14 @@ Item {
                                                 id: exitMouse
                                                 anchors.fill: parent
                                                 hoverEnabled: true
-                                                enabled: !modelData.exit && Vpn.busy === ""
+                                                enabled: !modelData.exit && page.ts.busy === ""
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: Vpn.useExit(modelData.ip)
+                                                onClicked: page.ts.useExit(modelData.ip)
                                             }
                                         }
                                     }
                                     Text {
-                                        visible: !Vpn.peers.some(p => p.exitOption)
+                                        visible: !page.ts.peers.some(p => p.exitOption)
                                         height: 22
                                         verticalAlignment: Text.AlignVCenter
                                         text: "no device on the tailnet offers one"
@@ -1105,7 +1108,7 @@ Item {
                     }
 
                     Text {
-                        visible: !Vpn.installed && page.nmVpns.length === 0
+                        visible: !page.ts.installed && page.nmVpns.length === 0
                         width: parent.width
                         text: "No VPNs. Install Tailscale, or add a WireGuard / OpenVPN profile with NetworkManager (nmcli connection import ...)."
                         color: Theme.textFaint

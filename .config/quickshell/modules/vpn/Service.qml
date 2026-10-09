@@ -1,4 +1,3 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -8,7 +7,7 @@ import QtQuick
 //
 // Changing state (up / down / exit node) needs the user to be Tailscale's
 // operator, once: doas tailscale set --operator=$USER
-Singleton {
+Scope {
     id: root
 
     property bool installed: false       // tailscale CLI found and daemon answered

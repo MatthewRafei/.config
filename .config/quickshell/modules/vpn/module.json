@@ -1,0 +1,12 @@
+{
+    "name": "Tailscale",
+    "description": "Bar chip and quick panel for Tailscale: connect / disconnect, exit node, devices; status in Settings > Network",
+    "icon": "󰖂",
+    "default": true,
+    "cost": "asks tailscale for its status every few seconds",
+    "credit": "https://tailscale.com",
+    "requires": { "commands": ["tailscale"] },
+    "service": "Service.qml",
+    "chip": { "file": "Chip.qml", "order": 10 },
+    "quick": { "id": "vpn", "file": "QuickPage.qml" }
+}

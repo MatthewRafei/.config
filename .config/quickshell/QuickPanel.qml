@@ -32,16 +32,14 @@ PanelWindow {
 
     property string mode: ""          // "", "net", "bt", "vpn", "audio", "rec" or "agents"
     readonly property bool open: mode !== ""
-    readonly property bool corePage: ["net", "bt", "vpn", "audio"].indexOf(mode) >= 0
+    readonly property bool corePage: ["net", "bt", "audio"].indexOf(mode) >= 0
     function close() { mode = "" }
 
     function toggle(m) {
         mode = mode === m ? "" : m
         if (mode === "net") net.refresh()
-        if (mode === "vpn") Vpn.refresh()
     }
 
-    Binding { target: Vpn; property: "fast"; value: root.mode === "vpn" }
 
     IpcHandler {
         target: "quick"
@@ -530,117 +528,6 @@ PanelWindow {
                 }
             }
 
-            // ------------------------------------------------ tailscale
-            Column {
-                visible: root.mode === "vpn"
-                width: parent.width
-                spacing: 4
-
-                Head {
-                    title: "// TAILSCALE"
-                    on: Vpn.running
-                    onToggled: Vpn.toggle()
-                }
-
-                Rectangle { width: parent.width; height: 1; color: Theme.border }
-
-                Text {
-                    visible: Vpn.error !== "" || (Vpn.state !== "" && Vpn.state !== "Running" && Vpn.state !== "Stopped")
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: Vpn.error !== "" ? Vpn.error
-                        : Vpn.state === "NeedsLogin" ? "Logged out. Run:  tailscale up  in a terminal to log in."
-                        : Vpn.state.toLowerCase() + "…"
-                    color: Vpn.error !== "" ? Theme.danger : Theme.textDim
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 9
-                    topPadding: 4
-                }
-
-                // this machine
-                Row2 {
-                    icon: "󰖂"
-                    label: Vpn.selfName + "  (this device)"
-                    active: Vpn.running
-                    busy: Vpn.busy === "up" || Vpn.busy === "down"
-                    tag: copied.running ? "COPIED" : ""
-                    detail: Vpn.running ? Vpn.selfIp : "STOPPED"
-                    onClicked: if (Vpn.selfIp !== "") { Vpn.copy(Vpn.selfIp); copied.restart() }
-                }
-
-                // exit node: none + every peer that offers it
-                Text {
-                    visible: Vpn.running && Vpn.peers.some(p => p.exitOption)
-                    text: "EXIT NODE"
-                    color: Theme.textFaint
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 9
-                    font.letterSpacing: 2
-                    topPadding: 8
-                }
-                Row2 {
-                    visible: Vpn.running && Vpn.peers.some(p => p.exitOption)
-                    icon: "󰅖"
-                    label: "None (direct)"
-                    active: Vpn.exitNode === ""
-                    busy: Vpn.busy === "exit" && pendingExit === ""
-                    onClicked: { pendingExit = ""; Vpn.useExit("") }
-                }
-                Repeater {
-                    model: Vpn.running ? Vpn.peers.filter(p => p.exitOption) : []
-                    Row2 {
-                        required property var modelData
-                        icon: "󰖟"
-                        label: modelData.name
-                        active: modelData.exit
-                        busy: Vpn.busy === "exit" && pendingExit === modelData.ip
-                        tag: modelData.exit ? "IN USE" : ""
-                        detail: modelData.online ? "" : "OFFLINE"
-                        onClicked: if (!modelData.exit) { pendingExit = modelData.ip; Vpn.useExit(modelData.ip) }
-                    }
-                }
-
-                // devices
-                Text {
-                    visible: Vpn.running && Vpn.peers.length > 0
-                    text: "DEVICES  " + Vpn.onlineCount + " / " + Vpn.peers.length + " ONLINE"
-                    color: Theme.textFaint
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 9
-                    font.letterSpacing: 2
-                    topPadding: 8
-                }
-                Flickable {
-                    visible: Vpn.running
-                    width: parent.width
-                    height: Math.min(peerList.implicitHeight, 260)
-                    contentHeight: peerList.implicitHeight
-                    clip: true
-
-                    Column {
-                        id: peerList
-                        width: parent.width
-                        spacing: 2
-                        Repeater {
-                            model: Vpn.peers
-                            Row2 {
-                                required property var modelData
-                                icon: modelData.os === "android" || modelData.os === "iOS" ? "󰏲"
-                                    : modelData.os === "windows" ? "󰖳"
-                                    : modelData.os === "macOS" ? "󰀵"
-                                    : modelData.os === "linux" ? "󰌽"
-                                    : "󰒋"
-                                label: modelData.name
-                                active: false
-                                opacity: modelData.online ? 1 : 0.45
-                                tag: copiedIp === modelData.ip && copied.running ? "COPIED" : ""
-                                detail: modelData.online ? modelData.ip : "OFFLINE"
-                                onClicked: { copiedIp = modelData.ip; Vpn.copy(modelData.ip); copied.restart() }
-                            }
-                        }
-                    }
-                }
-            }
 
 
             // ------------------------------------------------ sound
@@ -773,9 +660,6 @@ PanelWindow {
         }
     }
 
-    property string pendingExit: ""
-    property string copiedIp: ""
-    Timer { id: copied; interval: 1500 }
 
     Timer {
         id: refreshLater

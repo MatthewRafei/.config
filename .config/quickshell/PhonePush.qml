@@ -90,12 +90,13 @@ Scope {
     // arrives if the LAN route works; the "back" push says how long it was out.
     property real vpnDownAt: 0
     Connections {
-        target: Vpn
+        target: Modules.service("vpn")
+        ignoreUnknownSignals: true
         function onRunningChanged() {
-            if (!Vpn.installed || !root.armed) return
-            if (!Vpn.running) {
+            if (!Modules.service("vpn").installed || !root.armed) return
+            if (!Modules.service("vpn").running) {
                 root.vpnDownAt = Date.now()
-                root.pushIfAway("Tailscale disconnected", "nox dropped off the tailnet (" + (Vpn.state || "stopped") + ").", 4, "warning")
+                root.pushIfAway("Tailscale disconnected", "nox dropped off the tailnet (" + (Modules.service("vpn").state || "stopped") + ").", 4, "warning")
             } else if (root.vpnDownAt > 0) {
                 const min = Math.round((Date.now() - root.vpnDownAt) / 60000)
                 root.vpnDownAt = 0
