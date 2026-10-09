@@ -1,0 +1,10 @@
+{
+    "name": "Phone pushes",
+    "description": "While the desk is empty (locked or idle) notifications, low battery, charger and Tailscale changes go to the phone through ntfy",
+    "icon": "󰄜",
+    "default": true,
+    "cost": "watches notifications and idle time",
+    "credit": "https://ntfy.sh",
+    "requires": { "files": ["~/.local/bin/ntfy-send", "~/.config/ntfy/config"] },
+    "service": "Service.qml"
+}

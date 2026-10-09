@@ -1,5 +1,6 @@
 //@ pragma UseQApplication
 import Quickshell
+import QtQuick
 
 // Entry point. Quickshell always loads this file first.
 // Everything visible lives in its own component file next to this one;
@@ -24,12 +25,11 @@ ShellRoot {
     }
     VolumeOsd {}
     SettingsWindow {}
-    TelemetryHud {}
     NotificationPopups {}
     NotificationCenter {}
     Lock { id: lock }
+    Binding { target: Session; property: "locked"; value: lock.locked }
     Screensaver { locked: lock.locked }
-    PhonePush { locked: lock.locked }
     PowerMenu {}
     QuickPanel {}
     EqPanel {}

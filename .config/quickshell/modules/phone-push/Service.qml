@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Notifications
 import QtQuick
+import qs
 
 // Pushes to the phone through ntfy (~/.local/bin/ntfy-send, server and topic
 // in ~/.config/ntfy/config) while nobody is at the desk: the screen is locked
@@ -15,7 +16,7 @@ import QtQuick
 Scope {
     id: root
 
-    property bool locked: false
+    readonly property bool locked: Session.locked
     property int idleMin: 2
     readonly property bool away: locked || idle.isIdle
 

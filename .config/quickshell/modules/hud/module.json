@@ -1,0 +1,8 @@
+{
+    "name": "Telemetry HUD",
+    "description": "Desktop HUD with CPU, memory, network and disk graphs, uptime and media (Mod+H, or click the CPU / RAM chips)",
+    "icon": "󰍛",
+    "default": true,
+    "cost": "samples system stats every second while it's on screen",
+    "windows": ["TelemetryHud.qml"]
+}

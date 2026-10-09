@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import QtQuick
+import qs
 
 // Desktop telemetry HUD, pinned top-right on the Background layer next to the
 // wallpaper. niri keeps it still across workspace switches via a layer-rule
@@ -20,6 +21,7 @@ import QtQuick
 //   Mod+H { spawn "qs" "ipc" "call" "hud" "toggle"; }
 PanelWindow {
     id: root
+    property var service
 
     anchors { top: true; right: true }
     margins { top: 80; right: 28 }
