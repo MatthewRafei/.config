@@ -1,0 +1,17 @@
+#!/bin/sh
+# `emacs` opens a window of the running Emacs daemon (starting it if needed),
+# so everything shares one Emacs. The real binary still runs for starting
+# daemons, batch jobs, terminal frames, test configs and --version; set
+# EMACS_STANDALONE=1 to force a separate Emacs.
+# GTK/X11 build: it has to use XWayland.
+export GDK_BACKEND=x11 DISPLAY="${DISPLAY:-:0}"
+real=/usr/bin/emacs
+[ -n "$EMACS_STANDALONE" ] && exec "$real" "$@"
+for a; do
+    case $a in
+        --daemon*|--fg-daemon*|--bg-daemon*|-batch|--batch|--script*|-Q|-q|--quick|--no-init-file|\
+        --init-directory*|--version|--help|-nw|--no-window-system|-t|-x|-l|--load*|-f|--funcall*|--eval*)
+            exec "$real" "$@" ;;
+    esac
+done
+exec emacsclient -c -n -a "" "$@"

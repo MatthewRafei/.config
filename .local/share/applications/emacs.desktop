@@ -1,0 +1,22 @@
+[Desktop Entry]
+Name=Emacs
+GenericName=Text Editor
+Comment=Edit text in the running Emacs (starts the daemon if it isn't)
+Exec=env GDK_BACKEND=x11 DISPLAY=:0 emacsclient -c -n -a "" %F
+Icon=emacs
+Type=Application
+Terminal=false
+Categories=Development;TextEditor;Utility;
+MimeType=text/css;text/english;text/html;text/plain;text/markdown;text/x-c;text/x-chdr;text/x-csrc;text/x-c++;text/x-c++hdr;text/x-c++src;text/x-java;text/x-makefile;text/x-moc;text/x-pascal;text/x-tcl;text/x-tex;text/x-python;text/x-lua;application/x-shellscript;application/json;application/toml;
+StartupNotify=true
+StartupWMClass=Emacs
+Keywords=emacs;editor;text;
+Actions=new-window;standalone;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=env GDK_BACKEND=x11 DISPLAY=:0 emacsclient -c -n -a ""
+
+[Desktop Action standalone]
+Name=Standalone Emacs (no daemon)
+Exec=env EMACS_STANDALONE=1 GDK_BACKEND=x11 DISPLAY=:0 /usr/bin/emacs %F

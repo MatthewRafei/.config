@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Emacs (Client)
+Comment=Same as Emacs: a window of the running Emacs daemon
+Exec=env GDK_BACKEND=x11 DISPLAY=:0 emacsclient -c -n -a "" %F
+Icon=emacs
+Type=Application
+Terminal=false
+NoDisplay=true
+Categories=Development;TextEditor;
+MimeType=text/css;text/english;text/html;text/plain;text/markdown;text/x-c;text/x-chdr;text/x-csrc;text/x-c++;text/x-c++hdr;text/x-c++src;text/x-java;text/x-makefile;text/x-moc;text/x-pascal;text/x-tcl;text/x-tex;text/x-python;text/x-lua;application/x-shellscript;application/json;application/toml;
+StartupWMClass=Emacs

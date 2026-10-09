@@ -27,6 +27,11 @@ PERL_MM_OPT="INSTALL_BASE=$HOME/perl5"; export PERL_MM_OPT;
 eval "$(starship init bash)"
 export PATH="$HOME/.local/bin:$PATH"
 
+# Emacs is the editor: a frame of the running daemon, in this terminal
+# (starts the daemon if it isn't running). `emacs FILE` opens a window.
+export EDITOR="emacsclient -t -a ''"
+export VISUAL="$EDITOR"
+
 # dotfiles: bare git repo in ~/.dotfiles tracking configs in place
 #   dots status | dots add <file> | dots commit -m "..." | dots log
 alias dots='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
