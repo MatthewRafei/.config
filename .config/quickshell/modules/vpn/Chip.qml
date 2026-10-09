@@ -9,7 +9,7 @@ BarChip {
     property var service
     property var bar
 
-    visible: service.installed
+    shown: service.installed
     icon: "󰖂"
     value: service.running && service.exitNode !== ""
         ? (service.exitNode.length > 12 ? service.exitNode.slice(0, 11) + "…" : service.exitNode)

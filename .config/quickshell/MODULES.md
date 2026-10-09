@@ -91,7 +91,8 @@ property var bar        // Chip.qml only: the bar it sits in
   `Quickshell.execDetached` survive a shell reload (good for audio
   processing); stop them in `function moduleStopping()`, which the registry
   calls when the module is switched off (not when the shell exits).
-* `Chip.qml`: a `BarChip` (from `qs.widgets`), or anything `36` px high.
+* `Chip.qml`: a `BarChip` (from `qs.widgets`), or anything `36` px high. To hide
+  it, set `shown: false` (not `visible`), so it leaves no gap in the bar.
 * `Page.qml` / sections: plain `Item`s; a page gets the full page area,
   a section the page's width.
 * Windows: `PanelWindow`s / `FloatingWindow`s, or a `Variants` of them.

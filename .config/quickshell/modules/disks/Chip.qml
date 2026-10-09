@@ -11,7 +11,7 @@ BarChip {
     property var bar
 
     id: drivesChip
-    visible: service.drives.present
+    shown: service.drives.present
     icon: "󰕓"
     value: service.drives.writing ? service.drives.fmtRate(service.drives.writeRate)
          : service.drives.drives.length > 1 ? String(service.drives.drives.length) : ""

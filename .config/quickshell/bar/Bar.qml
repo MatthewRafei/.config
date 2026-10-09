@@ -498,8 +498,10 @@ PanelWindow {
             model: Modules.chips
             Loader {
                 required property var modelData
-                anchors.verticalCenter: parent.verticalCenter
                 id: chipLoader
+                anchors.verticalCenter: parent.verticalCenter
+                // a chip that hides itself (no drive plugged in …) leaves no gap
+                visible: item !== null && (item.shown === undefined || item.shown)
                 Component.onCompleted: setSource(modelData.url, { service: Modules.service(modelData.id), bar: bar })
             }
         }

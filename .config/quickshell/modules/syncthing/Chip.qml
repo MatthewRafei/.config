@@ -9,7 +9,7 @@ BarChip {
     property var bar
     readonly property var st: service
 
-    visible: st && st.installed
+    shown: st && st.installed
     icon: !st || !st.running ? "󰓨" : st.failing ? "󰓧" : "󰓦"
     value: st && st.running && st.syncing ? Math.floor(st.completion) + "%" : ""
     accent: !st || !st.running ? Theme.textFaint

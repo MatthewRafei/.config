@@ -9,7 +9,7 @@ BarChip {
     property var service
     property var bar
 
-    visible: service.available
+    shown: service.available
     icon: "󰺢"
     value: service.eqOn && service.preset !== "Flat" ? (service.preset || "custom").toUpperCase() : ""
     accent: !service.eqOn ? Theme.textFaint : service.eeRunning ? Theme.accent : Theme.danger

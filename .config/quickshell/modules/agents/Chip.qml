@@ -11,7 +11,7 @@ BarChip {
     property var bar
 
     id: agentsChip
-    visible: service.available
+    shown: service.available
     icon: "󰚩"
     value: service.waiting.length > 0 ? String(service.waiting.length)
          : service.busy.length > 0 ? String(service.busy.length) : ""

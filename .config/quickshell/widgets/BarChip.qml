@@ -6,6 +6,7 @@ import qs
 //
 //   clicked(mouse)   left / right / middle (check mouse.button)
 //   wheel(wheel)
+//   shown            false hides it; use this rather than `visible` in module chips
 Item {
     id: chip
     property string label
@@ -13,6 +14,9 @@ Item {
     property string value
     property real gauge: -1
     property color accent: Theme.text
+    // hide the chip (and, in the bar's module slot, the space it takes)
+    property bool shown: true
+    visible: shown
     signal clicked(var mouse)
     signal wheel(var wheel)
 

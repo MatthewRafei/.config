@@ -10,7 +10,7 @@ BarChip {
     property var service
     property var bar
 
-    visible: service.available
+    shown: service.available
     icon: service.state === "recording" ? "󰻃" : "󰑊"
     value: service.state === "countdown" ? String(service.countdown)
          : service.state === "recording" ? service.clock
