@@ -85,7 +85,10 @@ Scope {
     function stop() {
         if (picking) { picking = false; return }
         if (state === "countdown") { tick.stop(); state = "idle"; return }
-        if (state === "recording") { state = "saving"; proc.signal(2) }   // SIGINT: finish the file
+        // SIGTERM to the wrapper, which hands wf-recorder a SIGINT (finish the
+        // file). Not SIGINT directly: a shell that started with SIGINT ignored
+        // (the shell launched from a background job) can't trap it.
+        if (state === "recording") { state = "saving"; proc.signal(15); nudge.restart() }
     }
 
     function stamp() {
@@ -136,10 +139,20 @@ Scope {
     // the clock keeps running while recording
     Binding { target: tick; property: "running"; value: true; when: root.state === "recording" }
 
+    // still saving after 10 s: ask again (wf-recorder only finishes on a new frame)
+    Timer {
+        id: nudge
+        interval: 10000
+        repeat: true
+        running: false
+        onTriggered: if (root.state === "saving") proc.signal(15); else stop()
+    }
+
     Process {
         id: proc
         stderr: StdioCollector { id: errOut }
         onExited: code => {
+            nudge.stop()
             root.elapsed = Math.round((Date.now() - root.startedAt) / 1000)
             root.state = "idle"
             check.path = root.file
