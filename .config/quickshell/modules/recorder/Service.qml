@@ -1,4 +1,3 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
@@ -14,7 +13,7 @@ import QtQuick
 //   qs ipc call recorder area      drag out an area, then record it
 //   qs ipc call recorder panel     open the recorder panel
 //   qs ipc call recorder stop
-Singleton {
+Scope {
     id: root
 
     property bool available: false        // wf-recorder installed

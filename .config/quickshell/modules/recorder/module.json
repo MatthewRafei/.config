@@ -1,0 +1,11 @@
+{
+    "name": "Screen recorder",
+    "description": "Record a monitor or a dragged-out area with desktop audio or the mic: bar chip, quick panel, 3 s countdown, recent recordings",
+    "icon": "󰑊",
+    "default": true,
+    "credit": "https://github.com/ammen99/wf-recorder",
+    "requires": { "commands": ["wf-recorder"] },
+    "service": "Service.qml",
+    "chip": { "file": "Chip.qml", "order": 60 },
+    "quick": { "id": "rec", "file": "QuickPage.qml" }
+}

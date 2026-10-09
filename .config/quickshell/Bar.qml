@@ -1062,17 +1062,21 @@ PanelWindow {
             }
         }
 
+        // the screen recorder module, when it's on
         Connections {
-            target: Recorder
+            id: recWatch
+            readonly property var rec: Modules.service("recorder")
+            target: rec
+            ignoreUnknownSignals: true
             function onStateChanged() {
-                if (Recorder.state === "recording") quote.react("rec", [
+                if (recWatch.rec.state === "recording") quote.react("rec", [
                     { t: "(•_•)📹 rolling...", ms: 1400, color: "dim" }
                 ], 5)
             }
             function onSaved(path) {
                 quote.react("rec-saved", [
                     { t: "(•_•)📹 ...and cut!", ms: 900 },
-                    { t: "(ﾉ◕ヮ◕)ﾉ that's a wrap · " + Recorder.clock, ms: 1800, color: "accent2", sparkle: true }
+                    { t: "(ﾉ◕ヮ◕)ﾉ that's a wrap · " + recWatch.rec.clock, ms: 1800, color: "accent2", sparkle: true }
                 ], 5)
             }
             function onFailed(why) {
@@ -1749,25 +1753,6 @@ PanelWindow {
         }
 
 
-        // screen recorder (wf-recorder): dim when idle, countdown, then red with
-        // the running time. click = recorder panel (or stop while recording),
-        // right-click = start / stop with the last settings
-        Chip {
-            visible: Recorder.available
-            icon: Recorder.state === "recording" ? "󰻃" : "󰑊"
-            value: Recorder.state === "countdown" ? String(Recorder.countdown)
-                 : Recorder.state === "recording" ? Recorder.clock
-                 : Recorder.state === "saving" ? "…" : ""
-            accent: Recorder.state === "recording" ? Theme.danger
-                  : Recorder.state === "idle" ? Theme.textFaint
-                  : Theme.accent
-            onClicked: mouse => {
-                if (mouse.button === Qt.RightButton || Recorder.state === "recording" || Recorder.state === "countdown")
-                    Recorder.toggle()
-                else
-                    Quickshell.execDetached(["qs", "ipc", "call", "quick", "rec"])
-            }
-        }
 
         // music EQ (AudioFx.qml): lit while on. click = EQ widget (bottom left),
         // right-click = EQ on / off. Hidden while the feature is off (Settings > Audio FX)

@@ -32,14 +32,13 @@ PanelWindow {
 
     property string mode: ""          // "", "net", "bt", "vpn", "audio", "rec" or "agents"
     readonly property bool open: mode !== ""
-    readonly property bool corePage: ["net", "bt", "vpn", "audio", "rec"].indexOf(mode) >= 0
+    readonly property bool corePage: ["net", "bt", "vpn", "audio"].indexOf(mode) >= 0
     function close() { mode = "" }
 
     function toggle(m) {
         mode = mode === m ? "" : m
         if (mode === "net") net.refresh()
         if (mode === "vpn") Vpn.refresh()
-        if (mode === "rec") Recorder.refreshRecent()
     }
 
     Binding { target: Vpn; property: "fast"; value: root.mode === "vpn" }
@@ -643,145 +642,6 @@ PanelWindow {
                 }
             }
 
-            // ------------------------------------------------ recorder
-            Column {
-                visible: root.mode === "rec"
-                width: parent.width
-                spacing: 4
-
-                Head {
-                    title: "// SCREEN RECORDER"
-                    on: Recorder.active
-                    onToggled: { if (!Recorder.active) root.mode = ""; Recorder.toggle() }
-                }
-
-                Rectangle { width: parent.width; height: 1; color: Theme.border }
-
-                Text {
-                    visible: Recorder.error !== ""
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    text: Recorder.error
-                    color: Theme.danger
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 9
-                    topPadding: 4
-                }
-
-                Label2 { text: "RECORD" }
-                Repeater {
-                    model: Quickshell.screens
-                    Row2 {
-                        required property var modelData
-                        icon: "󰍹"
-                        label: Quickshell.screens.length > 1 ? "Screen  " + modelData.name : "Whole screen"
-                        detail: Recorder.px(modelData.width, modelData.height, modelData)
-                        active: Recorder.mode === "screen" && Recorder.screenName() === modelData.name
-                        onClicked: { Recorder.mode = "screen"; Recorder.output = modelData.name }
-                    }
-                }
-                Row2 {
-                    icon: "󰩭"
-                    label: "Pick an area"
-                    detail: Recorder.region.width > 0 ? Recorder.px(Recorder.region.width, Recorder.region.height, Recorder.screen) : "DRAG A BOX"
-                    active: Recorder.mode === "region"
-                    onClicked: Recorder.mode = "region"
-                }
-
-                Label2 { text: "AUDIO" }
-                Row2 {
-                    icon: "󰝟"
-                    label: "No audio"
-                    active: Recorder.audio === "none"
-                    onClicked: Recorder.audio = "none"
-                }
-                Row2 {
-                    visible: root.sink !== null
-                    icon: "󰓃"
-                    label: "Desktop audio"
-                    detail: root.sink ? root.shortName(root.sink) : ""
-                    active: Recorder.audio === "desktop"
-                    onClicked: Recorder.audio = "desktop"
-                }
-                Row2 {
-                    visible: root.source !== null
-                    icon: "󰍬"
-                    label: "Microphone"
-                    detail: root.source ? root.shortName(root.source) : ""
-                    active: Recorder.audio === "mic"
-                    onClicked: Recorder.audio = "mic"
-                }
-
-                Item { width: 1; height: 4 }
-
-                // start / stop
-                Rectangle {
-                    id: recBtn
-                    readonly property bool live: Recorder.state === "recording"
-                    width: parent.width
-                    height: 40
-                    radius: Theme.radius
-                    color: live ? Theme.alpha(Theme.danger, recMouse.containsMouse ? 0.25 : 0.15)
-                         : Theme.alpha(Theme.accent, recMouse.containsMouse ? 0.22 : 0.12)
-                    border.color: live ? Theme.danger : Theme.accent
-
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: 10
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: recBtn.live ? "󰓛" : "󰑊"
-                            color: recBtn.live ? Theme.danger : Theme.accent
-                            font.family: Theme.iconFont
-                            font.pixelSize: 16
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: recBtn.live ? "STOP  ·  " + Recorder.clock
-                                : Recorder.state === "countdown" ? "STARTING IN " + Recorder.countdown + "  ·  CANCEL"
-                                : Recorder.state === "saving" ? "SAVING…"
-                                : Recorder.mode === "region" ? "PICK AREA AND RECORD" : "START RECORDING"
-                            color: recBtn.live ? Theme.danger : Theme.accent
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 10
-                            font.bold: true
-                            font.letterSpacing: 2
-                        }
-                    }
-                    MouseArea {
-                        id: recMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (Recorder.state === "idle") root.mode = ""   // out of the shot
-                            Recorder.toggle()
-                        }
-                    }
-                }
-                Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: "3 S COUNTDOWN  ·  MOD+ALT+R  ·  AREA: +SHIFT"
-                    color: Theme.textFaint
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 8
-                    font.letterSpacing: 1
-                    topPadding: 2
-                }
-
-                Label2 { visible: Recorder.recent.length > 0; text: "RECENT" }
-                Repeater {
-                    model: Recorder.recent
-                    Row2 {
-                        required property var modelData
-                        icon: "󰕧"
-                        label: modelData.name.replace(/^Recording_/, "").replace(/\.mp4$/, "").replace("_", "  ")
-                        detail: modelData.size
-                        onClicked: { root.mode = ""; Recorder.open(modelData.path) }
-                    }
-                }
-            }
 
             // ------------------------------------------------ sound
             Column {
@@ -891,7 +751,7 @@ PanelWindow {
 
             Text {
                 visible: root.corePage
-                text: root.mode === "rec" ? "OPEN RECORDINGS FOLDER  →" : "ALL SETTINGS  →"
+                text: "ALL SETTINGS  →"
                 color: footMouse.containsMouse ? Theme.accent : Theme.textFaint
                 font.family: Theme.fontFamily
                 font.pixelSize: 9
@@ -904,7 +764,6 @@ PanelWindow {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         const sound = root.mode === "audio"
-                        if (root.mode === "rec") { root.mode = ""; Recorder.open(""); return }
                         root.mode = ""
                         Quickshell.execDetached(sound ? ["qs", "ipc", "call", "settings", "page", "Sound"]
                                                       : ["qs", "ipc", "call", "settings", "open"])
