@@ -2,17 +2,19 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
+import qs
 
 // Calendar dropdown under the bar clock (click the clock; right-click still
 // toggles the date). Left: month grid with event dots. Right: the selected
-// day's events, or the add/edit form. Events live in ~/.calendar (Calendar.qml).
+// day's events, or the add/edit form. Events live in ~/.calendar (root.service.qml).
 //
 // grid: click a day to select it (while editing, it sets the event's date),
 //       scroll to change month. form: Enter in the title saves, Esc cancels.
 PanelWindow {
     id: root
+    property var service
 
-    readonly property bool open: Calendar.panelOpen
+    readonly property bool open: root.service.panelOpen
 
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
@@ -32,12 +34,12 @@ PanelWindow {
 
     onOpenChanged: if (open) { selected = new Date(); viewYear = selected.getFullYear(); viewMonth = selected.getMonth(); mode = "day" }
 
-    function close() { Calendar.panelOpen = false }
+    function close() { root.service.panelOpen = false }
 
     //   qs ipc call calendar-panel add    open straight into a new event
     IpcHandler {
         target: "calendar-panel"
-        function add(): void { Calendar.panelOpen = true; addLater.restart() }
+        function add(): void { root.service.panelOpen = true; addLater.restart() }
     }
     Timer { id: addLater; interval: 50; onTriggered: root.newEvent() }
 
@@ -141,7 +143,7 @@ PanelWindow {
                 columns: 7
 
                 readonly property date first: new Date(root.viewYear, root.viewMonth, 1)
-                readonly property var counts: { Calendar.revision; return Calendar.monthCounts(root.viewYear, root.viewMonth) }
+                readonly property var counts: { root.service.revision; return root.service.monthCounts(root.viewYear, root.viewMonth) }
 
                 Repeater {
                     model: 42
@@ -250,7 +252,7 @@ PanelWindow {
                         spacing: 6
                         HudButton {
                             label: "OPEN ⤢"
-                            onClicked: { Calendar.panelOpen = false; Calendar.windowOpen = true }
+                            onClicked: { root.service.panelOpen = false; root.service.windowOpen = true }
                         }
                         HudButton { label: "+  NEW"; on: true; onClicked: root.newEvent() }
                     }
@@ -269,7 +271,7 @@ PanelWindow {
                         width: parent.width
                         spacing: 6
 
-                        readonly property var items: { Calendar.revision; return Calendar.onDay(root.selected) }
+                        readonly property var items: { root.service.revision; return root.service.onDay(root.selected) }
 
                         Text {
                             visible: agenda.items.length === 0
@@ -311,7 +313,7 @@ PanelWindow {
                                     spacing: 3
                                     Text {
                                         width: parent.width
-                                        text: Calendar.timeLabel(item.modelData)
+                                        text: root.service.timeLabel(item.modelData)
                                             + (item.modelData.ev.repeat !== "none" ? "  ·  " + item.modelData.ev.repeat.toUpperCase() : "")
                                             + (item.modelData.ev.reminder >= 0 ? "  󰂚" : "")
                                         color: Theme.accent
@@ -335,7 +337,7 @@ PanelWindow {
                                         elide: Text.ElideRight
                                         textFormat: Text.StyledText
                                         linkColor: Theme.accent
-                                        text: Calendar.linkify([item.modelData.ev.location, item.modelData.ev.notes.split("\n")[0]].filter(x => x).join("  ·  "))
+                                        text: root.service.linkify([item.modelData.ev.location, item.modelData.ev.notes.split("\n")[0]].filter(x => x).join("  ·  "))
                                         color: Theme.textDim
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 10
@@ -351,7 +353,7 @@ PanelWindow {
                                     onClicked: mouse => {
                                         const p = mapToItem(subLine, mouse.x, mouse.y)
                                         const link = subLine.visible ? subLine.linkAt(p.x, p.y) : ""
-                                        if (link) Calendar.openLink(link)
+                                        if (link) root.service.openLink(link)
                                         else root.editEvent(item.modelData.ev)
                                     }
                                 }
@@ -363,6 +365,7 @@ PanelWindow {
 
             // ================= add / edit form =================
             EventForm {
+                service: root.service
                 id: form
                 visible: root.mode === "edit"
                 width: parent.width

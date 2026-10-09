@@ -2,9 +2,10 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
+import qs
 
 // Full calendar window, opened like Settings (centered card, tilt-in).
-// Same events as the bar dropdown (Calendar.qml, ~/.calendar).
+// Same events as the bar dropdown (root.service.qml, ~/.calendar).
 //
 //   sidebar   today, sun times, next event countdown, views, stats, + NEW
 //   main      MONTH grid (titles in cells) / WEEK timeline / AGENDA list
@@ -17,8 +18,9 @@ import QtQuick
 //             (`qs ipc call calendar-window view week|month|agenda`, `... next`)
 PanelWindow {
     id: root
+    property var service
 
-    readonly property bool showing: Calendar.windowOpen
+    readonly property bool showing: root.service.windowOpen
 
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
@@ -42,19 +44,19 @@ PanelWindow {
 
     onShowingChanged: if (showing) { goToday(); pane = "day"; selOcc = null }
 
-    function close() { Calendar.windowOpen = false }
+    function close() { root.service.windowOpen = false }
 
     //   qs ipc call calendar-window view week     month | week | agenda
     //   qs ipc call calendar-window next          open the next event's details
     IpcHandler {
         target: "calendar-window"
         function view(name: string): void {
-            Calendar.windowOpen = true
+            root.service.windowOpen = true
             root.view = name
             if (name === "week") root.weekStart = root.startOfWeek(root.selDay)
         }
         function next(): void {
-            Calendar.windowOpen = true
+            root.service.windowOpen = true
             if (root.nextOcc) root.pickOcc(root.nextOcc)
         }
     }
@@ -154,19 +156,19 @@ PanelWindow {
     }
 
     // live data (re-evaluates when Calendar reloads)
-    readonly property var nextOcc: { Calendar.revision; clock.date.getMinutes(); const n = Calendar.next(1); return n.length ? n[0] : null }
+    readonly property var nextOcc: { root.service.revision; clock.date.getMinutes(); const n = root.service.next(1); return n.length ? n[0] : null }
     readonly property var weekStats: {
-        Calendar.revision
+        root.service.revision
         const a = startOfWeek(clock.date), b = addDays(a, 7)
-        const occ = Calendar.occurrences(a, b)
+        const occ = root.service.occurrences(a, b)
         let mins = 0
         for (const o of occ) if (!o.ev.allDay) mins += (o.end - o.start) / 60000
         return { count: occ.length, hours: Math.round(mins / 6) / 10 }
     }
     readonly property int monthCount: {
-        Calendar.revision
+        root.service.revision
         const n = clock.date
-        return Calendar.occurrences(new Date(n.getFullYear(), n.getMonth(), 1), new Date(n.getFullYear(), n.getMonth() + 1, 1)).length
+        return root.service.occurrences(new Date(n.getFullYear(), n.getMonth(), 1), new Date(n.getFullYear(), n.getMonth() + 1, 1)).length
     }
 
     // ================================================================ backdrop
@@ -452,7 +454,7 @@ PanelWindow {
                         width: parent.width
                         spacing: 10
                         Rectangle {
-                            visible: Calendar.conflicts.length > 0
+                            visible: root.service.conflicts.length > 0
                             width: parent.width
                             height: 34
                             radius: Theme.radius
@@ -460,7 +462,7 @@ PanelWindow {
                             border.color: Theme.danger
                             Text {
                                 anchors.centerIn: parent
-                                text: "󰓦  " + Calendar.conflicts.length + " SYNC CONFLICT" + (Calendar.conflicts.length === 1 ? "" : "S")
+                                text: "󰓦  " + root.service.conflicts.length + " SYNC CONFLICT" + (root.service.conflicts.length === 1 ? "" : "S")
                                 color: Theme.danger
                                 font.family: Theme.fontFamily
                                 font.pixelSize: 10
@@ -484,7 +486,7 @@ PanelWindow {
                             onClicked: root.newEvent()
                         }
                         Text {
-                            text: Calendar.dir.replace(Calendar.home, "~") + "  ·  " + Calendar.fileCount + (Calendar.fileCount === 1 ? " file" : " files")
+                            text: root.service.dir.replace(root.service.home, "~") + "  ·  " + root.service.fileCount + (root.service.fileCount === 1 ? " file" : " files")
                             color: Theme.textFaint
                             font.family: Theme.fontFamily
                             font.pixelSize: 9
@@ -542,9 +544,9 @@ PanelWindow {
 
                         readonly property date first: new Date(root.viewYear, root.viewMonth, 1)
                         readonly property var occ: {
-                            Calendar.revision
+                            root.service.revision
                             const a = new Date(root.viewYear, root.viewMonth, 1 - first.getDay())
-                            return Calendar.occurrences(a, root.addDays(a, 42))
+                            return root.service.occurrences(a, root.addDays(a, 42))
                         }
 
                         Row {
@@ -682,7 +684,7 @@ PanelWindow {
                         readonly property real gutter: 52
                         readonly property real colW: (width - gutter) / 7
                         readonly property real hourH: 42
-                        readonly property var occ: { Calendar.revision; return Calendar.occurrences(root.weekStart, root.addDays(root.weekStart, 7)) }
+                        readonly property var occ: { root.service.revision; return root.service.occurrences(root.weekStart, root.addDays(root.weekStart, 7)) }
 
                         // day headers
                         Row {
@@ -912,9 +914,9 @@ PanelWindow {
 
                         // [{ day, items }]
                         readonly property var groups: {
-                            Calendar.revision
+                            root.service.revision
                             const now = new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate())
-                            const occ = Calendar.occurrences(now, root.addDays(now, 60))
+                            const occ = root.service.occurrences(now, root.addDays(now, 60))
                             const out = []
                             for (const o of occ) {
                                 const d = o.start < now ? now : o.start
@@ -984,7 +986,7 @@ PanelWindow {
                                                     x: 16
                                                     width: 150
                                                     anchors.verticalCenter: parent.verticalCenter
-                                                    text: Calendar.timeLabel(arow.modelData)
+                                                    text: root.service.timeLabel(arow.modelData)
                                                     color: Theme.accent
                                                     font.family: Theme.fontFamily
                                                     font.pixelSize: 9
@@ -1036,7 +1038,7 @@ PanelWindow {
                         width: parent.width
                         spacing: 12
 
-                        readonly property var items: { Calendar.revision; return Calendar.onDay(root.selDay) }
+                        readonly property var items: { root.service.revision; return root.service.onDay(root.selDay) }
 
                         Item {
                             width: parent.width
@@ -1083,7 +1085,7 @@ PanelWindow {
                                     width: parent.width - 26
                                     spacing: 3
                                     Text {
-                                        text: Calendar.timeLabel(drow.modelData)
+                                        text: root.service.timeLabel(drow.modelData)
                                         color: Theme.accent
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 9
@@ -1163,7 +1165,7 @@ PanelWindow {
                                     Text { text: modelData[0]; width: 16; color: Theme.textDim; font.family: Theme.iconFont; font.pixelSize: 13 }
                                     Text { text: modelData[1]; width: 60; color: Theme.textFaint; font.family: Theme.fontFamily; font.pixelSize: 9; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
                                     Text {
-                                        text: Calendar.linkify(modelData[2])
+                                        text: root.service.linkify(modelData[2])
                                         textFormat: Text.StyledText
                                         linkColor: Theme.accent
                                         width: detail.width - 96
@@ -1171,7 +1173,7 @@ PanelWindow {
                                         color: Theme.text
                                         font.family: Theme.fontFamily
                                         font.pixelSize: 11
-                                        onLinkActivated: link => Calendar.openLink(link)
+                                        onLinkActivated: link => root.service.openLink(link)
                                         HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
                                     }
                                 }
@@ -1183,10 +1185,10 @@ PanelWindow {
                                 visible: evCol.o !== null && evCol.o.ev.notes !== ""
                                 width: parent.width
                                 wrapMode: Text.Wrap
-                                text: evCol.o ? Calendar.linkify(evCol.o.ev.notes) : ""
+                                text: evCol.o ? root.service.linkify(evCol.o.ev.notes) : ""
                                 textFormat: Text.StyledText
                                 linkColor: Theme.accent
-                                onLinkActivated: link => Calendar.openLink(link)
+                                onLinkActivated: link => root.service.openLink(link)
                                 HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
                                 color: Theme.textDim
                                 font.family: Theme.fontFamily
@@ -1215,7 +1217,7 @@ PanelWindow {
                             visible: root.selOcc !== null && root.selOcc.ev.repeat !== "none" && !root.confirmDelete
                             label: "SKIP THIS ONE"
                             onClicked: {
-                                Calendar.skip(root.selOcc)
+                                root.service.skip(root.selOcc)
                                 root.selOcc = null
                                 root.pane = "day"
                             }
@@ -1226,7 +1228,7 @@ PanelWindow {
                             on: root.confirmDelete
                             onClicked: {
                                 if (!root.confirmDelete) { root.confirmDelete = true; return }
-                                Calendar.remove(root.selOcc.ev)
+                                root.service.remove(root.selOcc.ev)
                                 root.selOcc = null
                                 root.pane = "day"
                             }
@@ -1254,7 +1256,7 @@ PanelWindow {
                             Text {
                                 width: parent.width
                                 wrapMode: Text.Wrap
-                                text: Calendar.conflicts.length
+                                text: root.service.conflicts.length
                                     ? "The same event was changed on two machines before they synced. Keep one version per event."
                                     : "no sync conflicts"
                                 color: Theme.textDim
@@ -1264,7 +1266,7 @@ PanelWindow {
                             }
 
                             Repeater {
-                                model: Calendar.conflicts
+                                model: root.service.conflicts
                                 Rectangle {
                                     id: crow
                                     required property var modelData
@@ -1311,8 +1313,8 @@ PanelWindow {
                                         Row {
                                             anchors.right: parent.right
                                             spacing: 6
-                                            HudButton { label: "USE OTHER"; onClicked: Calendar.useConflict(crow.modelData) }
-                                            HudButton { label: "KEEP NEWER"; on: true; onClicked: Calendar.keepConflict(crow.modelData) }
+                                            HudButton { label: "USE OTHER"; onClicked: root.service.useConflict(crow.modelData) }
+                                            HudButton { label: "KEEP NEWER"; on: true; onClicked: root.service.keepConflict(crow.modelData) }
                                         }
                                     }
                                 }
@@ -1322,6 +1324,7 @@ PanelWindow {
 
                     // ---- form ----
                     EventForm {
+                        service: root.service
                         id: form
                         visible: root.pane === "edit"
                         width: parent.width

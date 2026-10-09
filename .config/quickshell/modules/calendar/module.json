@@ -1,0 +1,9 @@
+{
+    "name": "Calendar",
+    "description": "Dropdown from the clock and a full calendar window (Mod+C): month / week / agenda, repeats, reminders; events are .ics files in ~/.calendar, so Syncthing can share them between machines",
+    "icon": "󰃭",
+    "default": true,
+    "cost": "watches ~/.calendar for changes",
+    "service": "Service.qml",
+    "windows": ["CalendarPanel.qml", "CalendarWindow.qml"]
+}

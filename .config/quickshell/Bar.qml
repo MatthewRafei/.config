@@ -328,8 +328,10 @@ PanelWindow {
             onClicked: mouse => {
                 if (mouse.button === Qt.RightButton)
                     clockItem.showDate = !clockItem.showDate
-                else
-                    Calendar.panelOpen = !Calendar.panelOpen
+                else {
+                    const cal = Modules.service("calendar")      // the calendar module
+                    if (cal) cal.panelOpen = !cal.panelOpen
+                }
             }
         }
     }
@@ -1206,7 +1208,8 @@ PanelWindow {
                     ], 3000)
                 }
                 // calendar: five minutes before, and when it starts
-                const n = Calendar.next(1)
+                const cal = Modules.service("calendar")
+                const n = cal ? cal.next(1) : []
                 if (n.length) {
                     const o = n[0], mins = Math.round((o.start.getTime() - d.getTime()) / 60000)
                     const title = quote.short(o.ev.title || "event", 28)

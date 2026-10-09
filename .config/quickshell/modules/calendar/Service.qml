@@ -1,7 +1,7 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 import "CalendarLib.js" as Lib
 
 // Calendar store: one iCalendar file per event in a folder (~/.calendar by
@@ -33,7 +33,7 @@ import "CalendarLib.js" as Lib
 //
 //   qs ipc call calendar toggle      open/close the dropdown (CalendarPanel.qml)
 //   qs ipc call calendar open        open/close the big window (CalendarWindow.qml)
-Singleton {
+Scope {
     id: root
 
     readonly property string home: Quickshell.env("HOME")

@@ -34,7 +34,5 @@ ShellRoot {
     PhonePush { locked: lock.locked }
     PowerMenu {}
     QuickPanel {}
-    CalendarPanel {}
-    CalendarWindow {}
     EqPanel {}
 }

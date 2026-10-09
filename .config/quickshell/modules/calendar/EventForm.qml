@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 
 // Add / edit form for one calendar event, shared by the bar dropdown
 // (CalendarPanel) and the big window (CalendarWindow). Rows wrap to the width
@@ -17,6 +18,7 @@ import QtQuick
 // else is refused as ending before it starts.
 Column {
     id: form
+    property var service
 
     property var editing: null
     property date date: new Date()
@@ -152,7 +154,7 @@ Column {
             end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, startMin + durMin)
         }
         // start from the loaded event so fields the form doesn't show are kept
-        Calendar.save(Object.assign({}, editing || {}, {
+        form.service.save(Object.assign({}, editing || {}, {
             title: titleIn.text.trim(),
             start: start, end: end, allDay: allDay,
             location: locationIn.text.trim(), notes: notesIn.text.trim(),
@@ -164,7 +166,7 @@ Column {
     }
 
     function remove() {
-        if (editing) Calendar.remove(editing)
+        if (editing) form.service.remove(editing)
         closed()
     }
 

@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 
 // Time box for the event form. Type a time ("9", "930", "9:30pm", "21:30"),
 // scroll over it or press Up/Down for ±15 min (Shift: ±1 h), or pick from the
