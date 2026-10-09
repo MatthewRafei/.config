@@ -1,0 +1,10 @@
+{
+    "name": "Night light",
+    "description": "Warmer screen at night through nightlightd (no flicker): always, sunset to sunrise, or custom times; controls in Settings > Monitors",
+    "icon": "󰖔",
+    "default": true,
+    "cost": "keeps nightlightd running while it's warming the screen",
+    "requires": { "files": ["~/.local/bin/nightlightd"] },
+    "service": "Service.qml",
+    "sections": [ { "page": "Monitors", "file": "MonitorsSection.qml" } ]
+}

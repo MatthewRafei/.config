@@ -1125,10 +1125,14 @@ PanelWindow {
                     ], 60)
             }
         }
+        // the night light module, when it's on
         Connections {
-            target: NightLight
+            id: nlWatch
+            readonly property var nl: Modules.service("nightlight")
+            target: nl
+            ignoreUnknownSignals: true
             function onActiveChanged() {
-                if (NightLight.active) quote.react("night", [{ t: "( -_-)☾ easy on the eyes", ms: 1600, color: "dim" }], 30)
+                if (nlWatch.nl.active) quote.react("night", [{ t: "( -_-)☾ easy on the eyes", ms: 1600, color: "dim" }], 30)
                 else quote.react("day", [{ t: "( ・_・)☀ lights up", ms: 1400 }], 30)
             }
         }

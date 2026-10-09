@@ -297,7 +297,9 @@ PanelWindow {
                         }
 
                         Text {
-                            text: "󰖜 " + NightLight.fmt(NightLight.sun.rise) + "    󰖛 " + NightLight.fmt(NightLight.sun.set)
+                            readonly property var nl: Modules.service("nightlight")      // sun times come from the night light module
+                            visible: !!nl
+                            text: nl ? "󰖜 " + nl.fmt(nl.sun.rise) + "    󰖛 " + nl.fmt(nl.sun.set) : ""
                             color: Theme.textDim
                             font.family: Theme.fontFamily
                             font.pixelSize: 10

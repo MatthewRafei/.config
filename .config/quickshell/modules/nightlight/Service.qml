@@ -1,7 +1,7 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs
 
 // Night light (via nightlightd, flicker-free) with an optional schedule.
 //
@@ -17,7 +17,7 @@ import QtQuick
 // scheduled change.
 //
 //   qs ipc call nightlight toggle
-Singleton {
+Scope {
     id: root
 
     // ---------------- persisted settings ----------------

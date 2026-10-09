@@ -7,8 +7,6 @@ import Quickshell
 ShellRoot {
     // the module registry: starts the active modules (MODULES.md)
     readonly property bool modulesReady: Modules.ready
-    // singletons are lazy; touch NightLight so its schedule runs from login
-    readonly property bool nightLightActive: NightLight.active
     // and Auth, so the polkit agent (password prompts) is registered
     readonly property bool authAgent: Auth.registered
     // and AudioFx, which starts and watches EasyEffects (music EQ)
