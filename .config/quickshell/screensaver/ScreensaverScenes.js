@@ -311,7 +311,7 @@ const deathNote = {
     colors: ["#3a3a3a", "#e6e6e6"],
     // the logo itself (screensaver/deathnote-logo.png, traced from the show's
     // logo); block art never got its brush strokes right
-    logo: { src: "screensaver/deathnote-logo.png", aspect: 1668 / 500 },
+    logo: { src: "deathnote-logo.png", aspect: 1668 / 500 },
     // the rules as written in the notebook
     pages: [
         { numeral: "I", heading: true, rules: [

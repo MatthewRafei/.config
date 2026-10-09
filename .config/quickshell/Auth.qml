@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Services.Polkit
 import QtQuick
+import qs.widgets
 
 // Polkit authentication agent: when something asks for your password to do
 // an admin-ish thing (enrolling a fingerprint, managing devices...), this

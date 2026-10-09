@@ -1,7 +1,7 @@
 import QtQuick
 import qs.widgets
 import Quickshell
-import "../"
+import qs
 
 // Key repeat, module sections (the typing test), layout, a few xkb options, and
 // every Hyprland shortcut, which can be moved to another key combo or switched off. Options save to

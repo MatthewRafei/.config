@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import QtQuick
 import qs
+import qs.widgets
 
 // Desktop telemetry HUD, pinned top-right on the Background layer next to the
 // wallpaper. niri keeps it still across workspace switches via a layer-rule

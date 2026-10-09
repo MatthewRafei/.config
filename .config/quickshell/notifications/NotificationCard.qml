@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Widgets
 import Quickshell.Services.Notifications
 import QtQuick
+import qs
 
 // One notification. Used by the popups (popup: true → slides in, times out
 // with a draining bar, hover pauses) and by the notification center.

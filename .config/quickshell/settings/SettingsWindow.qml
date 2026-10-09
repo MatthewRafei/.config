@@ -4,7 +4,8 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Pipewire
 import QtQuick
-import "SettingsPages"
+import qs
+import qs.widgets
 
 PanelWindow {
     id: root
@@ -272,10 +273,9 @@ PanelWindow {
                         readonly property string key: item_.url || item_.page
                         function load() {
                             if (item_.url) setSource(item_.url, { service: Modules.service(item_.id) })
-                            else setSource("SettingsPages/" + item_.page + ".qml")
+                            else setSource("pages/" + item_.page + ".qml")
                         }
                         onKeyChanged: load()
-                        Binding { target: pageLoader.item; property: "service"; value: Modules.service(pageLoader.item_.id); when: pageLoader.item !== null && !!pageLoader.item_.url && Modules.service(pageLoader.item_.id) !== null }
 
                         opacity: 0
                         Component.onCompleted: { load(); opacity = 1 }

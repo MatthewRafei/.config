@@ -1,7 +1,7 @@
 import QtQuick
 import qs.widgets
 import Quickshell.Io
-import "../"
+import qs
 
 Item {
     id: page

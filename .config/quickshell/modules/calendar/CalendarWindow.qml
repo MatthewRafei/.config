@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import qs
+import qs.widgets
 
 // Full calendar window, opened like Settings (centered card, tilt-in).
 // Same events as the bar dropdown (root.service.qml, ~/.calendar).

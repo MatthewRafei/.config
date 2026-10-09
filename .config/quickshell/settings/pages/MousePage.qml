@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
-import "../"
+import qs
+import qs.widgets
 
 // Pointer speed, scrolling, buttons and the cursor itself. Options apply at
 // once and are saved to ~/.config/hypr/settings.lua (../Input.qml); the cursor

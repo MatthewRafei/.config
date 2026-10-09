@@ -1,5 +1,6 @@
 import QtQuick
 import qs
+import qs.widgets
 
 // Add / edit form for one calendar event, shared by the bar dropdown
 // (CalendarPanel) and the big window (CalendarWindow). Rows wrap to the width

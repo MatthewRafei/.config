@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Services.Pipewire
 import Quickshell.Wayland
 import QtQuick
+import qs
 
 // Volume and brightness popup, bottom centre. Shows whichever changed last.
 // Brightness is read from the kernel backlight (any tool: brillo, brightnessctl,

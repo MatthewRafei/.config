@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import qs
 
 // Popup stack, top-right under the bar. Newest on top; at most 5 shown.
 // Hidden while the notification center is open (it shows them all anyway).

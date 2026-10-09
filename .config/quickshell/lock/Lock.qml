@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Pam
 import QtQuick
+import qs
 
 // Lock screen (ext-session-lock, so niri keeps the session locked even if
 // this process dies) with PAM password auth via pam/password.conf, and
@@ -67,7 +68,7 @@ Scope {
 
     PamContext {
         id: pam
-        configDirectory: Quickshell.shellPath("pam")
+        configDirectory: Quickshell.shellPath("lock/pam")
         config: "password.conf"
 
         onPamMessage: {
@@ -96,7 +97,7 @@ Scope {
 
     PamContext {
         id: finger
-        configDirectory: Quickshell.shellPath("pam")
+        configDirectory: Quickshell.shellPath("lock/pam")
         config: "fingerprint.conf"
         property double startedAt: 0
 

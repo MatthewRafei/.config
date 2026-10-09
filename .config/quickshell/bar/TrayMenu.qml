@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Widgets
 import QtQuick
+import qs
 
 // A tray app's menu drawn in the HUD style instead of Qt's stock menu.
 // Submenus open in place (with a "back" row) rather than as more windows.

@@ -8,6 +8,7 @@ import Quickshell.Services.SystemTray
 import Quickshell.Bluetooth
 import QtQuick
 import qs.widgets
+import qs
 
 // Top bar (replaces waybar). Same HUD language as TelemetryHud.
 //
@@ -1719,7 +1720,6 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 id: chipLoader
                 Component.onCompleted: setSource(modelData.url, { service: Modules.service(modelData.id), bar: bar })
-                Binding { target: chipLoader.item; property: "service"; value: Modules.service(chipLoader.modelData.id); when: chipLoader.item !== null && Modules.service(chipLoader.modelData.id) !== null }
             }
         }
 

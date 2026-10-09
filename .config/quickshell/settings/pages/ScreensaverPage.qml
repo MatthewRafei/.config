@@ -1,7 +1,8 @@
 import QtQuick
 import Quickshell
-import "../"
-import "../ScreensaverScenes.js" as Scenes
+import "../../screensaver/ScreensaverScenes.js" as Scenes
+import qs
+import qs.widgets
 
 // Settings > Screensaver: timings and options (Idle.qml), and a card per
 // scene: click to preview, the switch in its corner keeps it in or out of the

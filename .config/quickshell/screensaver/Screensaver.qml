@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import "ScreensaverScenes.js" as Scenes
+import qs
 
 // ASCII screensaver: after 3 minutes idle (apps that inhibit idle, like video
 // players, prevent it), every monitor gets a full-screen overlay playing its
@@ -150,9 +151,9 @@ Scope {
             visible: root.active || backdrop.opacity > 0.01
 
             // ---------------- scene state ----------------
-            FontLoader { id: blackletterFont; source: Qt.resolvedUrl("screensaver/fonts/UnifrakturMaguntia-Book.ttf") }
-            FontLoader { id: serifFont; source: Qt.resolvedUrl("screensaver/fonts/IMFellEnglish-Regular.ttf") }
-            FontLoader { source: Qt.resolvedUrl("screensaver/fonts/IMFellEnglish-Italic.ttf") }
+            FontLoader { id: blackletterFont; source: Qt.resolvedUrl("fonts/UnifrakturMaguntia-Book.ttf") }
+            FontLoader { id: serifFont; source: Qt.resolvedUrl("fonts/IMFellEnglish-Regular.ttf") }
+            FontLoader { source: Qt.resolvedUrl("fonts/IMFellEnglish-Italic.ttf") }
 
             property var ctx: ({})
             property var scene: null
@@ -434,7 +435,7 @@ Scope {
                             width: backdrop.width
                             height: backdrop.height
                             active: win.nativeId === "matrix"
-                            source: Qt.resolvedUrl("screensaver/MatrixRain.qml")
+                            source: Qt.resolvedUrl("MatrixRain.qml")
                             opacity: win.nativeOpacity
                             Behavior on opacity { NumberAnimation { duration: 150 } }
                             onLoaded: item.playing = Qt.binding(() => root.active && !root.locked)

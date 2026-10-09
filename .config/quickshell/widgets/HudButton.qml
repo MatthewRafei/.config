@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 
 // Small outlined HUD button (calendar, etc). `on` = selected/primary look,
 // `danger` = red for destructive actions.

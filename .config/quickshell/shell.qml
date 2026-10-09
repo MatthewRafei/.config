@@ -1,6 +1,12 @@
 //@ pragma UseQApplication
 import Quickshell
 import QtQuick
+import qs.bar
+import qs.lock
+import qs.notifications
+import qs.panels
+import qs.screensaver
+import qs.settings
 
 // Entry point. Quickshell always loads this file first.
 // Everything visible lives in its own component file next to this one;

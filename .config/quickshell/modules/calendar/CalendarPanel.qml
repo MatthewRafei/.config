@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import qs
+import qs.widgets
 
 // Calendar dropdown under the bar clock (click the clock; right-click still
 // toggles the date). Left: month grid with event dots. Right: the selected

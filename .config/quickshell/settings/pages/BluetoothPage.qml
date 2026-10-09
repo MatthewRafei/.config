@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Bluetooth
-import "../"
+import qs
 
 Item {
     id: page

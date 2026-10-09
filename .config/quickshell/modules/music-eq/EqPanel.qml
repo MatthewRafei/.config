@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 import qs
+import qs.widgets
 
 // Music EQ widget, bottom left (root.service.qml). Opened from the bar's EQ chip.
 //

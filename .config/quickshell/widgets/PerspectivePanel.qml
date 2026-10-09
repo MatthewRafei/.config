@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 
 // Wraps its content in a card that:
 //  - scales + rotates in from an angle when `open` flips true (tilt-in reveal)

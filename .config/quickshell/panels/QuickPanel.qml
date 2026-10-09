@@ -5,6 +5,7 @@ import Quickshell.Bluetooth
 import Quickshell.Services.Pipewire
 import QtQuick
 import qs.widgets
+import qs
 
 // Quick toggles dropped down from the bar's NET / BT / volume chips.
 //

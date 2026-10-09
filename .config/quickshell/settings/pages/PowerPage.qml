@@ -1,5 +1,5 @@
 import QtQuick
-import "../"
+import qs
 
 // Battery details, power profiles and battery-based automatic switching
 // (state in ../Power.qml). Listed when there's a battery or profiles.

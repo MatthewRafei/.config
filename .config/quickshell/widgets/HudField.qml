@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 
 // Single-line HUD text field. Esc isn't handled here so it reaches the
 // surrounding panel (which cancels/closes).

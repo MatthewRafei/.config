@@ -1,5 +1,6 @@
 import QtQuick
 import qs
+import qs.widgets
 
 // Settings > Monitors: night light strength and on / off, and its schedule
 // (always, sunset to sunrise, or custom times).

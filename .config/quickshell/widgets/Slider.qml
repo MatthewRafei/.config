@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 
 // Generic 0..1 slider.
 //

@@ -1,7 +1,7 @@
 import QtQuick
 import qs.widgets
 import Quickshell.Services.Pipewire
-import "../"
+import qs
 
 Item {
     id: page

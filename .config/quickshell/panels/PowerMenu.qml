@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
+import qs
 
 // Power menu: dimmed overlay with five HUD tiles.
 //

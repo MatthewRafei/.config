@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import qs
 
 // Notification center: slides in from the right edge under the bar.
 // Opened by the bar's bell or `qs ipc call notifs toggle`.
